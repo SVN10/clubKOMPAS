@@ -1,0 +1,2 @@
+# clubKOMPAS
+Verenigingsbeheer voor sportclubs
