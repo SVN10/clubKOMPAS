@@ -15,7 +15,7 @@ document.querySelector('#app').innerHTML = `
         sponsoren en communicatie — overzichtelijk op één plek.
       </p>
       <div class="cta-row">
-        <button class="btn btn-primary">Kom in contact</button>
+        <button class="btn btn-primary">Kom met ons in contact</button>
         <button class="btn btn-secondary">Meer informatie</button>
       </div>
     </div>
