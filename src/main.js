@@ -1,13 +1,17 @@
 import './style.css'
 import { auth, db } from './firebase.js'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
 
 let huidigClubId = null
+let huidigProfiel = null
+let huidigGebruiker = null
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
+
+// ── Pijlers ───────────────────────────────────────────────────────────────────
 
 async function laadPijlers() {
   const snap = await getDocs(collection(db, 'clubs', huidigClubId, 'pijlers'))
@@ -25,6 +29,75 @@ async function bewerkPijler(id, data) {
 async function verwijderPijler(id) {
   await deleteDoc(doc(db, 'clubs', huidigClubId, 'pijlers', id))
 }
+
+// ── Profiel ───────────────────────────────────────────────────────────────────
+
+async function laadProfiel() {
+  const snap = await getDoc(doc(db, 'clubs', huidigClubId, 'instellingen', 'profiel'))
+  return snap.exists() ? snap.data() : null
+}
+
+async function slaaProfiel(data) {
+  await setDoc(doc(db, 'clubs', huidigClubId, 'instellingen', 'profiel'), data)
+}
+
+// ── Gedeelde UI-helpers ───────────────────────────────────────────────────────
+
+function kompasIconSVG() {
+  return `<svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+    <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="12" y1="2.5" x2="12" y2="3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="12" y1="20.5" x2="12" y2="21.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="2.5" y1="12" x2="3.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="20.5" y1="12" x2="21.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <g transform="rotate(-45 12 12)">
+      <path d="M12 5L10 12L12 10.5L14 12Z"/>
+      <path d="M12 19L14 12L12 13.5L10 12Z" opacity="0.35"/>
+      <circle cx="12" cy="12" r="1.5"/>
+    </g>
+  </svg>`
+}
+
+function topBarHTML(gebruiker) {
+  const badge = huidigProfiel?.naam
+    ? `<span class="club-naam-badge">${esc(huidigProfiel.naam)}</span>`
+    : ''
+  return `
+    <header class="top-bar">
+      ${kompasIconSVG()}
+      <span class="app-title">club<b>KOMPAS</b></span>
+      ${badge}
+      <div class="top-bar-rechts">
+        <span class="inlog-email">${esc(gebruiker.email)}</span>
+        <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
+      </div>
+    </header>`
+}
+
+function navHTML(actief) {
+  return `
+    <nav class="top-nav">
+      <a href="#" class="nav-home${actief === 'home' ? ' active' : ''}">Home</a>
+      <a href="#" class="nav-instellingen${actief === 'instellingen' ? ' active' : ''}">Instellingen</a>
+    </nav>`
+}
+
+function footerHTML() {
+  const naam = huidigProfiel?.naam ? esc(huidigProfiel.naam) : 'clubKOMPAS'
+  return `
+    <footer>
+      <span>${naam} — een product van SVN10</span>
+      <span>svn10.nl</span>
+    </footer>`
+}
+
+function bindNavListeners(gebruiker) {
+  document.getElementById('uitlog-knop').addEventListener('click', () => signOut(auth))
+  document.querySelector('.nav-home').addEventListener('click', e => { e.preventDefault(); renderDashboard(gebruiker) })
+  document.querySelector('.nav-instellingen').addEventListener('click', e => { e.preventDefault(); renderInstellingen(gebruiker) })
+}
+
+// ── Pijler UI ─────────────────────────────────────────────────────────────────
 
 function pijlerKaartHTML(p, isHardcoded = false) {
   const verantw = isHardcoded ? '' : `<small style="color:var(--muted);display:block;margin-top:4px;font-size:12px">${esc(p.verantwoordelijke)}</small>`
@@ -124,23 +197,14 @@ async function valideerEnSla() {
   toonFormulier(false)
 }
 
+// ── Schermen ──────────────────────────────────────────────────────────────────
+
 function renderInlogscherm() {
   document.querySelector('#app').innerHTML = `
     <div class="inlog-wrap">
       <div class="inlog-kaart">
         <div class="inlog-logo">
-          <svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-            <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            <line x1="12" y1="2.5" x2="12" y2="3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="12" y1="20.5" x2="12" y2="21.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="2.5" y1="12" x2="3.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="20.5" y1="12" x2="21.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <g transform="rotate(-45 12 12)">
-              <path d="M12 5L10 12L12 10.5L14 12Z"/>
-              <path d="M12 19L14 12L12 13.5L10 12Z" opacity="0.35"/>
-              <circle cx="12" cy="12" r="1.5"/>
-            </g>
-          </svg>
+          ${kompasIconSVG()}
           <span class="app-title">club<b>KOMPAS</b></span>
         </div>
         <h1 class="inlog-titel">Inloggen</h1>
@@ -202,41 +266,24 @@ function renderInlogscherm() {
 }
 
 function renderDashboard(gebruiker) {
-  document.querySelector('#app').innerHTML = `
-    <header class="top-bar">
-      <svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-        <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-        <line x1="12" y1="2.5" x2="12" y2="3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="12" y1="20.5" x2="12" y2="21.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="2.5" y1="12" x2="3.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="20.5" y1="12" x2="21.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <g transform="rotate(-45 12 12)">
-          <path d="M12 5L10 12L12 10.5L14 12Z"/>
-          <path d="M12 19L14 12L12 13.5L10 12Z" opacity="0.35"/>
-          <circle cx="12" cy="12" r="1.5"/>
-        </g>
-      </svg>
-      <span class="app-title">club<b>KOMPAS</b></span>
-      <div class="top-bar-rechts">
-        <span class="inlog-email">${esc(gebruiker.email)}</span>
-        <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
-      </div>
-    </header>
+  const sectieKopTitel = huidigProfiel?.naam
+    ? esc(huidigProfiel.naam)
+    : 'Verenigingsbeheer voor sportclubs'
+  const sectieKopToel = huidigProfiel?.seizoen
+    ? `Seizoen ${esc(huidigProfiel.seizoen)}`
+    : 'Jouw club. Jouw kompas.'
 
-    <nav class="top-nav">
-      <a href="#" class="active">Home</a>
-      <a href="#">Functies</a>
-      <a href="#">Over clubKOMPAS</a>
-      <a href="#">Contact</a>
-    </nav>
+  document.querySelector('#app').innerHTML = `
+    ${topBarHTML(gebruiker)}
+    ${navHTML('home')}
 
     <main>
       <div class="wrap">
 
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2>Verenigingsbeheer voor sportclubs</h2>
-            <span class="toel">Jouw club. Jouw kompas.</span>
+            <h2>${sectieKopTitel}</h2>
+            <span class="toel">${sectieKopToel}</span>
           </div>
           <div class="sectie-lijf">
             <div class="kolommen">
@@ -254,22 +301,10 @@ function renderDashboard(gebruiker) {
               </div>
               <div>
                 <div class="cijfers" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
-                  <div class="cijfer">
-                    <span class="n">3</span>
-                    <span class="l">Strategische pijlers</span>
-                  </div>
-                  <div class="cijfer">
-                    <span class="n">12</span>
-                    <span class="l">Operationele domeinen</span>
-                  </div>
-                  <div class="cijfer">
-                    <span class="n">∞</span>
-                    <span class="l">Vermogens per club</span>
-                  </div>
-                  <div class="cijfer">
-                    <span class="n">1</span>
-                    <span class="l">Overzicht voor alles</span>
-                  </div>
+                  <div class="cijfer"><span class="n">3</span><span class="l">Strategische pijlers</span></div>
+                  <div class="cijfer"><span class="n">12</span><span class="l">Operationele domeinen</span></div>
+                  <div class="cijfer"><span class="n">∞</span><span class="l">Vermogens per club</span></div>
+                  <div class="cijfer"><span class="n">1</span><span class="l">Overzicht voor alles</span></div>
                 </div>
               </div>
             </div>
@@ -351,13 +386,10 @@ function renderDashboard(gebruiker) {
       </div>
     </main>
 
-    <footer>
-      <span>club<b>KOMPAS</b> — een product van SVN10</span>
-      <span>svn10.nl</span>
-    </footer>
+    ${footerHTML()}
   `
 
-  document.getElementById('uitlog-knop').addEventListener('click', () => signOut(auth))
+  bindNavListeners(gebruiker)
   document.getElementById('pijler-toevoegen-knop').addEventListener('click', () => toonFormulier(true))
   document.getElementById('pijler-annuleer').addEventListener('click', () => toonFormulier(false))
   document.getElementById('pijler-opslaan').addEventListener('click', valideerEnSla)
@@ -404,12 +436,84 @@ function renderDashboard(gebruiker) {
   renderPijlers()
 }
 
-onAuthStateChanged(auth, gebruiker => {
+function renderInstellingen(gebruiker) {
+  document.querySelector('#app').innerHTML = `
+    ${topBarHTML(gebruiker)}
+    ${navHTML('instellingen')}
+
+    <main>
+      <div class="wrap">
+        <div class="sectie" style="margin-top:0">
+          <div class="sectie-kop">
+            <h2>Clubprofiel</h2>
+            <span class="toel">Basisinformatie van jouw club</span>
+          </div>
+          <div class="sectie-lijf">
+            <div class="profiel-form-wrap">
+              <div class="form-groep">
+                <label class="form-label" for="profiel-naam">Clubnaam</label>
+                <input class="form-input" id="profiel-naam" type="text" placeholder="Volledige naam van de club" autocomplete="off" value="${esc(huidigProfiel?.naam || '')}">
+                <span class="form-fout" id="profiel-naam-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="profiel-afkorting">Afkorting</label>
+                <input class="form-input" id="profiel-afkorting" type="text" placeholder="bv. FCE" autocomplete="off" value="${esc(huidigProfiel?.afkorting || '')}">
+                <span class="form-fout" id="profiel-afkorting-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="profiel-seizoen">Huidig seizoen</label>
+                <input class="form-input" id="profiel-seizoen" type="text" placeholder="bv. 2026–2027" autocomplete="off" value="${esc(huidigProfiel?.seizoen || '')}">
+                <span class="form-fout" id="profiel-seizoen-fout"></span>
+              </div>
+              <div class="form-rij">
+                <button class="btn primary" id="profiel-opslaan">Opslaan</button>
+              </div>
+              <p class="profiel-succes" id="profiel-succes" hidden>✓ Profiel opgeslagen.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    ${footerHTML()}
+  `
+
+  bindNavListeners(gebruiker)
+
+  document.getElementById('profiel-opslaan').addEventListener('click', async () => {
+    const naam = document.getElementById('profiel-naam').value.trim()
+    const afkorting = document.getElementById('profiel-afkorting').value.trim()
+    const seizoen = document.getElementById('profiel-seizoen').value.trim()
+
+    let ok = true
+    const checks = [
+      [naam, 'profiel-naam-fout', 2],
+      [afkorting, 'profiel-afkorting-fout', 2],
+      [seizoen, 'profiel-seizoen-fout', 4],
+    ]
+    checks.forEach(([val, foutId, min]) => {
+      const el = document.getElementById(foutId)
+      if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
+      else el.textContent = ''
+    })
+    if (!ok) return
+
+    await slaaProfiel({ naam, afkorting, seizoen })
+    huidigProfiel = { naam, afkorting, seizoen }
+    renderInstellingen(gebruiker)
+  })
+}
+
+onAuthStateChanged(auth, async gebruiker => {
   if (gebruiker) {
     huidigClubId = gebruiker.uid
+    huidigGebruiker = gebruiker
+    huidigProfiel = await laadProfiel()
     renderDashboard(gebruiker)
   } else {
     huidigClubId = null
+    huidigGebruiker = null
+    huidigProfiel = null
     renderInlogscherm()
   }
 })

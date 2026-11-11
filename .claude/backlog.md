@@ -47,8 +47,8 @@
 
 ## Sprint 2 — Clubstructuur
 
-### P1 — Clubprofiel (Platform-laag P1)
-**Status:** Backlog
+### ✅ P1 — Clubprofiel (Platform-laag P1)
+**Status:** Afgerond
 
 *Als bestuurder wil ik de basisinformatie van mijn club kunnen instellen, zodat het platform de juiste clubnaam en het juiste seizoen toont.*
 
