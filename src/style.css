@@ -1,147 +1,287 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --petrol: #46797B;
-  --petrol-light: #EAF2F2;
-  --orange: #FF9E16;
-  --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --bg:       #FFFFFF;
+  --surface:  #F2F6F6;
+  --card:     #FFFFFF;
+  --border:   #C9D7D7;
+  --petrol:   #46797B;
+  --petrol-dark: #3A6567;
+  --on-petrol:#FFFFFF;
+  --orange:   #FF9E16;
+  --text:     #111212;
+  --muted:    #6F6E6E;
+  --font: "Barlow Semi Condensed", Arial, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1a1a;
-    --fg: #f0f4f4;
-    --muted: #9ca3af;
-    --border: #1f3333;
-    --petrol-light: #0f2323;
+  :root:not([data-theme="light"]) {
+    --bg:       #0F1718;
+    --surface:  #152022;
+    --card:     #1B2A2C;
+    --border:   #2E4447;
+    --petrol:   #7DB1B3;
+    --petrol-dark: #2F5658;
+    --on-petrol:#FFFFFF;
+    --orange:   #FFAA33;
+    --text:     #E8EEEE;
+    --muted:    #A3B0B0;
     color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --bg:       #0F1718;
+  --surface:  #152022;
+  --card:     #1B2A2C;
+  --border:   #2E4447;
+  --petrol:   #7DB1B3;
+  --petrol-dark: #2F5658;
+  --on-petrol:#FFFFFF;
+  --orange:   #FFAA33;
+  --text:     #E8EEEE;
+  --muted:    #A3B0B0;
+  color-scheme: dark;
+}
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 21px;
   background: var(--bg);
-  color: var(--fg);
+  color: var(--text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-header {
+/* ── Top bar ── */
+.top-bar {
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding: 1rem max(1.5rem, env(safe-area-inset-left, 0px));
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 12px;
+  padding: 10px 16px;
 }
+.app-icon {
+  width: 30px; height: 30px; flex: none;
+  color: var(--petrol);
+}
+.app-title {
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 400;
+  color: var(--petrol);
+}
+.app-title b { font-weight: 700; }
 
-.logo {
-  width: 2rem;
-  height: 2rem;
+/* ── Top nav ── */
+.top-nav {
   background: var(--petrol);
-  border-radius: 0.5rem;
+  border-bottom: 4px solid var(--orange);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-}
-
-.brand {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--petrol);
-}
-
-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem max(1.5rem, env(safe-area-inset-left, 0px));
-}
-
-.hero {
-  max-width: 36rem;
-  text-align: center;
-}
-
-.hero-badge {
-  display: inline-block;
-  background: var(--petrol-light);
-  color: var(--petrol);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.25rem 0.75rem;
-  border-radius: 2rem;
-  margin-bottom: 1.5rem;
-}
-
-.hero h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 700;
-  line-height: 1.15;
-  color: var(--fg);
-  margin-bottom: 1rem;
-  text-wrap: balance;
-}
-
-.hero h1 span {
-  color: var(--petrol);
-}
-
-.hero p {
-  font-size: 1.05rem;
-  line-height: 1.65;
-  color: var(--muted);
-  margin-bottom: 2rem;
-  text-wrap: balance;
-}
-
-.cta-row {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
+  flex-direction: row;
   flex-wrap: wrap;
 }
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.65rem 1.4rem;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
+.top-nav a {
+  color: var(--on-petrol);
   text-decoration: none;
-  transition: opacity 0.15s;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 13px 16px;
+  display: block;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,.18);
 }
-
-.btn:hover { opacity: 0.85; }
-
-.btn-primary {
-  background: var(--petrol);
-  color: white;
-}
-
-.btn-secondary {
-  background: var(--petrol-light);
+.top-nav a:hover { background: rgba(255,255,255,.12); }
+.top-nav a.active {
+  background: var(--surface);
   color: var(--petrol);
 }
 
-footer {
-  border-top: 1px solid var(--border);
-  padding: 1rem max(1.5rem, env(safe-area-inset-left, 0px));
-  text-align: center;
-  font-size: 0.8rem;
+/* ── Wrap ── */
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 0;
+  flex: 1;
+}
+
+/* ── Kerncijfers ── */
+.cijfers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.cijfer {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cijfer .n {
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 700;
+  color: var(--petrol);
+  font-variant-numeric: tabular-nums;
+}
+.cijfer .l {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .04em;
   color: var(--muted);
+}
+
+/* ── Sectie blokken ── */
+.sectie { margin-bottom: 20px; }
+.sectie-kop {
+  background: var(--petrol);
+  color: var(--on-petrol);
+  border-bottom: 4px solid var(--orange);
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sectie-kop h2 {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--on-petrol);
+  margin: 0;
+}
+.sectie-kop .toel {
+  font-style: italic;
+  font-size: 13px;
+  opacity: .85;
+}
+.sectie-lijf {
+  background: var(--surface);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Hero ── */
+.hero-tekst h1 {
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 400;
+  color: var(--petrol);
+  text-wrap: balance;
+  margin-bottom: 10px;
+}
+.hero-tekst h1 b { font-weight: 700; }
+.hero-tekst p {
+  font-size: 15px;
+  line-height: 23px;
+  color: var(--muted);
+  max-width: 56ch;
+  margin-bottom: 20px;
+}
+.hero-rij { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ── Buttons ── */
+.btn {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--petrol);
+}
+.btn:hover { border-color: var(--petrol); }
+.btn.primary {
+  background: var(--orange);
+  color: #111212;
+  border-color: var(--orange);
+}
+.btn.primary:hover { border-color: var(--text); }
+
+/* ── Kaarten (vermogens / pijlers) ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+}
+.card:hover { border-color: var(--petrol); }
+.card h3 {
+  font-size: 15px;
+  line-height: 19px;
+  font-weight: 700;
+  color: var(--petrol);
+  margin-bottom: 4px;
+}
+.card .sub {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.card p {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  letter-spacing: .04em;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+.stip {
+  width: 9px; height: 9px;
+  display: inline-block;
+  background: var(--petrol);
+}
+
+/* ── Twee kolommen ── */
+.kolommen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ── Footer ── */
+footer {
+  background: var(--petrol);
+  color: var(--on-petrol);
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .04em;
+  margin-top: 32px;
+}
+footer a { color: var(--on-petrol); text-decoration: none; opacity: .8; }
+footer a:hover { opacity: 1; }
+
+/* ── Responsief ── */
+@media (max-width: 700px) {
+  .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kolommen { grid-template-columns: 1fr; }
+  .hero-tekst h1 { font-size: 30px; line-height: 34px; }
 }
