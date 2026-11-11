@@ -150,7 +150,7 @@ function renderInlogscherm() {
         'auth/invalid-email': 'Ongeldig e-mailadres.',
         'auth/too-many-requests': 'Te veel pogingen. Probeer het later opnieuw.',
       }
-      algFout.textContent = foutcodes[e.code] || 'Er ging iets mis. Probeer het opnieuw.'
+      algFout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
     }
   })
 
