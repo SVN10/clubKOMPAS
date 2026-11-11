@@ -36,8 +36,8 @@
 
 ---
 
-### CK-011 — Pijler bewerken en verwijderen (Model-laag M0)
-**Status:** Backlog
+### ✅ CK-011 — Pijler bewerken en verwijderen (Model-laag M0)
+**Status:** Afgerond
 
 *Als bestuurder wil ik een zelf aangemaakte pijler kunnen bewerken of verwijderen.*
 
