@@ -7,8 +7,8 @@
 
 ---
 
-### P0a — Firebase Authentication (Platform-laag P0)
-**Status:** In pipeline
+### ✅ P0a — Firebase Authentication (Platform-laag P0)
+**Status:** Afgerond
 
 *Als bestuurder wil ik kunnen inloggen met e-mail en wachtwoord, zodat alleen geautoriseerde gebruikers toegang hebben tot het clubbeheer.*
 
@@ -22,7 +22,7 @@
 ---
 
 ### P0b — Firestore datamodel (Platform-laag P0)
-**Status:** Backlog
+**Status:** In pipeline
 
 *Als platform wil ik clubdata opslaan in Firestore met club als tenant-root, zodat data persistent is en multi-tenancy correct is ingericht.*
 

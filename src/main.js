@@ -1,19 +1,21 @@
 import './style.css'
-import { auth } from './firebase.js'
+import { auth, db } from './firebase.js'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
+import { collection, getDocs, addDoc } from 'firebase/firestore'
+
+let huidigClubId = null
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
 
-function laadPijlers() {
-  try {
-    return JSON.parse(localStorage.getItem('ck-pijlers') || '[]')
-  } catch { return [] }
+async function laadPijlers() {
+  const snap = await getDocs(collection(db, 'clubs', huidigClubId, 'pijlers'))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
-function slaaPijlersOp(pijlers) {
-  try { localStorage.setItem('ck-pijlers', JSON.stringify(pijlers)) } catch {}
+async function voegPijlerToe(pijler) {
+  await addDoc(collection(db, 'clubs', huidigClubId, 'pijlers'), pijler)
 }
 
 function pijlerKaartHTML(p, isHardcoded = false) {
@@ -28,11 +30,11 @@ function pijlerKaartHTML(p, isHardcoded = false) {
     </div>`
 }
 
-function renderPijlers() {
+async function renderPijlers() {
   const grid = document.getElementById('pijlers-grid')
   if (!grid) return
   grid.querySelectorAll('.pijler-dyn').forEach(el => el.remove())
-  const opgeslagen = laadPijlers()
+  const opgeslagen = await laadPijlers()
   opgeslagen.forEach(p => {
     const div = document.createElement('div')
     div.className = 'pijler-dyn'
@@ -51,7 +53,7 @@ function toonFormulier(zichtbaar) {
   if (zichtbaar) form.querySelector('[name="naam"]').focus()
 }
 
-function valideerEnSla() {
+async function valideerEnSla() {
   const naam = document.querySelector('#pijler-form [name="naam"]')
   const slogan = document.querySelector('#pijler-form [name="slogan"]')
   const verantw = document.querySelector('#pijler-form [name="verantwoordelijke"]')
@@ -74,14 +76,12 @@ function valideerEnSla() {
 
   if (!ok) return
 
-  const pijlers = laadPijlers()
-  pijlers.push({ naam: naam.value.trim(), slogan: slogan.value.trim(), verantwoordelijke: verantw.value.trim() })
-  slaaPijlersOp(pijlers)
+  await voegPijlerToe({ naam: naam.value.trim(), slogan: slogan.value.trim(), verantwoordelijke: verantw.value.trim() })
 
   naam.value = ''
   slogan.value = ''
   verantw.value = ''
-  renderPijlers()
+  await renderPijlers()
   toonFormulier(false)
 }
 
@@ -327,8 +327,10 @@ function renderDashboard(gebruiker) {
 
 onAuthStateChanged(auth, gebruiker => {
   if (gebruiker) {
+    huidigClubId = gebruiker.uid
     renderDashboard(gebruiker)
   } else {
+    huidigClubId = null
     renderInlogscherm()
   }
 })
