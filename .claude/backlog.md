@@ -21,8 +21,8 @@
 
 ---
 
-### P0b — Firestore datamodel (Platform-laag P0)
-**Status:** In pipeline
+### ✅ P0b — Firestore datamodel (Platform-laag P0)
+**Status:** Afgerond
 
 *Als platform wil ik clubdata opslaan in Firestore met club als tenant-root, zodat data persistent is en multi-tenancy correct is ingericht.*
 
