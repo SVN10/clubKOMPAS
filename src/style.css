@@ -393,6 +393,33 @@ footer a:hover { opacity: 1; }
 
 .uitlog-knop { font-size: 13px; padding: 6px 12px; }
 
+/* ── Kaart actieknoppen ── */
+.kaart-acties { display: flex; gap: 6px; margin-top: 10px; }
+.btn-kaart-actie {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font);
+  font-weight: 600;
+}
+.btn-kaart-actie:hover { border-color: var(--petrol); color: var(--petrol); }
+.btn-kaart-actie.gevaar:hover { border-color: #c0392b; color: #c0392b; }
+
+/* ── Inline bewerkform ── */
+.pijler-bewerk-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--petrol);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* ── Responsief ── */
 @media (max-width: 700px) {
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }

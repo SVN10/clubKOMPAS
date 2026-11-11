@@ -1,7 +1,7 @@
 import './style.css'
 import { auth, db } from './firebase.js'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, addDoc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
 
 let huidigClubId = null
 
@@ -18,8 +18,21 @@ async function voegPijlerToe(pijler) {
   await addDoc(collection(db, 'clubs', huidigClubId, 'pijlers'), pijler)
 }
 
+async function bewerkPijler(id, data) {
+  await updateDoc(doc(db, 'clubs', huidigClubId, 'pijlers', id), data)
+}
+
+async function verwijderPijler(id) {
+  await deleteDoc(doc(db, 'clubs', huidigClubId, 'pijlers', id))
+}
+
 function pijlerKaartHTML(p, isHardcoded = false) {
   const verantw = isHardcoded ? '' : `<small style="color:var(--muted);display:block;margin-top:4px;font-size:12px">${esc(p.verantwoordelijke)}</small>`
+  const acties = isHardcoded ? '' : `
+    <div class="kaart-acties">
+      <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(p.id)}">Bewerken</button>
+      <button class="btn-kaart-actie gevaar" data-actie="verwijder" data-id="${esc(p.id)}">Verwijderen</button>
+    </div>`
   return `
     <div class="card">
       <h3>${esc(p.naam)}</h3>
@@ -27,6 +40,7 @@ function pijlerKaartHTML(p, isHardcoded = false) {
       <p>${esc(p.slogan)}</p>
       ${verantw}
       <span class="pill"><span class="stip"></span>Pijler</span>
+      ${acties}
     </div>`
 }
 
@@ -42,6 +56,31 @@ async function renderPijlers() {
     const toevoegKnop = grid.querySelector('.btn-toevoegen')
     grid.insertBefore(div, toevoegKnop)
   })
+}
+
+function bewerkFormHTML(p) {
+  return `
+    <div class="pijler-bewerk-form">
+      <div class="form-groep">
+        <label class="form-label" for="bewerk-naam">Naam</label>
+        <input class="form-input" id="bewerk-naam" value="${esc(p.naam)}" autocomplete="off">
+        <span class="form-fout" id="bewerk-naam-fout"></span>
+      </div>
+      <div class="form-groep">
+        <label class="form-label" for="bewerk-slogan">Slogan</label>
+        <input class="form-input" id="bewerk-slogan" value="${esc(p.slogan)}" autocomplete="off">
+        <span class="form-fout" id="bewerk-slogan-fout"></span>
+      </div>
+      <div class="form-groep">
+        <label class="form-label" for="bewerk-verantw">Eindverantwoordelijke</label>
+        <input class="form-input" id="bewerk-verantw" value="${esc(p.verantwoordelijke)}" autocomplete="off">
+        <span class="form-fout" id="bewerk-verantw-fout"></span>
+      </div>
+      <div class="form-rij">
+        <button class="btn primary" data-actie="bewerk-opslaan" data-id="${esc(p.id)}">Opslaan</button>
+        <button class="btn" data-actie="bewerk-annuleer">Annuleren</button>
+      </div>
+    </div>`
 }
 
 function toonFormulier(zichtbaar) {
@@ -322,6 +361,46 @@ function renderDashboard(gebruiker) {
   document.getElementById('pijler-toevoegen-knop').addEventListener('click', () => toonFormulier(true))
   document.getElementById('pijler-annuleer').addEventListener('click', () => toonFormulier(false))
   document.getElementById('pijler-opslaan').addEventListener('click', valideerEnSla)
+
+  document.getElementById('pijlers-grid').addEventListener('click', async e => {
+    const knop = e.target.closest('[data-actie]')
+    if (!knop) return
+    const actie = knop.dataset.actie
+    const id = knop.dataset.id
+    const kaartDiv = knop.closest('.pijler-dyn')
+
+    if (actie === 'bewerk') {
+      const pijlers = await laadPijlers()
+      const p = pijlers.find(x => x.id === id)
+      if (p) { kaartDiv.innerHTML = bewerkFormHTML(p); kaartDiv.querySelector('#bewerk-naam').focus() }
+    } else if (actie === 'verwijder') {
+      if (confirm('Pijler verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
+        await verwijderPijler(id)
+        await renderPijlers()
+      }
+    } else if (actie === 'bewerk-opslaan') {
+      const naam = document.getElementById('bewerk-naam').value.trim()
+      const slogan = document.getElementById('bewerk-slogan').value.trim()
+      const verantw = document.getElementById('bewerk-verantw').value.trim()
+      let ok = true
+      const checks = [
+        [naam, 'bewerk-naam-fout', 2],
+        [slogan, 'bewerk-slogan-fout', 2],
+        [verantw, 'bewerk-verantw-fout', 3],
+      ]
+      checks.forEach(([val, foutId, min]) => {
+        const el = document.getElementById(foutId)
+        if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
+        else el.textContent = ''
+      })
+      if (!ok) return
+      await bewerkPijler(id, { naam, slogan, verantwoordelijke: verantw })
+      await renderPijlers()
+    } else if (actie === 'bewerk-annuleer') {
+      await renderPijlers()
+    }
+  })
+
   renderPijlers()
 }
 
