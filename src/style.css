@@ -279,9 +279,60 @@ footer {
 footer a { color: var(--on-petrol); text-decoration: none; opacity: .8; }
 footer a:hover { opacity: 1; }
 
+/* ── Pijler toevoegen ── */
+.btn-toevoegen {
+  grid-column: 1 / -1;
+  border: 1.5px dashed var(--petrol);
+  background: transparent;
+  color: var(--petrol);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  text-align: center;
+}
+.btn-toevoegen:hover { background: var(--surface); }
+
+.pijler-form {
+  grid-column: 1 / -1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--petrol);
+  border-radius: 4px;
+  padding: 16px;
+  flex-direction: column;
+  gap: 12px;
+}
+.pijler-form:not([hidden]) { display: flex; }
+.form-groep { display: flex; flex-direction: column; gap: 4px; }
+.form-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--petrol);
+}
+.form-input {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+.form-input:focus { outline: none; border-color: var(--petrol); }
+.form-input.fout { border-color: #c0392b; }
+.form-fout { font-size: 12px; color: #c0392b; }
+.form-rij { display: flex; gap: 8px; }
+
 /* ── Responsief ── */
 @media (max-width: 700px) {
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kolommen { grid-template-columns: 1fr; }
   .hero-tekst h1 { font-size: 30px; line-height: 34px; }
+  .form-rij { flex-direction: column; }
 }

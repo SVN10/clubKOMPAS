@@ -1,5 +1,91 @@
 import './style.css'
 
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function laadPijlers() {
+  try {
+    return JSON.parse(localStorage.getItem('ck-pijlers') || '[]')
+  } catch { return [] }
+}
+
+function slaaPijlersOp(pijlers) {
+  try { localStorage.setItem('ck-pijlers', JSON.stringify(pijlers)) } catch {}
+}
+
+function pijlerKaartHTML(p, isHardcoded = false) {
+  const verantw = isHardcoded ? '' : `<small style="color:var(--muted);display:block;margin-top:4px;font-size:12px">${esc(p.verantwoordelijke)}</small>`
+  return `
+    <div class="card">
+      <h3>${esc(p.naam)}</h3>
+      <div class="sub">Strategische pijler</div>
+      <p>${esc(p.slogan)}</p>
+      ${verantw}
+      <span class="pill"><span class="stip"></span>Pijler</span>
+    </div>`
+}
+
+function renderPijlers() {
+  const grid = document.getElementById('pijlers-grid')
+  if (!grid) return
+  const opgeslagen = laadPijlers()
+  const pijlerItems = grid.querySelectorAll('.card')
+  // verwijder alleen eerder toegevoegde (niet de hardcoded)
+  grid.querySelectorAll('.pijler-dyn').forEach(el => el.remove())
+
+  opgeslagen.forEach(p => {
+    const div = document.createElement('div')
+    div.className = 'pijler-dyn'
+    div.innerHTML = pijlerKaartHTML(p)
+    const toevoegKnop = grid.querySelector('.btn-toevoegen')
+    grid.insertBefore(div, toevoegKnop)
+  })
+}
+
+function toonFormulier(zichtbaar) {
+  const form = document.getElementById('pijler-form')
+  const knop = document.getElementById('pijler-toevoegen-knop')
+  if (!form || !knop) return
+  form.hidden = !zichtbaar
+  knop.hidden = zichtbaar
+  if (zichtbaar) form.querySelector('[name="naam"]').focus()
+}
+
+function valideerEnSla() {
+  const naam = document.querySelector('#pijler-form [name="naam"]')
+  const slogan = document.querySelector('#pijler-form [name="slogan"]')
+  const verantw = document.querySelector('#pijler-form [name="verantwoordelijke"]')
+  let ok = true
+
+  ;[naam, slogan, verantw].forEach(input => {
+    const fout = input.parentElement.querySelector('.form-fout')
+    const min = input.name === 'verantwoordelijke' ? 3 : 2
+    if (!input.value.trim() || input.value.trim().length < min) {
+      input.classList.add('fout')
+      input.setAttribute('aria-invalid', 'true')
+      fout.textContent = input.value.trim() ? `Minimaal ${min} tekens` : 'Verplicht veld'
+      ok = false
+    } else {
+      input.classList.remove('fout')
+      input.removeAttribute('aria-invalid')
+      fout.textContent = ''
+    }
+  })
+
+  if (!ok) return
+
+  const pijlers = laadPijlers()
+  pijlers.push({ naam: naam.value.trim(), slogan: slogan.value.trim(), verantwoordelijke: verantw.value.trim() })
+  slaaPijlersOp(pijlers)
+
+  naam.value = ''
+  slogan.value = ''
+  verantw.value = ''
+  renderPijlers()
+  toonFormulier(false)
+}
+
 document.querySelector('#app').innerHTML = `
   <header class="top-bar">
     <svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -76,7 +162,7 @@ document.querySelector('#app').innerHTML = `
           <span class="toel">De structuur van jouw club</span>
         </div>
         <div class="sectie-lijf">
-          <div class="grid">
+          <div class="grid" id="pijlers-grid">
             <div class="card">
               <h3>#JouwClubSpeelt</h3>
               <div class="sub">Strategische pijler</div>
@@ -95,6 +181,31 @@ document.querySelector('#app').innerHTML = `
               <p>Maatschappelijke betrokkenheid. Initiatieven die de club verbinden met de buurt.</p>
               <span class="pill"><span class="stip"></span>Pijler</span>
             </div>
+
+            <button class="btn-toevoegen" id="pijler-toevoegen-knop">+ Pijler toevoegen</button>
+
+            <div class="pijler-form" id="pijler-form" hidden>
+              <div class="form-groep">
+                <label class="form-label" for="pijler-naam">Naam</label>
+                <input class="form-input" id="pijler-naam" name="naam" type="text" placeholder="Naam van de pijler" autocomplete="off" aria-describedby="pijler-naam-fout">
+                <span class="form-fout" id="pijler-naam-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="pijler-slogan">Slogan</label>
+                <input class="form-input" id="pijler-slogan" name="slogan" type="text" placeholder="Ondertitel of slogan" autocomplete="off" aria-describedby="pijler-slogan-fout">
+                <span class="form-fout" id="pijler-slogan-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="pijler-verantw">Eindverantwoordelijke</label>
+                <input class="form-input" id="pijler-verantw" name="verantwoordelijke" type="text" placeholder="Naam" autocomplete="off" aria-describedby="pijler-verantw-fout">
+                <span class="form-fout" id="pijler-verantw-fout"></span>
+              </div>
+              <div class="form-rij">
+                <button class="btn primary" id="pijler-opslaan">Opslaan</button>
+                <button class="btn" id="pijler-annuleer">Annuleren</button>
+              </div>
+            </div>
+
             <div class="card">
               <h3>Bestuur</h3>
               <div class="sub">Domein</div>
@@ -125,3 +236,9 @@ document.querySelector('#app').innerHTML = `
     <span>svn10.nl</span>
   </footer>
 `
+
+document.getElementById('pijler-toevoegen-knop').addEventListener('click', () => toonFormulier(true))
+document.getElementById('pijler-annuleer').addEventListener('click', () => toonFormulier(false))
+document.getElementById('pijler-opslaan').addEventListener('click', valideerEnSla)
+
+renderPijlers()
