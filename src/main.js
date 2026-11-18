@@ -1,5 +1,6 @@
 import './style.css'
 import { auth, db } from './firebase.js'
+import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
 
@@ -106,7 +107,7 @@ function footerHTML() {
   return `
     <footer>
       <span>${naam} — een product van SVN10</span>
-      <span>svn10.nl</span>
+      <span>v${version} · svn10.nl</span>
     </footer>`
 }
 
@@ -630,6 +631,20 @@ function renderInstellingen(gebruiker) {
             </div>
           </div>
         </div>
+
+        <div class="sectie">
+          <div class="sectie-kop">
+            <h2>Over clubKOMPAS</h2>
+            <span class="toel">Versie-informatie</span>
+          </div>
+          <div class="sectie-lijf">
+            <dl class="versie-info">
+              <dt>Versie</dt><dd>v${version}</dd>
+              <dt>Gebouwd op</dt><dd>${new Date(__APP_BUILD__).toLocaleString('nl-NL', { dateStyle: 'long', timeStyle: 'short' })}</dd>
+            </dl>
+          </div>
+        </div>
+
       </div>
     </main>
 
