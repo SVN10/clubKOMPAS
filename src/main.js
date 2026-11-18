@@ -41,6 +41,14 @@ async function voegDomeinToe(domein) {
   await addDoc(collection(db, 'clubs', huidigClubId, 'domeinen'), domein)
 }
 
+async function bewerkDomein(id, data) {
+  await updateDoc(doc(db, 'clubs', huidigClubId, 'domeinen', id), data)
+}
+
+async function verwijderDomein(id) {
+  await deleteDoc(doc(db, 'clubs', huidigClubId, 'domeinen', id))
+}
+
 // ── Profiel ───────────────────────────────────────────────────────────────────
 
 async function laadProfiel() {
@@ -221,6 +229,26 @@ function domeinKaartHTML(d, isHardcoded = false) {
       <p>${esc(d.omschrijving)}</p>
       <span class="pill"><span class="stip" style="background:var(--muted)"></span>Domein</span>
       ${acties}
+    </div>`
+}
+
+function bewerkDomeinFormHTML(d) {
+  return `
+    <div class="pijler-bewerk-form">
+      <div class="form-groep">
+        <label class="form-label" for="bewerk-domein-naam">Naam</label>
+        <input class="form-input" id="bewerk-domein-naam" value="${esc(d.naam)}" autocomplete="off">
+        <span class="form-fout" id="bewerk-domein-naam-fout"></span>
+      </div>
+      <div class="form-groep">
+        <label class="form-label" for="bewerk-domein-omschrijving">Omschrijving</label>
+        <input class="form-input" id="bewerk-domein-omschrijving" value="${esc(d.omschrijving)}" autocomplete="off">
+        <span class="form-fout" id="bewerk-domein-omschrijving-fout"></span>
+      </div>
+      <div class="form-rij">
+        <button class="btn primary" data-actie="bewerk-domein-opslaan" data-id="${esc(d.id)}">Opslaan</button>
+        <button class="btn" data-actie="bewerk-domein-annuleer">Annuleren</button>
+      </div>
     </div>`
 }
 
@@ -527,6 +555,34 @@ function renderDashboard(gebruiker) {
       await renderPijlers()
     } else if (actie === 'bewerk-annuleer') {
       await renderPijlers()
+    } else if (actie === 'bewerk-domein') {
+      const domeinen = await laadDomeinen()
+      const d = domeinen.find(x => x.id === id)
+      const kaartDiv = knop.closest('.domein-dyn')
+      if (d) { kaartDiv.innerHTML = bewerkDomeinFormHTML(d); kaartDiv.querySelector('#bewerk-domein-naam').focus() }
+    } else if (actie === 'verwijder-domein') {
+      if (confirm('Domein verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
+        await verwijderDomein(id)
+        await renderDomeinen()
+      }
+    } else if (actie === 'bewerk-domein-opslaan') {
+      const naam = document.getElementById('bewerk-domein-naam').value.trim()
+      const omschrijving = document.getElementById('bewerk-domein-omschrijving').value.trim()
+      let ok = true
+      const checks = [
+        [naam, 'bewerk-domein-naam-fout', 2],
+        [omschrijving, 'bewerk-domein-omschrijving-fout', 2],
+      ]
+      checks.forEach(([val, foutId, min]) => {
+        const el = document.getElementById(foutId)
+        if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
+        else el.textContent = ''
+      })
+      if (!ok) return
+      await bewerkDomein(id, { naam, omschrijving })
+      await renderDomeinen()
+    } else if (actie === 'bewerk-domein-annuleer') {
+      await renderDomeinen()
     }
   })
 

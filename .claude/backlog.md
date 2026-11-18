@@ -75,8 +75,8 @@
 
 ---
 
-### CK-013 — Domeinen bewerken en verwijderen (Model-laag M0)
-**Status:** Backlog
+### ✅ CK-013 — Domeinen bewerken en verwijderen (Model-laag M0)
+**Status:** Afgerond
 
 *Als bestuurder wil ik een zelf aangemaakt domein kunnen bewerken of verwijderen.*
 
