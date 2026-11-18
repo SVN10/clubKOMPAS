@@ -107,22 +107,17 @@ function kompasIconSVG() {
 }
 
 function topBarHTML(gebruiker) {
-  const badge = huidigProfiel?.naam
-    ? `<span class="club-naam-badge">${esc(huidigProfiel.naam)}</span>`
-    : ''
+  const titel = huidigProfiel?.naam
+    ? `club<b>KOMPAS</b> · ${esc(huidigProfiel.naam)}`
+    : `club<b>KOMPAS</b>`
   const logo = huidigProfiel?.logo
     ? `<img src="${huidigProfiel.logo}" class="club-logo" alt="Club logo">`
     : ''
   return `
-    <header class="top-bar">
+    <header class="top-bar${huidigProfiel?.logo ? ' heeft-logo' : ''}">
       ${kompasIconSVG()}
-      <span class="app-title">club<b>KOMPAS</b></span>
-      ${badge}
-      <div class="top-bar-rechts">
-        ${logo}
-        <span class="inlog-email">${esc(gebruiker.email)}</span>
-        <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
-      </div>
+      <span class="app-title">${titel}</span>
+      ${logo}
     </header>`
 }
 
@@ -136,10 +131,15 @@ function navHTML(actief) {
 
 function footerHTML() {
   const naam = huidigProfiel?.naam ? esc(huidigProfiel.naam) : 'clubKOMPAS'
+  const email = huidigGebruiker ? `<span>${esc(huidigGebruiker.email)}</span>` : ''
   return `
     <footer>
-      <span>${naam} — een product van SVN10</span>
-      <span>v${version} · svn10.nl</span>
+      <span>${naam} · een product van SVN10</span>
+      <span>Versie ${version}</span>
+      <span class="footer-rechts">
+        ${email}
+        <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
+      </span>
     </footer>`
 }
 
