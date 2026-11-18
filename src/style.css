@@ -444,15 +444,12 @@ footer a:hover { opacity: 1; }
 /* ── Club logo ── */
 .club-logo {
   position: absolute;
-  top: 0;
-  right: 0;
-  height: calc(100% + 48px); /* top-bar hoogte + nav-balk hoogte */
+  top: 12px;
+  right: 16px;
+  height: 78px;
   width: auto;
   object-fit: contain;
   z-index: 2;
-  background: #fff;
-  padding: 8px 12px;
-  border-left: 1px solid var(--border);
 }
 .logo-upload-wrap { display: flex; flex-direction: column; gap: 8px; }
 .logo-preview { height: 80px; width: auto; object-fit: contain; border: 1px solid var(--border); padding: 8px; background: var(--card); }
