@@ -8,6 +8,34 @@ let huidigClubId = null
 let huidigProfiel = null
 let huidigGebruiker = null
 
+function setFavicon(base64) {
+  const link = document.getElementById('favicon')
+  if (link && base64) link.href = base64
+}
+
+async function resizeAfbeelding(file, maxPx = 300) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
@@ -82,12 +110,16 @@ function topBarHTML(gebruiker) {
   const badge = huidigProfiel?.naam
     ? `<span class="club-naam-badge">${esc(huidigProfiel.naam)}</span>`
     : ''
+  const logo = huidigProfiel?.logo
+    ? `<img src="${huidigProfiel.logo}" class="club-logo" alt="Club logo">`
+    : ''
   return `
     <header class="top-bar">
       ${kompasIconSVG()}
       <span class="app-title">club<b>KOMPAS</b></span>
       ${badge}
       <div class="top-bar-rechts">
+        ${logo}
         <span class="inlog-email">${esc(gebruiker.email)}</span>
         <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
       </div>
@@ -634,6 +666,30 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
+            <h2>Clublogo</h2>
+            <span class="toel">Zichtbaar in de titelbalk en als browser-icoon</span>
+          </div>
+          <div class="sectie-lijf">
+            <div class="logo-upload-wrap">
+              ${huidigProfiel?.logo
+                ? `<img src="${huidigProfiel.logo}" class="logo-preview" alt="Huidig logo">`
+                : `<div class="logo-leeg">Nog geen logo geüpload</div>`}
+              <div class="form-rij" style="margin-top:12px">
+                <label class="btn" style="cursor:pointer">
+                  ${huidigProfiel?.logo ? 'Logo wijzigen' : 'Logo uploaden'}
+                  <input type="file" id="logo-input" accept="image/*" hidden>
+                </label>
+                ${huidigProfiel?.logo
+                  ? `<button class="btn gevaar" id="logo-verwijderen">Verwijderen</button>`
+                  : ''}
+              </div>
+              <p class="profiel-succes" id="logo-succes" hidden>✓ Logo opgeslagen.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sectie">
+          <div class="sectie-kop">
             <h2>Over clubKOMPAS</h2>
             <span class="toel">Versie-informatie</span>
           </div>
@@ -652,6 +708,33 @@ function renderInstellingen(gebruiker) {
   `
 
   bindNavListeners(gebruiker)
+
+  document.getElementById('logo-input').addEventListener('change', async e => {
+    const file = e.target.files[0]
+    if (!file) return
+    const knop = e.target.closest('label')
+    knop.textContent = 'Bezig...'
+    try {
+      const base64 = await resizeAfbeelding(file)
+      const nieuwProfiel = { ...(huidigProfiel || {}), logo: base64 }
+      await slaaProfiel(nieuwProfiel)
+      huidigProfiel = nieuwProfiel
+      setFavicon(base64)
+      renderInstellingen(gebruiker)
+    } catch {
+      knop.textContent = 'Fout — probeer opnieuw'
+    }
+  })
+
+  const verwijderKnop = document.getElementById('logo-verwijderen')
+  if (verwijderKnop) {
+    verwijderKnop.addEventListener('click', async () => {
+      const { logo: _removed, ...rest } = huidigProfiel || {}
+      await slaaProfiel(rest)
+      huidigProfiel = rest
+      renderInstellingen(gebruiker)
+    })
+  }
 
   document.getElementById('profiel-opslaan').addEventListener('click', async () => {
     const naam = document.getElementById('profiel-naam').value.trim()
@@ -682,6 +765,7 @@ onAuthStateChanged(auth, async gebruiker => {
     huidigClubId = gebruiker.uid
     huidigGebruiker = gebruiker
     huidigProfiel = await laadProfiel()
+    if (huidigProfiel?.logo) setFavicon(huidigProfiel.logo)
     renderDashboard(gebruiker)
   } else {
     huidigClubId = null

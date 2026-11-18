@@ -445,6 +445,17 @@ footer a:hover { opacity: 1; }
   margin: 0;
 }
 
+/* ── Club logo ── */
+.club-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 2px;
+}
+.logo-upload-wrap { display: flex; flex-direction: column; gap: 8px; }
+.logo-preview { height: 80px; width: auto; object-fit: contain; border: 1px solid var(--border); padding: 8px; background: var(--card); }
+.logo-leeg { font-size: 13px; color: var(--muted); font-style: italic; }
+
 /* ── Versie-info ── */
 .versie-info {
   display: grid;
