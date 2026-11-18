@@ -1,7 +1,7 @@
 import './style.css'
 import { auth, db } from './firebase.js'
 import { version } from '../package.json'
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
 
 let huidigClubId = null
@@ -130,14 +130,16 @@ function navHTML(actief) {
 }
 
 function footerHTML() {
-  const naam = huidigProfiel?.naam ? esc(huidigProfiel.naam) : 'clubKOMPAS'
-  const email = huidigGebruiker ? `<span>${esc(huidigGebruiker.email)}</span>` : ''
+  const clubnaam = huidigProfiel?.naam ? esc(huidigProfiel.naam) : 'clubKOMPAS'
+  const gebruikerLabel = huidigGebruiker
+    ? `<span>${esc(huidigGebruiker.displayName || huidigGebruiker.email)}</span>`
+    : ''
   return `
     <footer>
-      <span>${naam} · een product van SVN10</span>
+      <span>${clubnaam} · een product van SVN10</span>
       <span>Versie ${version}</span>
       <span class="footer-rechts">
-        ${email}
+        ${gebruikerLabel}
         <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
       </span>
     </footer>`
@@ -690,6 +692,62 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
+            <h2>Gebruiker</h2>
+            <span class="toel">Jouw accountgegevens</span>
+          </div>
+          <div class="sectie-lijf">
+            <div class="profiel-form-wrap">
+
+              <div class="form-groep">
+                <label class="form-label" for="geb-naam">Naam</label>
+                <input class="form-input" id="geb-naam" type="text" placeholder="Jouw naam" autocomplete="name" value="${esc(huidigGebruiker?.displayName || '')}">
+                <span class="form-fout" id="geb-naam-fout"></span>
+              </div>
+              <div class="form-rij">
+                <button class="btn primary" id="geb-naam-opslaan">Naam opslaan</button>
+              </div>
+              <p class="profiel-succes" id="geb-naam-succes" hidden>✓ Naam opgeslagen.</p>
+
+              <hr class="sectie-hr">
+
+              <p class="geb-info">Huidig e-mailadres: ${esc(huidigGebruiker?.email || '')}</p>
+              <div class="form-groep">
+                <label class="form-label" for="geb-email">Nieuw e-mailadres</label>
+                <input class="form-input" id="geb-email" type="email" placeholder="nieuw@voorbeeld.nl" autocomplete="off">
+                <span class="form-fout" id="geb-email-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="geb-email-ww">Wachtwoord ter bevestiging</label>
+                <input class="form-input" id="geb-email-ww" type="password" placeholder="••••••••" autocomplete="current-password">
+              </div>
+              <div class="form-rij">
+                <button class="btn primary" id="geb-email-opslaan">E-mailadres wijzigen</button>
+              </div>
+              <p class="profiel-succes" id="geb-email-succes" hidden>✓ E-mailadres gewijzigd.</p>
+
+              <hr class="sectie-hr">
+
+              <div class="form-groep">
+                <label class="form-label" for="geb-huidig-ww">Huidig wachtwoord</label>
+                <input class="form-input" id="geb-huidig-ww" type="password" placeholder="••••••••" autocomplete="current-password">
+                <span class="form-fout" id="geb-huidig-ww-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="geb-nieuw-ww">Nieuw wachtwoord</label>
+                <input class="form-input" id="geb-nieuw-ww" type="password" placeholder="Minimaal 8 tekens" autocomplete="new-password">
+                <span class="form-fout" id="geb-nieuw-ww-fout"></span>
+              </div>
+              <div class="form-rij">
+                <button class="btn primary" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
+              </div>
+              <p class="profiel-succes" id="geb-ww-succes" hidden>✓ Wachtwoord gewijzigd.</p>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="sectie">
+          <div class="sectie-kop">
             <h2>Over clubKOMPAS</h2>
             <span class="toel">Versie-informatie</span>
           </div>
@@ -757,6 +815,94 @@ function renderInstellingen(gebruiker) {
     await slaaProfiel({ naam, afkorting, seizoen })
     huidigProfiel = { naam, afkorting, seizoen }
     renderInstellingen(gebruiker)
+  })
+
+  document.getElementById('geb-naam-opslaan').addEventListener('click', async () => {
+    const naam = document.getElementById('geb-naam').value.trim()
+    const naamFout = document.getElementById('geb-naam-fout')
+    naamFout.textContent = ''
+    if (!naam || naam.length < 2) {
+      naamFout.textContent = naam ? 'Minimaal 2 tekens' : 'Verplicht veld'
+      return
+    }
+    const knop = document.getElementById('geb-naam-opslaan')
+    knop.textContent = 'Bezig...'
+    knop.disabled = true
+    try {
+      await updateProfile(huidigGebruiker, { displayName: naam })
+      document.getElementById('geb-naam-succes').hidden = false
+      const footerSpan = document.querySelector('footer .footer-rechts span')
+      if (footerSpan) footerSpan.textContent = huidigGebruiker.displayName || huidigGebruiker.email
+    } catch (e) {
+      naamFout.textContent = `Fout: ${e.code || e.message}`
+    } finally {
+      knop.textContent = 'Naam opslaan'
+      knop.disabled = false
+    }
+  })
+
+  document.getElementById('geb-email-opslaan').addEventListener('click', async () => {
+    const email = document.getElementById('geb-email').value.trim()
+    const ww = document.getElementById('geb-email-ww').value
+    const fout = document.getElementById('geb-email-fout')
+    fout.textContent = ''
+    if (!email) { fout.textContent = 'E-mailadres verplicht'; return }
+    if (!ww) { fout.textContent = 'Wachtwoord verplicht'; return }
+    const knop = document.getElementById('geb-email-opslaan')
+    knop.textContent = 'Bezig...'
+    knop.disabled = true
+    try {
+      const credential = EmailAuthProvider.credential(huidigGebruiker.email, ww)
+      await reauthenticateWithCredential(huidigGebruiker, credential)
+      await updateEmail(huidigGebruiker, email)
+      document.getElementById('geb-email-succes').hidden = false
+      document.getElementById('geb-email').value = ''
+      document.getElementById('geb-email-ww').value = ''
+      document.querySelector('.geb-info').textContent = `Huidig e-mailadres: ${huidigGebruiker.email}`
+    } catch (e) {
+      const foutcodes = {
+        'auth/wrong-password': 'Wachtwoord klopt niet.',
+        'auth/invalid-credential': 'Wachtwoord klopt niet.',
+        'auth/email-already-in-use': 'Dit e-mailadres is al in gebruik.',
+        'auth/invalid-email': 'Ongeldig e-mailadres.',
+      }
+      fout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
+    } finally {
+      knop.textContent = 'E-mailadres wijzigen'
+      knop.disabled = false
+    }
+  })
+
+  document.getElementById('geb-ww-opslaan').addEventListener('click', async () => {
+    const huidigWw = document.getElementById('geb-huidig-ww').value
+    const nieuwWw = document.getElementById('geb-nieuw-ww').value
+    const huidigFout = document.getElementById('geb-huidig-ww-fout')
+    const nieuwFout = document.getElementById('geb-nieuw-ww-fout')
+    huidigFout.textContent = ''
+    nieuwFout.textContent = ''
+    if (!huidigWw) { huidigFout.textContent = 'Verplicht veld'; return }
+    if (!nieuwWw || nieuwWw.length < 8) { nieuwFout.textContent = nieuwWw ? 'Minimaal 8 tekens' : 'Verplicht veld'; return }
+    const knop = document.getElementById('geb-ww-opslaan')
+    knop.textContent = 'Bezig...'
+    knop.disabled = true
+    try {
+      const credential = EmailAuthProvider.credential(huidigGebruiker.email, huidigWw)
+      await reauthenticateWithCredential(huidigGebruiker, credential)
+      await updatePassword(huidigGebruiker, nieuwWw)
+      document.getElementById('geb-ww-succes').hidden = false
+      document.getElementById('geb-huidig-ww').value = ''
+      document.getElementById('geb-nieuw-ww').value = ''
+    } catch (e) {
+      const foutcodes = {
+        'auth/wrong-password': 'Wachtwoord klopt niet.',
+        'auth/invalid-credential': 'Wachtwoord klopt niet.',
+        'auth/weak-password': 'Nieuw wachtwoord is te zwak.',
+      }
+      huidigFout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
+    } finally {
+      knop.textContent = 'Wachtwoord wijzigen'
+      knop.disabled = false
+    }
   })
 }
 

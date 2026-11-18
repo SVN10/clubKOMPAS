@@ -90,8 +90,10 @@ body {
 .top-nav a {
   color: var(--on-petrol);
   text-decoration: none;
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
   padding: 13px 16px;
   display: block;
   white-space: nowrap;
@@ -154,9 +156,11 @@ body {
   flex-wrap: wrap;
 }
 .sectie-kop h2 {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 20px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
   color: var(--on-petrol);
   margin: 0;
 }
@@ -196,7 +200,9 @@ body {
 .btn {
   font-family: var(--font);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
   cursor: pointer;
   padding: 8px 18px;
   border: 1px solid var(--border);
@@ -224,9 +230,11 @@ body {
 }
 .card:hover { border-color: var(--petrol); }
 .card h3 {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 19px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
   color: var(--petrol);
   margin-bottom: 4px;
 }
@@ -454,6 +462,18 @@ footer a:hover { opacity: 1; }
 .logo-upload-wrap { display: flex; flex-direction: column; gap: 8px; }
 .logo-preview { height: 80px; width: auto; object-fit: contain; border: 1px solid var(--border); padding: 8px; background: var(--card); }
 .logo-leeg { font-size: 13px; color: var(--muted); font-style: italic; }
+
+/* ── Gebruikersbeheer helpers ── */
+.sectie-hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.geb-info {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
 
 /* ── Versie-info ── */
 .versie-info {
