@@ -1,7 +1,7 @@
 import './style.css'
 import { auth, db } from './firebase.js'
 import { version } from '../package.json'
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
 
 let huidigClubId = null
@@ -106,7 +106,7 @@ function kompasIconSVG() {
   </svg>`
 }
 
-function topBarHTML(gebruiker) {
+function topBarHTML() {
   const titel = huidigProfiel?.naam
     ? `club<b>KOMPAS</b> · ${esc(huidigProfiel.naam)}`
     : `club<b>KOMPAS</b>`
@@ -176,6 +176,7 @@ async function renderPijlers() {
   if (!grid) return
   grid.querySelectorAll('.pijler-dyn').forEach(el => el.remove())
   const opgeslagen = await laadPijlers()
+  if (!grid.isConnected) return
   opgeslagen.forEach(p => {
     const div = document.createElement('div')
     div.className = 'pijler-dyn'
@@ -292,6 +293,7 @@ async function renderDomeinen() {
   if (!grid) return
   grid.querySelectorAll('.domein-dyn').forEach(el => el.remove())
   const opgeslagen = await laadDomeinen()
+  if (!grid.isConnected) return
   const toevoegKnop = document.getElementById('domein-toevoegen-knop')
   opgeslagen.forEach(d => {
     const div = document.createElement('div')
@@ -415,7 +417,7 @@ function renderDashboard(gebruiker) {
     : 'Jouw club. Jouw kompas.'
 
   document.querySelector('#app').innerHTML = `
-    ${topBarHTML(gebruiker)}
+    ${topBarHTML()}
     ${navHTML('home')}
 
     <main>
@@ -593,8 +595,8 @@ function renderDashboard(gebruiker) {
     } else if (actie === 'bewerk-domein') {
       const domeinen = await laadDomeinen()
       const d = domeinen.find(x => x.id === id)
-      const kaartDiv = knop.closest('.domein-dyn')
-      if (d) { kaartDiv.innerHTML = bewerkDomeinFormHTML(d); kaartDiv.querySelector('#bewerk-domein-naam').focus() }
+      const domeinKaartDiv = knop.closest('.domein-dyn')
+      if (d) { domeinKaartDiv.innerHTML = bewerkDomeinFormHTML(d); domeinKaartDiv.querySelector('#bewerk-domein-naam').focus() }
     } else if (actie === 'verwijder-domein') {
       if (confirm('Domein verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
         await verwijderDomein(id)
@@ -631,7 +633,7 @@ function renderDashboard(gebruiker) {
 
 function renderInstellingen(gebruiker) {
   document.querySelector('#app').innerHTML = `
-    ${topBarHTML(gebruiker)}
+    ${topBarHTML()}
     ${navHTML('instellingen')}
 
     <main>
@@ -678,7 +680,7 @@ function renderInstellingen(gebruiker) {
                 : `<div class="logo-leeg">Nog geen logo geüpload</div>`}
               <div class="form-rij" style="margin-top:12px">
                 <label class="btn" style="cursor:pointer">
-                  ${huidigProfiel?.logo ? 'Logo wijzigen' : 'Logo uploaden'}
+                  <span>${huidigProfiel?.logo ? 'Logo wijzigen' : 'Logo uploaden'}</span>
                   <input type="file" id="logo-input" accept="image/*" hidden>
                 </label>
                 ${huidigProfiel?.logo
@@ -719,6 +721,7 @@ function renderInstellingen(gebruiker) {
               <div class="form-groep">
                 <label class="form-label" for="geb-email-ww">Wachtwoord ter bevestiging</label>
                 <input class="form-input" id="geb-email-ww" type="password" placeholder="••••••••" autocomplete="current-password">
+                <span class="form-fout" id="geb-email-ww-fout"></span>
               </div>
               <div class="form-rij">
                 <button class="btn primary" id="geb-email-opslaan">E-mailadres wijzigen</button>
@@ -771,7 +774,7 @@ function renderInstellingen(gebruiker) {
     const file = e.target.files[0]
     if (!file) return
     const knop = e.target.closest('label')
-    knop.textContent = 'Bezig...'
+    knop.querySelector('span').textContent = 'Bezig...'
     try {
       const base64 = await resizeAfbeelding(file)
       const nieuwProfiel = { ...(huidigProfiel || {}), logo: base64 }
@@ -780,7 +783,7 @@ function renderInstellingen(gebruiker) {
       setFavicon(base64)
       renderInstellingen(gebruiker)
     } catch {
-      knop.textContent = 'Fout — probeer opnieuw'
+      knop.querySelector('span').textContent = 'Fout — probeer opnieuw'
     }
   })
 
@@ -812,9 +815,14 @@ function renderInstellingen(gebruiker) {
     })
     if (!ok) return
 
-    await slaaProfiel({ naam, afkorting, seizoen })
-    huidigProfiel = { naam, afkorting, seizoen }
-    renderInstellingen(gebruiker)
+    const nieuwProfiel = { ...(huidigProfiel || {}), naam, afkorting, seizoen }
+    try {
+      await slaaProfiel(nieuwProfiel)
+      huidigProfiel = nieuwProfiel
+      renderInstellingen(gebruiker)
+    } catch {
+      document.getElementById('profiel-naam-fout').textContent = 'Opslaan mislukt, probeer opnieuw.'
+    }
   })
 
   document.getElementById('geb-naam-opslaan').addEventListener('click', async () => {
@@ -845,26 +853,30 @@ function renderInstellingen(gebruiker) {
     const email = document.getElementById('geb-email').value.trim()
     const ww = document.getElementById('geb-email-ww').value
     const fout = document.getElementById('geb-email-fout')
+    const wwFout = document.getElementById('geb-email-ww-fout')
     fout.textContent = ''
+    wwFout.textContent = ''
     if (!email) { fout.textContent = 'E-mailadres verplicht'; return }
-    if (!ww) { fout.textContent = 'Wachtwoord verplicht'; return }
+    if (!ww) { wwFout.textContent = 'Wachtwoord verplicht'; return }
     const knop = document.getElementById('geb-email-opslaan')
     knop.textContent = 'Bezig...'
     knop.disabled = true
     try {
       const credential = EmailAuthProvider.credential(huidigGebruiker.email, ww)
       await reauthenticateWithCredential(huidigGebruiker, credential)
-      await updateEmail(huidigGebruiker, email)
-      document.getElementById('geb-email-succes').hidden = false
+      await verifyBeforeUpdateEmail(huidigGebruiker, email)
+      const succesEl = document.getElementById('geb-email-succes')
+      succesEl.textContent = `✓ Verificatiemail gestuurd naar ${email}.`
+      succesEl.hidden = false
       document.getElementById('geb-email').value = ''
       document.getElementById('geb-email-ww').value = ''
-      document.querySelector('.geb-info').textContent = `Huidig e-mailadres: ${huidigGebruiker.email}`
     } catch (e) {
       const foutcodes = {
         'auth/wrong-password': 'Wachtwoord klopt niet.',
         'auth/invalid-credential': 'Wachtwoord klopt niet.',
         'auth/email-already-in-use': 'Dit e-mailadres is al in gebruik.',
         'auth/invalid-email': 'Ongeldig e-mailadres.',
+        'auth/operation-not-allowed': 'E-mailwijziging niet toegestaan in dit project.',
       }
       fout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
     } finally {
