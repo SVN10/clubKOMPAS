@@ -30,6 +30,17 @@ async function verwijderPijler(id) {
   await deleteDoc(doc(db, 'clubs', huidigClubId, 'pijlers', id))
 }
 
+// ── Domeinen ─────────────────────────────────────────────────────────────────
+
+async function laadDomeinen() {
+  const snap = await getDocs(collection(db, 'clubs', huidigClubId, 'domeinen'))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+async function voegDomeinToe(domein) {
+  await addDoc(collection(db, 'clubs', huidigClubId, 'domeinen'), domein)
+}
+
 // ── Profiel ───────────────────────────────────────────────────────────────────
 
 async function laadProfiel() {
@@ -195,6 +206,73 @@ async function valideerEnSla() {
   verantw.value = ''
   await renderPijlers()
   toonFormulier(false)
+}
+
+function domeinKaartHTML(d, isHardcoded = false) {
+  const acties = isHardcoded ? '' : `
+    <div class="kaart-acties">
+      <button class="btn-kaart-actie" data-actie="bewerk-domein" data-id="${esc(d.id)}">Bewerken</button>
+      <button class="btn-kaart-actie gevaar" data-actie="verwijder-domein" data-id="${esc(d.id)}">Verwijderen</button>
+    </div>`
+  return `
+    <div class="card">
+      <h3>${esc(d.naam)}</h3>
+      <div class="sub">Domein</div>
+      <p>${esc(d.omschrijving)}</p>
+      <span class="pill"><span class="stip" style="background:var(--muted)"></span>Domein</span>
+      ${acties}
+    </div>`
+}
+
+async function renderDomeinen() {
+  const grid = document.getElementById('pijlers-grid')
+  if (!grid) return
+  grid.querySelectorAll('.domein-dyn').forEach(el => el.remove())
+  const opgeslagen = await laadDomeinen()
+  const toevoegKnop = document.getElementById('domein-toevoegen-knop')
+  opgeslagen.forEach(d => {
+    const div = document.createElement('div')
+    div.className = 'domein-dyn'
+    div.innerHTML = domeinKaartHTML(d)
+    grid.insertBefore(div, toevoegKnop)
+  })
+}
+
+function toonDomeinFormulier(zichtbaar) {
+  const form = document.getElementById('domein-form')
+  const knop = document.getElementById('domein-toevoegen-knop')
+  if (!form || !knop) return
+  form.hidden = !zichtbaar
+  knop.hidden = zichtbaar
+  if (zichtbaar) form.querySelector('[name="naam"]').focus()
+}
+
+async function valideerEnSlaDomein() {
+  const naam = document.querySelector('#domein-form [name="naam"]')
+  const omschrijving = document.querySelector('#domein-form [name="omschrijving"]')
+  let ok = true
+
+  ;[naam, omschrijving].forEach(input => {
+    const fout = input.parentElement.querySelector('.form-fout')
+    if (!input.value.trim() || input.value.trim().length < 2) {
+      input.classList.add('fout')
+      input.setAttribute('aria-invalid', 'true')
+      fout.textContent = input.value.trim() ? 'Minimaal 2 tekens' : 'Verplicht veld'
+      ok = false
+    } else {
+      input.classList.remove('fout')
+      input.removeAttribute('aria-invalid')
+      fout.textContent = ''
+    }
+  })
+
+  if (!ok) return
+
+  await voegDomeinToe({ naam: naam.value.trim(), omschrijving: omschrijving.value.trim(), type: 'Domein' })
+  naam.value = ''
+  omschrijving.value = ''
+  await renderDomeinen()
+  toonDomeinFormulier(false)
 }
 
 // ── Schermen ──────────────────────────────────────────────────────────────────
@@ -379,6 +457,25 @@ function renderDashboard(gebruiker) {
                 <p>Huisstijl, berichtgeving en kanalen — op één plek beheerd.</p>
                 <span class="pill"><span class="stip" style="background:var(--muted)"></span>Domein</span>
               </div>
+
+              <button class="btn-toevoegen" id="domein-toevoegen-knop">+ Domein toevoegen</button>
+
+              <div class="pijler-form" id="domein-form" hidden>
+                <div class="form-groep">
+                  <label class="form-label" for="domein-naam">Naam</label>
+                  <input class="form-input" id="domein-naam" name="naam" type="text" placeholder="Naam van het domein" autocomplete="off" aria-describedby="domein-naam-fout">
+                  <span class="form-fout" id="domein-naam-fout"></span>
+                </div>
+                <div class="form-groep">
+                  <label class="form-label" for="domein-omschrijving">Omschrijving</label>
+                  <input class="form-input" id="domein-omschrijving" name="omschrijving" type="text" placeholder="Korte omschrijving van het domein" autocomplete="off" aria-describedby="domein-omschrijving-fout">
+                  <span class="form-fout" id="domein-omschrijving-fout"></span>
+                </div>
+                <div class="form-rij">
+                  <button class="btn primary" id="domein-opslaan">Opslaan</button>
+                  <button class="btn" id="domein-annuleer">Annuleren</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -433,7 +530,12 @@ function renderDashboard(gebruiker) {
     }
   })
 
+  document.getElementById('domein-toevoegen-knop').addEventListener('click', () => toonDomeinFormulier(true))
+  document.getElementById('domein-annuleer').addEventListener('click', () => toonDomeinFormulier(false))
+  document.getElementById('domein-opslaan').addEventListener('click', valideerEnSlaDomein)
+
   renderPijlers()
+  renderDomeinen()
 }
 
 function renderInstellingen(gebruiker) {

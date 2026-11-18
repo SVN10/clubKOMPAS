@@ -60,8 +60,8 @@
 
 ---
 
-### CK-012 — Domeinen aanmaken (Model-laag M0)
-**Status:** Backlog
+### ✅ CK-012 — Domeinen aanmaken (Model-laag M0)
+**Status:** Afgerond
 
 *Als bestuurder wil ik operationele domeinen kunnen aanmaken, zodat ik naast pijlers ook de domeinen van mijn club kan beheren.*
 
