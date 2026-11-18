@@ -486,6 +486,31 @@ footer a:hover { opacity: 1; }
 .versie-info dt { color: var(--muted); font-weight: 500; }
 .versie-info dd { margin: 0; }
 
+/* ── Structuur beheer ── */
+.filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-knop.active {
+  background: var(--petrol);
+  color: var(--on-petrol);
+  border-color: var(--petrol);
+}
+.structuur-rij {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.structuur-rij:last-child { border-bottom: none; }
+.structuur-rij-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── Responsief ── */
 @media (max-width: 700px) {
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
