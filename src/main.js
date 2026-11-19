@@ -19,17 +19,18 @@ function veiligLogo(waarde) {
 
 // Zet het clublogo als favicon, of zet het standaard kompas-icoon terug als er geen logo is.
 // Het type moet meeveranderen: met type="image/svg+xml" negeren browsers een PNG/JPEG-logo.
+// Het <link>-element wordt vervangen in plaats van aangepast: Safari pikt een gewijzigde href
+// na het laden van de pagina niet op, een nieuw element wel.
 function setFavicon(base64) {
-  const link = document.getElementById('favicon')
-  if (!link) return
+  const oud = document.getElementById('favicon')
+  if (!oud) return
   const logo = veiligLogo(base64)
-  if (logo) {
-    link.type = logo.slice(5, logo.indexOf(';'))
-    link.href = logo
-  } else {
-    link.type = 'image/svg+xml'
-    link.href = '/favicon.svg'
-  }
+  const nieuw = document.createElement('link')
+  nieuw.id = 'favicon'
+  nieuw.rel = 'icon'
+  nieuw.type = logo ? logo.slice(5, logo.indexOf(';')) : 'image/svg+xml'
+  nieuw.href = logo || '/favicon.svg'
+  oud.replaceWith(nieuw)
 }
 
 async function resizeAfbeelding(file, maxPx = 300) {
