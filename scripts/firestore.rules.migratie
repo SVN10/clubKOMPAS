@@ -1,0 +1,10 @@
+// TIJDELIJKE overgangsregels voor de P0c-migratie (alleen minuten actief).
+// Vervang <HCA-UID> pas in de console door de echte uid. Nooit de echte uid in dit bestand committen.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == '<HCA-UID>';
+    }
+  }
+}

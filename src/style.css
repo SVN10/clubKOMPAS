@@ -407,6 +407,53 @@ footer a:hover { opacity: 1; }
 
 .uitlog-knop { font-size: 13px; padding: 6px 12px; }
 
+/* ── Tussenkaarten (laden / geen club / fout) ── */
+.inlog-titel[tabindex="-1"]:focus { outline: none; }
+
+.tussen-laad-titel {
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.tussen-tekst {
+  font-size: 15px;
+  line-height: 23px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.tussen-tekst strong { font-weight: 700; }
+
+.tussen-hint {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.tussen-hint:empty { margin-top: -16px; } /* heft de flex-gap van .inlog-kaart op zolang de hint leeg is */
+
+.tussen-link {
+  color: var(--petrol);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tussen-link:hover { color: var(--text); }
+.tussen-link:focus-visible {
+  outline: 2px solid var(--petrol);
+  outline-offset: 2px;
+}
+
+.inlog-logo.laadt .app-icon { animation: kompas-puls 1.6s ease-in-out infinite; }
+@keyframes kompas-puls {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inlog-logo.laadt .app-icon { animation: none; }
+}
+
 /* ── Kaart actieknoppen ── */
 .kaart-acties { display: flex; gap: 6px; margin-top: 10px; }
 .btn-kaart-actie {

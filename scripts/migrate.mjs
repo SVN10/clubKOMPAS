@@ -1,3 +1,4 @@
+// VEROUDERD: werkt op oude uid-structuur, niet meer gebruiken.
 // Eenmalige migratie: pijlers + domeinen → structuurelementen
 // Gebruik: node scripts/migrate.mjs
 

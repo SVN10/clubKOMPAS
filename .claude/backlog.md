@@ -132,15 +132,19 @@
 - [x] Scripts vragen het wachtwoord zonder het op het scherm te tonen
 
 **Open punten:**
-- [ ] Omschrijving van de HCA-pijlers is nu overal "Hockey"; echte teksten aanleveren (#HCADoet bijgewerkt uit "De missie van HCA"; #HCASpeelt en #HCAGroeit wachten op hun eindverantwoordelijke)
-- [ ] Eindverantwoordelijke ontbreekt bij #HCASpeelt en #HCAGroeit
+- [x] Omschrijvingen van de HCA-pijlers overgenomen uit "De missie van HCA"
+- [x] Eindverantwoordelijken ingevuld: #HCASpeelt = Bestuurslid Hockey, #HCAGroeit = Voorzitter, #HCADoet = Voorzitter
 
 ---
 
 ## Sprint 3 — Voorstel (nog in te plannen)
 
 ### P0c — Club loskoppelen van gebruiker (Platform-laag P0)
-**Status:** Open · **Prioriteit:** Must · *Advies PO: als eerste oppakken*
+**Status:** Gebouwd in v0.3.0 (eindoordeel: GO met voorbehoud) · live na migratie en rookproef · **Prioriteit:** Must
+
+**Eindoordeel:** `.claude/reports/P0c-eindoordeel.md`
+
+**Specificatie:** `.claude/specs/P0c-club-loskoppelen.md` · **Gebruikersreis:** `.claude/specs/P0c-gebruikersreis.md`
 
 *Als bestuurder wil ik met mijn eigen account toegang krijgen tot de club waar ik lid van ben, zodat meerdere bestuurders samen in dezelfde club kunnen werken.*
 
@@ -160,6 +164,45 @@
 
 **Acceptatiecriteria:**
 - [x] Aantal strategische pijlers en operationele domeinen wordt geteld uit `structuurelementen` (was vast "3" en "12")
+
+---
+
+### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
+**Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
+
+*Als bestuurder wil ik dat mijn wijziging in het clubprofiel de wijziging van een andere bestuurder niet ongemerkt terugdraait.*
+
+**Acceptatiecriteria:**
+- [ ] Opslaan van het profiel schrijft alleen de gewijzigde velden (of controleert op een nieuwere versie)
+- [ ] Scenario: A wijzigt het seizoen, B uploadt daarna een logo zonder te herladen → het seizoen van A blijft staan
+
+---
+
+### CK-023 — Melding bij mislukt opslaan
+**Status:** Open
+
+*Als bestuurder wil ik een duidelijke melding krijgen als opslaan bij Pijlers & Domeinen mislukt, zodat ik niet denk dat mijn wijziging bewaard is.*
+
+**Acceptatiecriteria:**
+- [ ] Bij een fout tijdens aanmaken, bewerken of verwijderen verschijnt een foutmelding en blijft de invoer staan
+- [ ] Geldt ook voor geweigerde toegang (bijv. een oud tabblad na de migratie van P0c)
+
+---
+
+### CK-024 — Oude kopie van de clubdata opruimen (na P0c)
+**Status:** Open · **Uiterste datum:** vast te leggen door de PO (AVG: bewaartermijn)
+
+*Als platform wil ik de oude kopie onder `clubs/{oudeUid}` verwijderen zodra de migratie van P0c bewezen goed werkt, zodat er geen dubbele persoonsgegevens blijven staan.*
+
+**Acceptatiecriteria:**
+- [ ] Opruimen na minimaal één sprint zonder problemen, met apart script en expliciet akkoord van de PO
+- [ ] Ook `gemigreerdVan` opruimen
+- [ ] Tot die tijd: de oude kopie meenemen bij verzoeken om inzage of verwijdering
+
+---
+
+### Randvoorwaarde voor stories met ledendata
+Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon worden opgeslagen: rollen écht afdwingen in de Firestore-regels, en elke nieuwe collectie expliciet in de regels opnemen (advies compliance P0c).
 
 ---
 

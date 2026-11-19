@@ -3,7 +3,7 @@
 
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
-import { getFirestore, collection, getDocs, doc, deleteDoc } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, getDoc, doc, deleteDoc } from 'firebase/firestore'
 import { createInterface } from 'readline'
 import { readFileSync } from 'fs'
 import { dirname, join } from 'path'
@@ -85,7 +85,20 @@ try {
 }
 console.log('Ingelogd.\n')
 
-const col = collection(db, 'clubs', user.uid, 'structuurelementen')
+let clubId = null
+try {
+  const gebruikerSnap = await getDoc(doc(db, 'gebruikers', user.uid))
+  clubId = gebruikerSnap.exists() ? gebruikerSnap.data().clubId : null
+} catch (e) {
+  console.error(`Club opzoeken mislukt: ${e.code || e.message}`)
+  process.exit(1)
+}
+if (!clubId) {
+  console.error('Dit account is niet aan een club gekoppeld (gebruikers/{uid}.clubId ontbreekt). Draai eerst scripts/migreer-club.mjs.')
+  process.exit(1)
+}
+
+const col = collection(db, 'clubs', clubId, 'structuurelementen')
 const docs = (await getDocs(col)).docs
 const groepen = new Map()
 for (const d of docs) {

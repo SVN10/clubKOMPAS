@@ -3,7 +3,7 @@
 
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
-import { getFirestore, collection, addDoc, getDocs } from 'firebase/firestore'
+import { getFirestore, collection, addDoc, getDocs, getDoc, doc } from 'firebase/firestore'
 import { createInterface } from 'readline'
 import { readFileSync } from 'fs'
 import { dirname, join } from 'path'
@@ -71,7 +71,7 @@ const items = [
 
 const env = leesEnv()
 const email = process.argv[2] || await vraag('E-mailadres: ')
-const wachtwoord = process.argv[3] || await vraag('Wachtwoord: ', true)
+const wachtwoord = await vraag('Wachtwoord: ', true)
 
 const app = initializeApp({
   apiKey: env.VITE_FIREBASE_API_KEY,
@@ -94,7 +94,20 @@ try {
 }
 console.log(`Ingelogd (uid: ${user.uid})\n`)
 
-const col = collection(db, 'clubs', user.uid, 'structuurelementen')
+let clubId = null
+try {
+  const gebruikerSnap = await getDoc(doc(db, 'gebruikers', user.uid))
+  clubId = gebruikerSnap.exists() ? gebruikerSnap.data().clubId : null
+} catch (e) {
+  console.error(`Club opzoeken mislukt: ${e.code || e.message}`)
+  process.exit(1)
+}
+if (!clubId) {
+  console.error('Dit account is niet aan een club gekoppeld (gebruikers/{uid}.clubId ontbreekt). Draai eerst scripts/migreer-club.mjs.')
+  process.exit(1)
+}
+
+const col = collection(db, 'clubs', clubId, 'structuurelementen')
 const sleutel = (type, naam) => `${type}|${(naam || '').trim().toLowerCase()}`
 const bestaand = new Set((await getDocs(col)).docs.map(d => sleutel(d.data().type, d.data().naam)))
 
@@ -107,9 +120,9 @@ for (const item of items) {
     overgeslagen++
     continue
   }
-  const doc = { type: item.type, naam: item.naam, omschrijving: item.omschrijving }
-  if (item.type === 'pijler' && item.verantwoordelijke) doc.verantwoordelijke = item.verantwoordelijke
-  await addDoc(col, doc)
+  const nieuw = { type: item.type, naam: item.naam, omschrijving: item.omschrijving }
+  if (item.type === 'pijler' && item.verantwoordelijke) nieuw.verantwoordelijke = item.verantwoordelijke
+  await addDoc(col, nieuw)
   bestaand.add(k)
   console.log(`  ✓ ${label}: ${item.naam}`)
   toegevoegd++

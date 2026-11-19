@@ -1,0 +1,60 @@
+// Gepubliceerd via Firebase-console. Repo is de bron; wijzig hier en plak in console.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function ingelogd() {
+      return request.auth != null;
+    }
+
+    function isLid(clubId) {
+      return ingelogd()
+        && exists(/databases/$(database)/documents/clubs/$(clubId)/leden/$(request.auth.uid));
+    }
+
+    function geldigLogo(data) {
+      return !('logo' in data)
+        || (data.logo is string && data.logo.matches('data:image/.*'));
+    }
+
+    // Wijzer gebruiker → club: alleen eigen document lezen, nooit schrijven vanuit de app
+    match /gebruikers/{uid} {
+      allow read: if ingelogd() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /clubs/{clubId} {
+      // Clubdocument zelf
+      allow read: if isLid(clubId);
+      allow write: if false;
+
+      // Lidmaatschap: alleen je eigen ledendocument lezen, niemand mag via de app schrijven
+      match /leden/{uid} {
+        allow read: if ingelogd() && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // Expliciet per collectie. Elke nieuwe collectie (bijv. vermogens, CK-020) moet hier
+      // bewust worden toegevoegd; alles wat niet genoemd is, is dicht.
+
+      // Clubprofiel (naam, afkorting, seizoen, logo als data:image/-URL)
+      match /instellingen/{docId} {
+        allow read: if isLid(clubId);
+        allow create, update: if isLid(clubId)
+          && docId == 'profiel'
+          && geldigLogo(request.resource.data);
+      }
+
+      // Pijlers en domeinen
+      match /structuurelementen/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId)
+          && request.resource.data.type in ['pijler', 'domein']
+          && request.resource.data.naam is string
+          && request.resource.data.naam.size() <= 200;
+      }
+    }
+
+    // Alles wat hierboven niet genoemd is: dicht (impliciet, Firestore default deny)
+  }
+}

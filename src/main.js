@@ -7,10 +7,20 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc 
 let huidigClubId = null
 let huidigProfiel = null
 let huidigGebruiker = null
+let laadTimer = null
+let foutPogingen = 0
+
+// Algemeen SVN10-supportadres (PO-besluit 2). Leeg = zin zonder adres, nooit een lege link.
+const SUPPORT_EMAIL = ''
+
+function veiligLogo(waarde) {
+  return typeof waarde === 'string' && waarde.startsWith('data:image/') ? waarde : ''
+}
 
 function setFavicon(base64) {
   const link = document.getElementById('favicon')
-  if (link && base64) link.href = base64
+  const logo = veiligLogo(base64)
+  if (link && logo) link.href = logo
 }
 
 async function resizeAfbeelding(file, maxPx = 300) {
@@ -70,7 +80,46 @@ async function slaaProfiel(data) {
   await setDoc(doc(db, 'clubs', huidigClubId, 'instellingen', 'profiel'), data)
 }
 
+// ── Club bepalen ──────────────────────────────────────────────────────────────
+
+async function bepaalClubId(gebruiker) {
+  const snap = await getDoc(doc(db, 'gebruikers', gebruiker.uid))
+  const clubId = snap.exists() ? snap.data().clubId : null
+  return typeof clubId === 'string' && clubId.trim() ? clubId : null
+}
+
+async function laadClub(gebruiker) {
+  huidigClubId = null
+  huidigProfiel = null
+  try {
+    const clubId = await bepaalClubId(gebruiker)
+    if (huidigGebruiker?.uid !== gebruiker.uid) return { status: 'afgebroken' }
+    if (!clubId) return { status: 'geen-club' }
+    huidigClubId = clubId
+    const profiel = await laadProfiel()
+    if (huidigGebruiker?.uid !== gebruiker.uid) return { status: 'afgebroken' }
+    huidigProfiel = profiel
+    return { status: 'ok' }
+  } catch (e) {
+    if (huidigGebruiker?.uid === gebruiker.uid) {
+      huidigClubId = null
+      huidigProfiel = null
+    }
+    return { status: e?.code === 'permission-denied' ? 'geen-club' : 'fout' }
+  }
+}
+
 // ── Gedeelde UI-helpers ───────────────────────────────────────────────────────
+
+function supportMailto(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
+  const o = encodeURIComponent(onderwerp)
+  const tekst = encodeURIComponent(`Mijn account: ${accountEmail || ''}\n\n`)
+  return `mailto:${SUPPORT_EMAIL}?subject=${o}&body=${tekst}`
+}
+
+function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
+  return `<a class="tussen-link" href="${esc(supportMailto(accountEmail, onderwerp))}">${esc(SUPPORT_EMAIL)}</a>`
+}
 
 function kompasIconSVG() {
   return `<svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -91,11 +140,12 @@ function topBarHTML() {
   const titel = huidigProfiel?.naam
     ? `club<b>KOMPAS</b> · ${esc(huidigProfiel.naam)}`
     : `club<b>KOMPAS</b>`
-  const logo = huidigProfiel?.logo
-    ? `<img src="${huidigProfiel.logo}" class="club-logo" alt="Club logo">`
+  const logoSrc = veiligLogo(huidigProfiel?.logo)
+  const logo = logoSrc
+    ? `<img src="${esc(logoSrc)}" class="club-logo" alt="Club logo">`
     : ''
   return `
-    <header class="top-bar${huidigProfiel?.logo ? ' heeft-logo' : ''}">
+    <header class="top-bar${logoSrc ? ' heeft-logo' : ''}">
       ${kompasIconSVG()}
       <span class="app-title">${titel}</span>
       ${logo}
@@ -234,6 +284,92 @@ function renderInlogscherm() {
   document.getElementById('inlog-wachtwoord').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('inlog-knop').click()
   })
+}
+
+function toonTussenkaart(inhoudHTML, { laden = false } = {}) {
+  document.querySelector('#app').innerHTML = `
+    <div class="inlog-wrap">
+      <div class="inlog-kaart">
+        <div class="inlog-logo${laden ? ' laadt' : ''}">
+          ${kompasIconSVG()}
+          <span class="app-title">club<b>KOMPAS</b></span>
+        </div>
+        ${inhoudHTML}
+      </div>
+    </div>`
+  document.getElementById('tussen-titel')?.focus()
+}
+
+function renderLaadkaart() {
+  toonTussenkaart(`
+    <h1 class="inlog-titel tussen-laad-titel" id="tussen-titel" tabindex="-1">Je club wordt geladen...</h1>`, { laden: true })
+}
+
+function renderGeenClub(gebruiker) {
+  const email = gebruiker?.email || ''
+  const alinea1 = email
+    ? `Je bent ingelogd als <strong>${esc(email)}</strong>, maar je account is nog niet aan een club gekoppeld.`
+    : 'Je bent ingelogd, maar je account is nog niet aan een club gekoppeld.'
+  const alinea2 = SUPPORT_EMAIL
+    ? `Neem contact op met SVN10 om toegang te krijgen: ${supportLinkHTML(email)}`
+    : 'Neem contact op met SVN10 om toegang te krijgen.'
+  toonTussenkaart(`
+    <h1 class="inlog-titel" id="tussen-titel" tabindex="-1">Geen club gekoppeld</h1>
+    <p class="tussen-tekst">${alinea1}</p>
+    <p class="tussen-tekst">${alinea2}</p>
+    <button class="btn primary inlog-knop" id="geen-club-uitlog">Uitloggen</button>`)
+  document.getElementById('geen-club-uitlog').addEventListener('click', () => signOut(auth))
+}
+
+function renderFoutkaart(gebruiker) {
+  toonTussenkaart(`
+    <h1 class="inlog-titel" id="tussen-titel" tabindex="-1">Club laden lukt niet</h1>
+    <p class="tussen-tekst">We konden je clubgegevens niet ophalen. Controleer je internetverbinding en probeer het opnieuw.</p>
+    <div class="form-rij">
+      <button class="btn primary" id="fout-opnieuw">Opnieuw proberen</button>
+      <button class="btn" id="fout-uitlog">Uitloggen</button>
+    </div>
+    <p class="tussen-hint" id="fout-hint" role="status"></p>`)
+
+  document.getElementById('fout-uitlog').addEventListener('click', () => signOut(auth))
+
+  const knop = document.getElementById('fout-opnieuw')
+  const hint = document.getElementById('fout-hint')
+  knop.addEventListener('click', async () => {
+    if (knop.getAttribute('aria-disabled') === 'true') return
+    knop.textContent = 'Bezig...'
+    knop.setAttribute('aria-disabled', 'true')
+    hint.textContent = 'Bezig met laden...'
+    const { status } = await laadClub(gebruiker)
+    if (huidigGebruiker?.uid !== gebruiker.uid || status === 'afgebroken') return
+    if (status !== 'fout') { toonUitkomst(gebruiker, status); return }
+    foutPogingen++
+    if (!knop.isConnected) return
+    knop.textContent = 'Opnieuw proberen'
+    knop.removeAttribute('aria-disabled')
+    knop.focus()
+    hint.textContent = ''
+    if (foutPogingen >= 2) {
+      const hintHTML = SUPPORT_EMAIL
+        ? `Lukt het na een paar pogingen nog steeds niet? Mail naar ${supportLinkHTML(gebruiker?.email, 'Storing clubKOMPAS')}.`
+        : 'Lukt het na een paar pogingen nog steeds niet? Neem contact op met SVN10.'
+      setTimeout(() => { if (hint.isConnected) hint.innerHTML = hintHTML }, 100)
+    }
+  })
+}
+
+function toonUitkomst(gebruiker, status) {
+  if (status === 'ok') {
+    foutPogingen = 0
+    setFavicon(huidigProfiel?.logo)
+    renderDashboard(gebruiker)
+  } else if (status === 'geen-club') {
+    foutPogingen = 0
+    renderGeenClub(gebruiker)
+  } else {
+    foutPogingen = 1
+    renderFoutkaart(gebruiker)
+  }
 }
 
 function renderDashboard(gebruiker) {
@@ -551,6 +687,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
 }
 
 function renderInstellingen(gebruiker) {
+  const logoSrc = veiligLogo(huidigProfiel?.logo)
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
     ${navHTML('instellingen')}
@@ -594,15 +731,15 @@ function renderInstellingen(gebruiker) {
           </div>
           <div class="sectie-lijf">
             <div class="logo-upload-wrap">
-              ${huidigProfiel?.logo
-                ? `<img src="${huidigProfiel.logo}" class="logo-preview" alt="Huidig logo">`
+              ${logoSrc
+                ? `<img src="${esc(logoSrc)}" class="logo-preview" alt="Huidig logo">`
                 : `<div class="logo-leeg">Nog geen logo geüpload</div>`}
               <div class="form-rij" style="margin-top:12px">
                 <label class="btn" style="cursor:pointer">
-                  <span>${huidigProfiel?.logo ? 'Logo wijzigen' : 'Logo uploaden'}</span>
+                  <span>${logoSrc ? 'Logo wijzigen' : 'Logo uploaden'}</span>
                   <input type="file" id="logo-input" accept="image/*" hidden>
                 </label>
-                ${huidigProfiel?.logo
+                ${logoSrc
                   ? `<button class="btn gevaar" id="logo-verwijderen">Verwijderen</button>`
                   : ''}
               </div>
@@ -838,16 +975,22 @@ function renderInstellingen(gebruiker) {
 }
 
 onAuthStateChanged(auth, async gebruiker => {
+  clearTimeout(laadTimer)
+  laadTimer = null
   if (gebruiker) {
-    huidigClubId = gebruiker.uid
     huidigGebruiker = gebruiker
-    huidigProfiel = await laadProfiel()
-    if (huidigProfiel?.logo) setFavicon(huidigProfiel.logo)
-    renderDashboard(gebruiker)
+    foutPogingen = 0
+    laadTimer = setTimeout(renderLaadkaart, 500)
+    const { status } = await laadClub(gebruiker)
+    if (huidigGebruiker?.uid !== gebruiker.uid || status === 'afgebroken') return
+    clearTimeout(laadTimer)
+    laadTimer = null
+    toonUitkomst(gebruiker, status)
   } else {
     huidigClubId = null
     huidigGebruiker = null
     huidigProfiel = null
+    foutPogingen = 0
     renderInlogscherm()
   }
 })
