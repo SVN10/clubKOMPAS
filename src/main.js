@@ -11,7 +11,7 @@ let laadTimer = null
 let foutPogingen = 0
 
 // Algemeen SVN10-supportadres (PO-besluit 2). Leeg = zin zonder adres, nooit een lege link.
-const SUPPORT_EMAIL = ''
+const SUPPORT_EMAIL = 'support@svn10.nl'
 
 function veiligLogo(waarde) {
   return typeof waarde === 'string' && waarde.startsWith('data:image/') ? waarde : ''

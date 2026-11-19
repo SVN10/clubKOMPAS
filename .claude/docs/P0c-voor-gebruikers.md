@@ -39,7 +39,7 @@ Vlak voor de overstap vraagt SVN10 je om uit te loggen. Na de overstap log je we
 **Wat je doet:**
 1. Kijk of het e-mailadres op het scherm klopt. Heb je misschien met een ander adres ingelogd dan je bedoelde?
 2. Is het adres fout? Klik op "Uitloggen" en log in met het goede adres.
-3. Is het adres goed? Neem dan contact op met SVN10 om toegang te krijgen. Staat er een e-mailadres op het scherm, dan klik je erop. Er opent een nieuw bericht met je account er al in. Staat er geen adres, mail dan naar het adres dat SVN10 je eerder heeft gegeven.
+3. Is het adres goed? Neem dan contact op met SVN10 om toegang te krijgen: klik op support@svn10.nl op het scherm. Er opent een nieuw bericht met je account er al in.
 4. Heeft SVN10 je gekoppeld? Laad de pagina opnieuw. Of log uit en weer in. Dan zie je je club.
 
 Je hoeft niets te installeren of in te stellen. SVN10 regelt de koppeling.

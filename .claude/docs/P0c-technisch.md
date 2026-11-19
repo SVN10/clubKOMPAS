@@ -45,7 +45,7 @@ Alle drie gebruiken `toonTussenkaart(html, { laden })`, in de stijl van het inlo
 - `renderFoutkaart`: "Opnieuw proberen" roept `laadClub` opnieuw aan en gaat via `toonUitkomst`. Vanaf de tweede mislukte poging verschijnt een hint met contact.
 - `toonUitkomst(gebruiker, status)` is de enige plek die status naar scherm vertaalt.
 
-Contactadres: constante `SUPPORT_EMAIL` bovenaan `src/main.js`. Nog leeg (adres niet bekend); leeg betekent een zin zonder adres, nooit een lege link. Eén plek invullen volstaat.
+Contactadres: constante `SUPPORT_EMAIL` bovenaan `src/main.js`. Ingevuld met `support@svn10.nl` (v0.3.1). Leeg zou een zin zonder adres betekenen, nooit een lege link.
 
 ## firestore.rules
 
@@ -93,5 +93,4 @@ Andere scripts: `import-hca.mjs` en `opschonen-dubbelen.mjs` zoeken het clubId o
 - Rollen afdwingen en uitnodigen via de app (P0d); nu wordt `rol` alleen opgeslagen.
 - Zelfregistratie in Firebase Auth uitzetten (console, PO).
 - Oude data onder `clubs/{oudeUid}` opruimen: na minimaal één sprint, apart script, expliciet akkoord PO.
-- `SUPPORT_EMAIL` invullen.
 - Regels zijn niet met emulator getest; alleen via Rules Playground.

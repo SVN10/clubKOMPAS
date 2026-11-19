@@ -1,8 +1,14 @@
 # Changelog
 
-## [0.3.0] – 2026-11-19
+## [0.3.1] – 2026-11-19
 
-Versienummer is een voorstel; `package.json` staat nog op 0.2.1.
+### Gewijzigd
+- Supportadres `support@svn10.nl` ingevuld op de schermen "Geen club gekoppeld" en "Club laden lukt niet" (klikbare mail-link met onderwerp en account).
+
+### Opgelost
+- Clublogo wordt als favicon getoond (type volgt het logo; het element wordt vervangen). Bij logo verwijderen en uitloggen komt het kompas-icoon terug. Safari staat dynamische favicons niet toe en blijft het kompas tonen.
+
+## [0.3.0] – 2026-11-19
 
 ### Toegevoegd
 - Club is een zelfstandige tenant: `clubs/{clubId}` met lidmaatschap in `clubs/{clubId}/leden/{uid}` en een wijzer `gebruikers/{uid}.clubId`.
