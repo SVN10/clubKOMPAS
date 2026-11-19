@@ -203,7 +203,9 @@
 ---
 
 ### CK-024 — Oude kopie van de clubdata opruimen (na P0c)
-**Status:** Open · **Uiterste datum:** vast te leggen door de PO (AVG: bewaartermijn)
+**Status:** Open · **Gepland:** 26 november 2026, na een week probleemloos gebruik (besluit PO, 19 november 2026)
+
+**Uitvoering:** via de Firebase-console (de regels sluiten de oude plek af): document `clubs/{oudeUid}` verwijderen inclusief subcollecties, en in `clubs/{clubId}` het veld `gemigreerdVan` weghalen. Definitief, geen back-up.
 
 *Als platform wil ik de oude kopie onder `clubs/{oudeUid}` verwijderen zodra de migratie van P0c bewezen goed werkt, zodat er geen dubbele persoonsgegevens blijven staan.*
 
