@@ -60,7 +60,12 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
 
-// ── Structuurelementen (pijlers & domeinen in één collectie) ──────────────────
+// ── Domeinen (structuurelementen) ────────────────────────────────────────────
+// Eén begrip "domein" met twee soorten. In de database blijft het veld `type`
+// 'pijler' (strategisch domein) of 'domein' (ondersteunend domein); alleen de
+// weergave gebruikt de nieuwe woorden.
+const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend' }
+const SOORT_SUB = { pijler: 'Pijler · strategisch domein', domein: 'Ondersteunend domein' }
 
 async function laadStructuurelementen() {
   const snap = await getDocs(collection(db, 'clubs', huidigClubId, 'structuurelementen'))
@@ -166,7 +171,7 @@ function navHTML(actief) {
   return `
     <nav class="top-nav">
       <a href="#" class="nav-home${actief === 'home' ? ' active' : ''}">Home</a>
-      <a href="#" class="nav-structuur${actief === 'structuur' ? ' active' : ''}">Pijlers &amp; Domeinen</a>
+      <a href="#" class="nav-structuur${actief === 'structuur' ? ' active' : ''}">Domeinen</a>
       <a href="#" class="nav-instellingen${actief === 'instellingen' ? ' active' : ''}">Instellingen</a>
     </nav>`
 }
@@ -209,7 +214,7 @@ async function renderStructuurGrid() {
     const leeg = document.createElement('p')
     leeg.className = 'structuur-dyn'
     leeg.style.color = 'var(--muted)'
-    leeg.textContent = 'Nog geen pijlers of domeinen. Voeg ze toe via Beheer.'
+    leeg.textContent = 'Nog geen domeinen. Voeg ze toe via Beheer.'
     grid.appendChild(leeg)
     return
   }
@@ -220,9 +225,9 @@ async function renderStructuurGrid() {
     div.innerHTML = `
       <div class="card">
         <h3>${esc(item.naam)}</h3>
-        <div class="sub">${isPijler ? 'Strategische pijler' : 'Domein'}</div>
+        <div class="sub">${SOORT_SUB[item.type] || ''}</div>
         <p>${esc(item.omschrijving || '')}</p>
-        <span class="pill"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${isPijler ? 'Pijler' : 'Domein'}</span>
+        <span class="pill"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${SOORT_LABEL[item.type] || ''}</span>
       </div>`
     grid.appendChild(div)
   })
@@ -407,7 +412,7 @@ function renderDashboard(gebruiker) {
               <div class="hero-tekst">
                 <h1>Alles wat je club <b>kan</b>, op één plek.</h1>
                 <p>
-                  clubKOMPAS geeft sportclubs overzicht over hun pijlers, domeinen en
+                  clubKOMPAS geeft sportclubs overzicht over hun domeinen en
                   vermogens — van ledenbeheer tot sponsoring, van strategie tot activiteiten.
                   Ontworpen voor bestuurders die meer willen doen en minder willen zoeken.
                 </p>
@@ -418,8 +423,8 @@ function renderDashboard(gebruiker) {
               </div>
               <div>
                 <div class="cijfers" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
-                  <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Strategische pijlers</span></div>
-                  <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Operationele domeinen</span></div>
+                  <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
+                  <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
                   <div class="cijfer"><span class="n">∞</span><span class="l">Vermogens per club</span></div>
                   <div class="cijfer"><span class="n">1</span><span class="l">Overzicht voor alles</span></div>
                 </div>
@@ -430,7 +435,7 @@ function renderDashboard(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2>Pijlers &amp; Domeinen</h2>
+            <h2>Domeinen</h2>
             <span class="toel">De structuur van jouw club</span>
           </div>
           <div class="sectie-lijf">
@@ -462,14 +467,14 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       <div class="wrap">
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2>Pijlers &amp; Domeinen</h2>
+            <h2>Domeinen</h2>
             <span class="toel">Structuur van jouw club</span>
           </div>
           <div class="sectie-lijf">
             <div class="filter-tabs" role="group" aria-label="Filter">
               <button class="btn filter-knop active" data-filter="alles">Alles</button>
               <button class="btn filter-knop" data-filter="pijler">Pijlers</button>
-              <button class="btn filter-knop" data-filter="domein">Domeinen</button>
+              <button class="btn filter-knop" data-filter="domein">Ondersteunend</button>
             </div>
             <div id="structuur-lijst"></div>
             <button class="btn-toevoegen" id="structuur-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
@@ -481,7 +486,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
                     <input type="radio" name="structuur-type" value="pijler" checked> Pijler
                   </label>
                   <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-                    <input type="radio" name="structuur-type" value="domein"> Domein
+                    <input type="radio" name="structuur-type" value="domein"> Ondersteunend domein
                   </label>
                 </div>
               </div>
@@ -497,7 +502,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
               </div>
               <div class="form-groep" id="structuur-verantw-groep">
                 <label class="form-label" for="structuur-verantw">Eindverantwoordelijke</label>
-                <input class="form-input" id="structuur-verantw" name="verantwoordelijke" type="text" placeholder="Naam" autocomplete="off">
+                <input class="form-input" id="structuur-verantw" name="verantwoordelijke" type="text" placeholder="Bestuursfunctie, bijv. Voorzitter" autocomplete="off">
                 <span class="form-fout" id="structuur-verantw-fout"></span>
               </div>
               <div class="form-rij">
@@ -532,7 +537,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         <div class="structuur-rij" data-id="${esc(item.id)}">
           <div class="structuur-rij-info">
             <strong>${esc(item.naam)}</strong>
-            <span class="pill" style="margin-top:0"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${isPijler ? 'Pijler' : 'Domein'}</span>
+            <span class="pill" style="margin-top:0"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${SOORT_LABEL[item.type] || ''}</span>
             ${item.omschrijving ? `<span style="color:var(--muted);font-size:13px">${esc(item.omschrijving)}</span>` : ''}
           </div>
           <div class="kaart-acties" style="margin-top:0;flex-shrink:0">
@@ -554,13 +559,6 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     await laadEnRender()
   })
 
-  document.querySelectorAll('[name="structuur-type"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      const groep = document.getElementById('structuur-verantw-groep')
-      if (groep) groep.hidden = document.querySelector('[name="structuur-type"]:checked').value === 'domein'
-    })
-  })
-
   document.getElementById('structuur-toevoegen-knop').addEventListener('click', () => {
     document.getElementById('structuur-form').hidden = false
     document.getElementById('structuur-toevoegen-knop').hidden = true
@@ -575,8 +573,6 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     document.getElementById('structuur-verantw').value = ''
     const radios = document.querySelectorAll('[name="structuur-type"]')
     if (radios[0]) radios[0].checked = true
-    const groep = document.getElementById('structuur-verantw-groep')
-    if (groep) groep.hidden = false
     ;['structuur-naam-fout', 'structuur-omschr-fout', 'structuur-verantw-fout'].forEach(id => {
       const el = document.getElementById(id)
       if (el) el.textContent = ''
@@ -595,7 +591,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     const checks = [
       [naamEl, 'structuur-naam-fout', 2],
       [omschrEl, 'structuur-omschr-fout', 2],
-      ...(type === 'pijler' ? [[verAntwEl, 'structuur-verantw-fout', 3]] : [])
+      [verAntwEl, 'structuur-verantw-fout', 3]
     ]
     checks.forEach(([el, foutId, min]) => {
       const fout = document.getElementById(foutId)
@@ -608,8 +604,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     })
     if (!ok) return
 
-    const item = { type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim() }
-    if (type === 'pijler') item.verantwoordelijke = verAntwEl.value.trim()
+    const item = { type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim(), verantwoordelijke: verAntwEl.value.trim() }
     await voegStructuurelementToe(item)
     resetForm()
     await laadEnRender()
@@ -639,7 +634,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
               <input type="radio" name="bewerk-type-${esc(id)}" value="pijler" ${isPijler ? 'checked' : ''}> Pijler
             </label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-              <input type="radio" name="bewerk-type-${esc(id)}" value="domein" ${!isPijler ? 'checked' : ''}> Domein
+              <input type="radio" name="bewerk-type-${esc(id)}" value="domein" ${!isPijler ? 'checked' : ''}> Ondersteunend domein
             </label>
           </div>
           <div class="form-groep">
@@ -652,9 +647,9 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             <input class="form-input" id="bo-${esc(id)}" value="${esc(item.omschrijving || '')}" autocomplete="off">
             <span class="form-fout" id="bo-fout-${esc(id)}"></span>
           </div>
-          <div class="form-groep" id="bv-groep-${esc(id)}" ${!isPijler ? 'hidden' : ''}>
+          <div class="form-groep" id="bv-groep-${esc(id)}">
             <label class="form-label">Eindverantwoordelijke</label>
-            <input class="form-input" id="bv-${esc(id)}" value="${esc(item.verantwoordelijke || '')}" autocomplete="off">
+            <input class="form-input" id="bv-${esc(id)}" value="${esc(item.verantwoordelijke || '')}" placeholder="Bestuursfunctie, bijv. Voorzitter" autocomplete="off">
             <span class="form-fout" id="bv-fout-${esc(id)}"></span>
           </div>
           <div class="form-rij">
@@ -662,12 +657,6 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
         </div>`
-      rij.querySelectorAll(`[name="bewerk-type-${id}"]`).forEach(r => {
-        r.addEventListener('change', () => {
-          const groep = document.getElementById(`bv-groep-${id}`)
-          if (groep) groep.hidden = rij.querySelector(`[name="bewerk-type-${id}"]:checked`).value === 'domein'
-        })
-      })
       document.getElementById(`bn-${id}`)?.focus()
     } else if (actie === 'bewerk-opslaan') {
       const type = rij.querySelector(`[name="bewerk-type-${id}"]:checked`)?.value
@@ -678,7 +667,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       const checks = [
         [naam, `bn-fout-${id}`, 2],
         [omschr, `bo-fout-${id}`, 2],
-        ...(type === 'pijler' ? [[verantw, `bv-fout-${id}`, 3]] : [])
+        [verantw, `bv-fout-${id}`, 3]
       ]
       checks.forEach(([val, foutId, min]) => {
         const el = document.getElementById(foutId)
@@ -686,8 +675,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         else el.textContent = ''
       })
       if (!ok) return
-      const data = { type, naam, omschrijving: omschr }
-      if (type === 'pijler') data.verantwoordelijke = verantw
+      const data = { type, naam, omschrijving: omschr, verantwoordelijke: verantw }
       await bewerkStructuurelement(id, data)
       await laadEnRender()
     } else if (actie === 'bewerk-annuleer') {

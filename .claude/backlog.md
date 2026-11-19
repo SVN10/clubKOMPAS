@@ -169,6 +169,20 @@
 
 ---
 
+### ✅ CK-026 — Eén begrip: domein, met twee soorten
+**Status:** Gebouwd (19 november 2026)
+
+*Pijlers en domeinen heten voortaan allemaal **domein**. Er zijn twee soorten: **pijler** (strategisch domein: waar de club voor staat) en **ondersteunend domein** (wat nodig is om de club te laten draaien). Sluit aan op het Verenigingsmodel.*
+
+- [x] Menu en koppen: "Domeinen" in plaats van "Pijlers & Domeinen"; filters Alles / Pijlers / Ondersteunend
+- [x] Kaarten: "Pijler · strategisch domein" en "Ondersteunend domein"; dashboardcijfers "Pijlers" en "Ondersteunende domeinen"
+- [x] Eindverantwoordelijke (bestuursfunctie) verplicht voor beide soorten
+- [x] Technisch ongewijzigd: veld `type` blijft `pijler` / `domein`, geen migratie, geen wijziging in `firestore.rules`
+
+**Open:** bij de HCA-domeinen Bestuur, Communicatie en Financiën staat de bestuursfunctie nog in de omschrijving en is de eindverantwoordelijke leeg.
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
