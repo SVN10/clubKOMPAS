@@ -250,6 +250,15 @@
 
 ---
 
+### ✅ CK-033 — Omgeving en rol in de footer
+**Status:** Gebouwd (20 november 2026)
+
+- [x] Rechtsonder: OMGEVING · NAAM · ROL, bijv. "ONTWIKKELING · PAUL ALBREGT · BEHEERDER"
+- [x] Omgeving via de build-instelling `VITE_OMGEVING` (bijv. "Productie"); zonder instelling "Ontwikkeling"
+- [x] Rol uit `clubs/{clubId}/leden/{uid}.rol`; kan de rol niet geladen worden, dan wordt hij weggelaten
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 

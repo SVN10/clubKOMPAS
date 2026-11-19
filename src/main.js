@@ -7,6 +7,11 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc 
 let huidigClubId = null
 let huidigProfiel = null
 let huidigGebruiker = null
+let huidigeRol = null
+
+// Omgeving waarin de app draait (rechtsonder in de footer). Per deploy in te stellen met
+// VITE_OMGEVING (bijv. "Productie"); zonder instelling is het "Ontwikkeling".
+const OMGEVING = (import.meta.env.VITE_OMGEVING || 'Ontwikkeling').trim()
 let laadTimer = null
 let foutPogingen = 0
 
@@ -181,17 +186,30 @@ async function bepaalClubId(gebruiker) {
   return typeof clubId === 'string' && clubId.trim() ? clubId : null
 }
 
+// Rol van de gebruiker in de club (clubs/{clubId}/leden/{uid}.rol). Mag de app niet blokkeren.
+async function laadRol(gebruiker) {
+  try {
+    const snap = await getDoc(doc(db, 'clubs', huidigClubId, 'leden', gebruiker.uid))
+    const rol = snap.exists() ? snap.data().rol : null
+    return typeof rol === 'string' && rol.trim() ? rol.trim() : null
+  } catch {
+    return null
+  }
+}
+
 async function laadClub(gebruiker) {
   huidigClubId = null
   huidigProfiel = null
+  huidigeRol = null
   try {
     const clubId = await bepaalClubId(gebruiker)
     if (huidigGebruiker?.uid !== gebruiker.uid) return { status: 'afgebroken' }
     if (!clubId) return { status: 'geen-club' }
     huidigClubId = clubId
-    const profiel = await laadProfiel()
+    const [profiel, rol] = await Promise.all([laadProfiel(), laadRol(gebruiker)])
     if (huidigGebruiker?.uid !== gebruiker.uid) return { status: 'afgebroken' }
     huidigProfiel = profiel
+    huidigeRol = rol
     return { status: 'ok' }
   } catch (e) {
     if (huidigGebruiker?.uid === gebruiker.uid) {
@@ -255,9 +273,11 @@ function navHTML(actief) {
 }
 
 function footerHTML() {
-  const gebruikerLabel = huidigGebruiker
-    ? `<span>${esc(huidigGebruiker.displayName || huidigGebruiker.email)}</span>`
-    : ''
+  // Rechtsonder: OMGEVING · NAAM · ROL (hoofdletters via de footer-stijl)
+  const delen = [OMGEVING]
+  if (huidigGebruiker) delen.push(huidigGebruiker.displayName || huidigGebruiker.email)
+  if (huidigeRol) delen.push(huidigeRol)
+  const gebruikerLabel = `<span class="footer-sessie">${delen.map(esc).join(' · ')}</span>`
   return `
     <footer>
       <span>clubKOMPAS · een product van SVN10</span>
@@ -1305,6 +1325,7 @@ onAuthStateChanged(auth, async gebruiker => {
     huidigClubId = null
     huidigGebruiker = null
     huidigProfiel = null
+    huidigeRol = null
     foutPogingen = 0
     setFavicon('')
     renderInlogscherm()
