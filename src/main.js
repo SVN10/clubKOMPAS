@@ -9,9 +9,9 @@ let huidigProfiel = null
 let huidigGebruiker = null
 let huidigeRol = null
 
-// Omgeving waarin de app draait (rechtsonder in de footer). Per deploy in te stellen met
-// VITE_OMGEVING (bijv. "Productie"); zonder instelling is het "Ontwikkeling".
-const OMGEVING = (import.meta.env.VITE_OMGEVING || 'Ontwikkeling').trim()
+// Omgeving waarin de app draait (midden in de footer). Per deploy in te stellen met
+// VITE_OMGEVING (bijv. "Productie"); zonder instelling is het "Ontwikkel".
+const OMGEVING = (import.meta.env.VITE_OMGEVING || 'Ontwikkel').trim()
 let laadTimer = null
 let foutPogingen = 0
 
@@ -273,15 +273,15 @@ function navHTML(actief) {
 }
 
 function footerHTML() {
-  // Rechtsonder: OMGEVING · NAAM · ROL (hoofdletters via de footer-stijl)
-  const delen = [OMGEVING]
+  // Midden: OMGEVING · VERSIE; rechtsonder: NAAM · ROL (hoofdletters via de footer-stijl)
+  const delen = []
   if (huidigGebruiker) delen.push(huidigGebruiker.displayName || huidigGebruiker.email)
   if (huidigeRol) delen.push(huidigeRol)
-  const gebruikerLabel = `<span class="footer-sessie">${delen.map(esc).join(' · ')}</span>`
+  const gebruikerLabel = delen.length ? `<span class="footer-sessie">${delen.map(esc).join(' · ')}</span>` : ''
   return `
     <footer>
       <span>clubKOMPAS · een product van SVN10</span>
-      <span>Versie ${version}</span>
+      <span>${esc(OMGEVING)} · Versie ${version}</span>
       <span class="footer-rechts">
         ${gebruikerLabel}
         <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>

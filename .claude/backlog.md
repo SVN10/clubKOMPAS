@@ -253,8 +253,8 @@
 ### ✅ CK-033 — Omgeving en rol in de footer
 **Status:** Gebouwd (20 november 2026)
 
-- [x] Rechtsonder: OMGEVING · NAAM · ROL, bijv. "ONTWIKKELING · PAUL ALBREGT · BEHEERDER"
-- [x] Omgeving via de build-instelling `VITE_OMGEVING` (bijv. "Productie"); zonder instelling "Ontwikkeling"
+- [x] Midden: OMGEVING · VERSIE, bijv. "ONTWIKKEL · VERSIE 0.4.0"; rechtsonder: NAAM · ROL, bijv. "PAUL ALBREGT · BEHEERDER"
+- [x] Omgeving via de build-instelling `VITE_OMGEVING` (bijv. "Productie"); zonder instelling "Ontwikkel"
 - [x] Rol uit `clubs/{clubId}/leden/{uid}.rol`; kan de rol niet geladen worden, dan wordt hij weggelaten
 
 ---
