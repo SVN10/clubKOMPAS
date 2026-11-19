@@ -67,9 +67,45 @@ function esc(s) {
 const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend' }
 const SOORT_SUB = { pijler: 'Pijler · strategisch domein', domein: 'Ondersteunend domein' }
 
+// Vaste lijnpictogrammen uit de huisstijl (public/pictogrammen/<sleutel>.svg, petrol).
+// Een domein bewaart alleen de sleutel in het veld `icoon`.
+const PICTOGRAMMEN = [
+  ['hcaspeelt', 'Hockeystick met bal'],
+  ['hcagroeit', 'Kiemplantje'],
+  ['hcadoet', 'Groepje mensen'],
+  ['bestuur', 'Kompas'],
+  ['leden', 'Persoon'],
+  ['vrijwilligers', 'Hart'],
+  ['relaties', 'Twee cirkels'],
+  ['communicatie', 'Spraakwolk'],
+  ['financien', 'Euroteken'],
+  ['accommodatie', 'Clubhuis'],
+  ['hospitality', 'Kop koffie'],
+  ['materiaal', 'Doos'],
+  ['digitaal', 'Beeldscherm'],
+]
+const PICTOGRAM_SLEUTELS = new Set(PICTOGRAMMEN.map(([k]) => k))
+
+function pictogramHTML(item, klasse) {
+  if (!PICTOGRAM_SLEUTELS.has(item?.icoon)) return ''
+  return `<img src="/pictogrammen/${item.icoon}.svg" class="${klasse}" alt="" aria-hidden="true">`
+}
+
+function pictogramKeuzeHTML(id, huidig) {
+  const opties = PICTOGRAMMEN.map(([k, label]) =>
+    `<option value="${k}"${k === huidig ? ' selected' : ''}>${esc(label)}</option>`).join('')
+  return `<select class="form-input" id="${esc(id)}"><option value="">Geen pictogram</option>${opties}</select>`
+}
+
+// Domeinen staan in een vaste volgorde (veld `volgorde`, 1 t/m n); zonder volgorde achteraan, op naam.
+function sorteerDomeinen(items) {
+  const v = x => (typeof x.volgorde === 'number' ? x.volgorde : Infinity)
+  return items.sort((a, b) => v(a) - v(b) || String(a.naam).localeCompare(String(b.naam), 'nl'))
+}
+
 async function laadStructuurelementen() {
   const snap = await getDocs(collection(db, 'clubs', huidigClubId, 'structuurelementen'))
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  return sorteerDomeinen(snap.docs.map(d => ({ id: d.id, ...d.data() })))
 }
 
 async function voegStructuurelementToe(item) {
@@ -224,7 +260,8 @@ async function renderStructuurGrid() {
     div.className = 'structuur-dyn'
     div.innerHTML = `
       <div class="card">
-        <h3>${esc(item.naam)}</h3>
+        ${isPijler ? pictogramHTML(item, 'picto-groot') : ''}
+        <h3 class="card-titel">${isPijler ? '' : pictogramHTML(item, 'picto-klein')}${esc(item.naam)}</h3>
         <div class="sub">${SOORT_SUB[item.type] || ''}</div>
         <p>${esc(item.omschrijving || '')}</p>
         <span class="pill"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${SOORT_LABEL[item.type] || ''}</span>
@@ -505,6 +542,10 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
                 <input class="form-input" id="structuur-verantw" name="verantwoordelijke" type="text" placeholder="Bestuursfunctie, bijv. Voorzitter" autocomplete="off">
                 <span class="form-fout" id="structuur-verantw-fout"></span>
               </div>
+              <div class="form-groep">
+                <label class="form-label" for="structuur-icoon">Pictogram</label>
+                ${pictogramKeuzeHTML('structuur-icoon', '')}
+              </div>
               <div class="form-rij">
                 <button class="btn primary" id="structuur-opslaan">Opslaan</button>
                 <button class="btn" id="structuur-annuleer">Annuleren</button>
@@ -531,16 +572,22 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:13px">Geen items gevonden.</p>`
       return
     }
-    lijst.innerHTML = gefilterd.map(item => {
+    const kanVerplaatsen = actiefFilter === 'alles'
+    lijst.innerHTML = gefilterd.map((item, i) => {
       const isPijler = item.type === 'pijler'
+      const verplaats = kanVerplaatsen ? `
+            <button class="btn-kaart-actie btn-volgorde" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omhoog"${i === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omlaag"${i === gefilterd.length - 1 ? ' disabled' : ''}>↓</button>` : ''
       return `
         <div class="structuur-rij" data-id="${esc(item.id)}">
           <div class="structuur-rij-info">
+            ${kanVerplaatsen ? `<span class="volgorde-nr">${i + 1}</span>` : ''}
+            ${pictogramHTML(item, 'picto-klein')}
             <strong>${esc(item.naam)}</strong>
             <span class="pill" style="margin-top:0"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${SOORT_LABEL[item.type] || ''}</span>
             ${item.omschrijving ? `<span style="color:var(--muted);font-size:13px">${esc(item.omschrijving)}</span>` : ''}
           </div>
-          <div class="kaart-acties" style="margin-top:0;flex-shrink:0">
+          <div class="kaart-acties" style="margin-top:0;flex-shrink:0">${verplaats}
             <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(item.id)}">Bewerken</button>
             <button class="btn-kaart-actie gevaar" data-actie="verwijder" data-id="${esc(item.id)}">Verwijderen</button>
           </div>
@@ -571,6 +618,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     document.getElementById('structuur-naam').value = ''
     document.getElementById('structuur-omschr').value = ''
     document.getElementById('structuur-verantw').value = ''
+    document.getElementById('structuur-icoon').value = ''
     const radios = document.querySelectorAll('[name="structuur-type"]')
     if (radios[0]) radios[0].checked = true
     ;['structuur-naam-fout', 'structuur-omschr-fout', 'structuur-verantw-fout'].forEach(id => {
@@ -604,7 +652,12 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     })
     if (!ok) return
 
-    const item = { type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim(), verantwoordelijke: verAntwEl.value.trim() }
+    const bestaand = await laadStructuurelementen()
+    const hoogste = bestaand.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
+    const item = {
+      type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim(), verantwoordelijke: verAntwEl.value.trim(),
+      icoon: document.getElementById('structuur-icoon').value, volgorde: hoogste + 1,
+    }
     await voegStructuurelementToe(item)
     resetForm()
     await laadEnRender()
@@ -617,7 +670,19 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     const id = knop.dataset.id
     const rij = knop.closest('.structuur-rij')
 
-    if (actie === 'verwijder') {
+    if (actie === 'omhoog' || actie === 'omlaag') {
+      const items = await laadStructuurelementen()
+      const i = items.findIndex(x => x.id === id)
+      const j = actie === 'omhoog' ? i - 1 : i + 1
+      if (i < 0 || j < 0 || j >= items.length) return
+      ;[items[i], items[j]] = [items[j], items[i]]
+      // Hernummer 1 t/m n en schrijf alleen wat veranderd is
+      await Promise.all(items.map((x, k) => (x.volgorde === k + 1 ? null : bewerkStructuurelement(x.id, { volgorde: k + 1 }))))
+      await laadEnRender()
+      // Focus blijft bij het verplaatste domein
+      const knopNa = document.querySelector(`[data-actie="${actie}"][data-id="${id}"]`)
+      ;(knopNa && !knopNa.disabled ? knopNa : document.querySelector(`[data-actie="bewerk"][data-id="${id}"]`))?.focus()
+    } else if (actie === 'verwijder') {
       if (confirm('Item verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
         await verwijderStructuurelement(id)
         await laadEnRender()
@@ -652,6 +717,10 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             <input class="form-input" id="bv-${esc(id)}" value="${esc(item.verantwoordelijke || '')}" placeholder="Bestuursfunctie, bijv. Voorzitter" autocomplete="off">
             <span class="form-fout" id="bv-fout-${esc(id)}"></span>
           </div>
+          <div class="form-groep">
+            <label class="form-label" for="bi-${esc(id)}">Pictogram</label>
+            ${pictogramKeuzeHTML(`bi-${id}`, item.icoon || '')}
+          </div>
           <div class="form-rij">
             <button class="btn primary" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
@@ -675,7 +744,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         else el.textContent = ''
       })
       if (!ok) return
-      const data = { type, naam, omschrijving: omschr, verantwoordelijke: verantw }
+      const icoon = document.getElementById(`bi-${id}`)?.value || ''
+      const data = { type, naam, omschrijving: omschr, verantwoordelijke: verantw, icoon }
       await bewerkStructuurelement(id, data)
       await laadEnRender()
     } else if (actie === 'bewerk-annuleer') {

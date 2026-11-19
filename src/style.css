@@ -565,3 +565,18 @@ footer a:hover { opacity: 1; }
   .hero-tekst h1 { font-size: 30px; line-height: 34px; }
   .form-rij { flex-direction: column; }
 }
+
+/* ── Domeinen: pictogrammen en volgorde (CK-027) ── */
+.picto-groot { display: block; width: 40px; height: 40px; margin-bottom: 8px; }
+.picto-klein { width: 22px; height: 22px; flex: none; }
+.card-titel { display: flex; align-items: center; gap: 8px; }
+.volgorde-nr {
+  min-width: 22px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+}
+.btn-volgorde { min-width: 32px; font-size: 14px; }
+.btn-volgorde:disabled { opacity: .35; cursor: default; }
+.btn-volgorde:disabled:hover { border-color: var(--border); color: inherit; }

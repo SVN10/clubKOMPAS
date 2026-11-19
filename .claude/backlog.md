@@ -179,7 +179,23 @@
 - [x] Eindverantwoordelijke (bestuursfunctie) verplicht voor beide soorten
 - [x] Technisch ongewijzigd: veld `type` blijft `pijler` / `domein`, geen migratie, geen wijziging in `firestore.rules`
 
-**Open:** bij de HCA-domeinen Bestuur, Communicatie en Financiën staat de bestuursfunctie nog in de omschrijving en is de eindverantwoordelijke leeg.
+**Opgelost:** eindverantwoordelijken en omschrijvingen van Bestuur, Communicatie en Financiën ingevuld.
+
+---
+
+### ✅ CK-027 — Alle HCA-domeinen, vaste volgorde en pictogrammen
+**Status:** Gebouwd (19 november 2026) · bron: Vermogensoverzicht HCA v1.4 en Huisstijl HCA (pictogrammen)
+
+- [x] 7 ontbrekende domeinen toegevoegd: Leden, Vrijwilligers, Relaties, Accommodatie, Hospitality, Materiaal, Digitaal (13 in totaal: 3 pijlers, 10 ondersteunend)
+- [x] Eindverantwoordelijken met de officiële titels: Voorzitter, Secretaris, Penningmeester, Bestuurslid Hockey, Bestuurslid Accommodatie, Bestuurslid Hospitality
+- [x] Vaste volgorde (veld `volgorde`, 1 t/m 13), aan te passen met ↑/↓ in Domeinen (filter Alles); nieuw domein komt onderaan
+- [x] Vast pictogram per domein (veld `icoon`), te kiezen bij toevoegen en bewerken; pijler groot boven de naam, ondersteunend domein klein ervoor
+- [x] Data ingericht met `scripts/inrichten-domeinen-hca.mjs` (droogtest + bevestiging)
+
+**Open:**
+- Omschrijvingen van de 7 nieuwe domeinen zijn samengesteld uit hun vermogens; door de PO te controleren.
+- Projecten en Samenwerkingen (Vermogensoverzicht) zijn geen domein; plek in het model nog te bepalen.
+- De pictogrammen zijn de HCA-set in `public/pictogrammen/`; bij een tweede club is een eigen set per club nodig.
 
 ---
 
