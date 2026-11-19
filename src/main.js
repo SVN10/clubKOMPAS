@@ -79,7 +79,7 @@ function hashtagFout(waarde) {
 
 function soortKeuzeHTML(naam, huidig) {
   return SOORTEN.map(([k, label]) => `
-    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--fs-lopend)">
       <input type="radio" name="${esc(naam)}" value="${k}"${k === huidig ? ' checked' : ''}> ${label}
     </label>`).join('')
 }
@@ -630,7 +630,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     if (!lijst.isConnected) return
     const gefilterd = actiefFilter === 'alles' ? items : items.filter(i => i.type === actiefFilter)
     if (gefilterd.length === 0) {
-      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:13px">Geen items gevonden.</p>`
+      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:var(--fs-toelichting)">Geen items gevonden.</p>`
       return
     }
     const kanVerplaatsen = actiefFilter === 'alles'
@@ -884,7 +884,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     const [functies, domeinen] = await Promise.all([laadBestuursfuncties(), laadStructuurelementen()])
     if (!lijst.isConnected) return
     if (functies.length === 0) {
-      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:13px">Nog geen bestuursfuncties.</p>`
+      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:var(--fs-toelichting)">Nog geen bestuursfuncties.</p>`
       return
     }
     lijst.setAttribute('role', 'table')

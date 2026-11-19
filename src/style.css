@@ -14,6 +14,14 @@
   --text:     #111212;
   --muted:    #6F6E6E;
   --font: "Barlow Semi Condensed", Arial, sans-serif;
+  /* Vaste tekstgroottes volgens de huisstijl HCA */
+  --fs-titel: 40px;        /* titel, kernwoord vet */
+  --fs-hoofdstuk: 24px;
+  --fs-paragraaf: 18px;
+  --fs-bloknaam: 15px;     /* naam in een petrol kopbalk */
+  --fs-lopend: 14px;       /* lopende tekst */
+  --fs-toelichting: 13px;  /* ondertitels en korte toelichtingen */
+  --fs-label: 12px;        /* kleine labels, nooit kleiner */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,7 +55,7 @@
 
 body {
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   line-height: 21px;
   background: var(--bg);
   color: var(--text);
@@ -72,7 +80,7 @@ body {
   color: var(--petrol);
 }
 .app-title {
-  font-size: 26px;
+  font-size: var(--fs-hoofdstuk);
   line-height: 1.1;
   font-weight: 400;
   color: var(--petrol);
@@ -91,7 +99,7 @@ body {
   color: var(--on-petrol);
   text-decoration: none;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   letter-spacing: .06em;
   text-transform: uppercase;
   padding: 13px 16px;
@@ -129,14 +137,14 @@ body {
   gap: 2px;
 }
 .cijfer .n {
-  font-size: 28px;
+  font-size: var(--fs-hoofdstuk);
   line-height: 32px;
   font-weight: 700;
   color: var(--petrol);
   font-variant-numeric: tabular-nums;
 }
 .cijfer .l {
-  font-size: 12px;
+  font-size: var(--fs-label);
   line-height: 16px;
   letter-spacing: .04em;
   color: var(--muted);
@@ -156,7 +164,7 @@ body {
   flex-wrap: wrap;
 }
 .sectie-kop h2 {
-  font-size: 14px;
+  font-size: var(--fs-bloknaam);
   line-height: 20px;
   font-weight: 500;
   letter-spacing: .08em;
@@ -166,7 +174,7 @@ body {
 }
 .sectie-kop .toel {
   font-style: italic;
-  font-size: 13px;
+  font-size: var(--fs-toelichting);
   opacity: .85;
 }
 .sectie-lijf {
@@ -179,7 +187,7 @@ body {
 
 /* ── Hero ── */
 .hero-tekst h1 {
-  font-size: 40px;
+  font-size: var(--fs-titel);
   line-height: 44px;
   font-weight: 400;
   color: var(--petrol);
@@ -188,7 +196,7 @@ body {
 }
 .hero-tekst h1 b { font-weight: 700; }
 .hero-tekst p {
-  font-size: 15px;
+  font-size: var(--fs-lopend);
   line-height: 23px;
   color: var(--muted);
   max-width: 56ch;
@@ -199,7 +207,7 @@ body {
 /* ── Buttons ── */
 .btn {
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   font-weight: 500;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -230,7 +238,7 @@ body {
 }
 .card:hover { border-color: var(--petrol); }
 .card h3 {
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   line-height: 19px;
   font-weight: 500;
   letter-spacing: .06em;
@@ -239,13 +247,13 @@ body {
   margin-bottom: 4px;
 }
 .card .sub {
-  font-size: 13px;
+  font-size: var(--fs-toelichting);
   font-style: italic;
   color: var(--muted);
   margin-bottom: 6px;
 }
 .card p {
-  font-size: 13px;
+  font-size: var(--fs-toelichting);
   line-height: 18px;
   color: var(--text);
 }
@@ -253,7 +261,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: .04em;
   padding: 1px 8px;
   border: 1px solid var(--border);
@@ -281,7 +289,7 @@ footer {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px 20px;
-  font-size: 11px;
+  font-size: var(--fs-label);
   line-height: 16px;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -296,7 +304,7 @@ footer a:hover { opacity: 1; }
   justify-content: flex-end;
 }
 .footer-rechts .btn {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--on-petrol);
@@ -314,7 +322,7 @@ footer a:hover { opacity: 1; }
   padding: 12px;
   border-radius: 4px;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   font-weight: 600;
   cursor: pointer;
   margin-top: 4px;
@@ -335,7 +343,7 @@ footer a:hover { opacity: 1; }
 .pijler-form:not([hidden]) { display: flex; }
 .form-groep { display: flex; flex-direction: column; gap: 4px; }
 .form-label {
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -346,13 +354,13 @@ footer a:hover { opacity: 1; }
   border: 1.5px solid var(--border);
   border-radius: 4px;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   color: var(--text);
   background: var(--bg);
 }
 .form-input:focus { outline: none; border-color: var(--petrol); }
 .form-input.fout { border-color: #c0392b; }
-.form-fout { font-size: 12px; color: #c0392b; }
+.form-fout { font-size: var(--fs-label); color: #c0392b; }
 .form-rij { display: flex; gap: 8px; }
 
 /* ── Inlogscherm ── */
@@ -392,12 +400,12 @@ footer a:hover { opacity: 1; }
 }
 
 .inlog-logo .app-title {
-  font-size: 18px;
+  font-size: var(--fs-paragraaf);
   color: var(--petrol);
 }
 
 .inlog-titel {
-  font-size: 22px;
+  font-size: var(--fs-hoofdstuk);
   font-weight: 700;
   color: var(--text);
   margin-bottom: 4px;
@@ -405,20 +413,20 @@ footer a:hover { opacity: 1; }
 
 .inlog-knop { width: 100%; justify-content: center; margin-top: 4px; }
 
-.uitlog-knop { font-size: 13px; padding: 6px 12px; }
+.uitlog-knop { font-size: var(--fs-toelichting); padding: 6px 12px; }
 
 /* ── Tussenkaarten (laden / geen club / fout) ── */
 .inlog-titel[tabindex="-1"]:focus { outline: none; }
 
 .tussen-laad-titel {
-  font-size: 18px;
+  font-size: var(--fs-paragraaf);
   font-weight: 400;
   color: var(--muted);
   margin-bottom: 0;
 }
 
 .tussen-tekst {
-  font-size: 15px;
+  font-size: var(--fs-lopend);
   line-height: 23px;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -426,7 +434,7 @@ footer a:hover { opacity: 1; }
 .tussen-tekst strong { font-weight: 700; }
 
 .tussen-hint {
-  font-size: 13px;
+  font-size: var(--fs-toelichting);
   line-height: 19px;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -457,7 +465,7 @@ footer a:hover { opacity: 1; }
 /* ── Kaart actieknoppen ── */
 .kaart-acties { display: flex; gap: 6px; margin-top: 10px; }
 .btn-kaart-actie {
-  font-size: 12px;
+  font-size: var(--fs-label);
   padding: 3px 10px;
   border: 1px solid var(--border);
   background: transparent;
@@ -490,7 +498,7 @@ footer a:hover { opacity: 1; }
   gap: 16px;
 }
 .profiel-succes {
-  font-size: 13px;
+  font-size: var(--fs-toelichting);
   color: var(--petrol);
   font-weight: 600;
   margin: 0;
@@ -508,7 +516,7 @@ footer a:hover { opacity: 1; }
 }
 .logo-upload-wrap { display: flex; flex-direction: column; gap: 8px; }
 .logo-preview { height: 80px; width: auto; object-fit: contain; border: 1px solid var(--border); padding: 8px; background: var(--card); }
-.logo-leeg { font-size: 13px; color: var(--muted); font-style: italic; }
+.logo-leeg { font-size: var(--fs-toelichting); color: var(--muted); font-style: italic; }
 
 /* ── Gebruikersbeheer helpers ── */
 .sectie-hr {
@@ -517,7 +525,7 @@ footer a:hover { opacity: 1; }
   margin: 4px 0;
 }
 .geb-info {
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--muted);
   margin-bottom: 4px;
 }
@@ -527,7 +535,7 @@ footer a:hover { opacity: 1; }
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 6px 20px;
-  font-size: 14px;
+  font-size: var(--fs-lopend);
   margin: 0;
 }
 .versie-info dt { color: var(--muted); font-weight: 500; }
@@ -562,7 +570,7 @@ footer a:hover { opacity: 1; }
 @media (max-width: 700px) {
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kolommen { grid-template-columns: 1fr; }
-  .hero-tekst h1 { font-size: 30px; line-height: 34px; }
+  .hero-tekst h1 { font-size: var(--fs-hoofdstuk); line-height: 28px; }
   .form-rij { flex-direction: column; }
 }
 
@@ -572,19 +580,19 @@ footer a:hover { opacity: 1; }
 .card-titel { display: flex; align-items: center; gap: 8px; }
 .volgorde-nr {
   min-width: 22px;
-  font-size: 13px;
+  font-size: var(--fs-toelichting);
   font-weight: 700;
   color: var(--muted);
   text-align: right;
 }
-.btn-volgorde { min-width: 32px; font-size: 14px; }
+.btn-volgorde { min-width: 32px; font-size: var(--fs-lopend); }
 .btn-volgorde:disabled { opacity: .35; cursor: default; }
 .btn-volgorde:disabled:hover { border-color: var(--border); color: inherit; }
 
 /* ── Beheer (CK-028) ── */
 .beheer-tabs { margin-bottom: 12px; }
 .functie-label {
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--petrol);
   border: 1px solid var(--border);
   padding: 1px 7px;
@@ -635,17 +643,17 @@ footer a:hover { opacity: 1; }
   gap: 12px;
   padding: 0 0 6px;
   border-bottom: 2px solid var(--border);
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .beheer-kop > span:first-child, .cel-nr { text-align: right; }
-.cel-nr { font-size: 13px; font-weight: 700; color: var(--muted); }
+.cel-nr { font-size: var(--fs-toelichting); font-weight: 700; color: var(--muted); }
 .cel-picto { display: flex; align-items: center; }
 .cel-naam { overflow-wrap: anywhere; }
-.cel-functie { font-size: 13px; color: var(--text); }
+.cel-functie { font-size: var(--fs-toelichting); color: var(--text); }
 .cel-acties { justify-content: flex-end; margin-top: 0; }
 .onzichtbaar { visibility: hidden; }
 @media (max-width: 700px) {

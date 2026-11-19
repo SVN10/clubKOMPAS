@@ -235,6 +235,14 @@
 
 ---
 
+### ✅ CK-031 — Tekstgroottes volgens de huisstijl
+**Status:** Gebouwd (20 november 2026)
+
+- [x] Vaste schaal als CSS-variabelen: titel 40, hoofdstuk 24, paragraaf 18, bloknaam 15, lopende tekst 14, toelichting 13, label 12
+- [x] Alle groottes in de app op die schaal: app-titel, cijfers en inlogtitel naar 24; kopbalken naar 15 (bloknaam); introtekst en tussenkaart-tekst naar 14; veldlabels en footer van 11 naar 12
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
