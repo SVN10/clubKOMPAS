@@ -112,13 +112,12 @@ function navHTML(actief) {
 }
 
 function footerHTML() {
-  const clubnaam = huidigProfiel?.naam ? esc(huidigProfiel.naam) : 'clubKOMPAS'
   const gebruikerLabel = huidigGebruiker
     ? `<span>${esc(huidigGebruiker.displayName || huidigGebruiker.email)}</span>`
     : ''
   return `
     <footer>
-      <span>${clubnaam} · een product van SVN10</span>
+      <span>clubKOMPAS · een product van SVN10</span>
       <span>Versie ${version}</span>
       <span class="footer-rechts">
         ${gebruikerLabel}
@@ -142,6 +141,14 @@ async function renderStructuurGrid() {
   grid.querySelectorAll('.structuur-dyn').forEach(el => el.remove())
   const items = await laadStructuurelementen()
   if (!grid.isConnected) return
+  if (items.length === 0) {
+    const leeg = document.createElement('p')
+    leeg.className = 'structuur-dyn'
+    leeg.style.color = 'var(--muted)'
+    leeg.textContent = 'Nog geen pijlers of domeinen. Voeg ze toe via Beheer.'
+    grid.appendChild(leeg)
+    return
+  }
   items.forEach(item => {
     const isPijler = item.type === 'pijler'
     const div = document.createElement('div')
@@ -278,42 +285,6 @@ function renderDashboard(gebruiker) {
           </div>
           <div class="sectie-lijf">
             <div class="grid" id="structuur-grid">
-              <div class="card">
-                <h3>#JouwClubSpeelt</h3>
-                <div class="sub">Strategische pijler</div>
-                <p>Het sportaanbod van de club. Teams, trainingen en wedstrijden — overzichtelijk beheerd.</p>
-                <span class="pill"><span class="stip"></span>Pijler</span>
-              </div>
-              <div class="card">
-                <h3>#JouwClubGroeit</h3>
-                <div class="sub">Strategische pijler</div>
-                <p>Talentontwikkeling en ledenaanwas. Van jeugdprogramma's tot instroompaden.</p>
-                <span class="pill"><span class="stip"></span>Pijler</span>
-              </div>
-              <div class="card">
-                <h3>#JouwClubDoet</h3>
-                <div class="sub">Strategische pijler</div>
-                <p>Maatschappelijke betrokkenheid. Initiatieven die de club verbinden met de buurt.</p>
-                <span class="pill"><span class="stip"></span>Pijler</span>
-              </div>
-              <div class="card">
-                <h3>Bestuur</h3>
-                <div class="sub">Domein</div>
-                <p>Eindverantwoordelijkheid, beleid en governance — helder belegd per functie.</p>
-                <span class="pill"><span class="stip" style="background:var(--orange)"></span>Domein</span>
-              </div>
-              <div class="card">
-                <h3>Financiën</h3>
-                <div class="sub">Domein</div>
-                <p>Begroting, contributie en sponsorinkomsten — per seizoen bijgehouden.</p>
-                <span class="pill"><span class="stip" style="background:var(--orange)"></span>Domein</span>
-              </div>
-              <div class="card">
-                <h3>Communicatie</h3>
-                <div class="sub">Domein</div>
-                <p>Huisstijl, berichtgeving en kanalen — op één plek beheerd.</p>
-                <span class="pill"><span class="stip" style="background:var(--orange)"></span>Domein</span>
-              </div>
             </div>
             <div style="text-align:right;margin-top:8px">
               <button class="btn" id="naar-structuur-beheer">Beheer →</button>
