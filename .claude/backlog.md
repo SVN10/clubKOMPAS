@@ -199,6 +199,20 @@
 
 ---
 
+### ✅ CK-028 — Beheer: bestuursfuncties als masterdata en overkoepelende domeinen
+**Status:** Gebouwd (20 november 2026, v0.4.0)
+
+- [x] Menu "Beheer" (masterdata) met tabbladen Domeinen en Bestuursfuncties
+- [x] Bestuursfuncties: toevoegen, naam wijzigen, volgorde (↑/↓), verwijderen; niet te verwijderen zolang een domein eraan hangt; dubbele namen geweigerd
+- [x] Domein kiest zijn eindverantwoordelijke uit een keuzelijst (veld `bestuursfunctieId`); het oude tekstveld `verantwoordelijke` is opgeruimd
+- [x] Derde soort domein: overkoepelend (Projecten op 14, Samenwerkingen op 15, eindverantwoordelijke Voorzitter), met eigen filter en pictogram
+- [x] `firestore.rules`: collectie `bestuursfuncties` (naam 2–100 tekens) en type `overkoepelend`
+- [x] Data ingericht met `scripts/inrichten-beheer-hca.mjs`: 6 bestuursfuncties, 2 domeinen, 15 koppelingen
+
+**Later:** alleen de rol `beheerder` mag masterdata wijzigen (P0d); domein niet verwijderen zolang er vermogens aan hangen (CK-020).
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0] – 2026-11-20
+
+### Toegevoegd
+- Menu "Beheer" met tabbladen Domeinen en Bestuursfuncties (masterdata).
+- Bestuursfuncties beheren; een domein kiest zijn eindverantwoordelijke uit deze lijst (`bestuursfunctieId`).
+- Soort domein "overkoepelend" (Projecten, Samenwerkingen) en hun pictogrammen.
+- Vaste volgorde en pictogram per domein (CK-027); één begrip "domein" met soorten (CK-026).
+
+### Gewijzigd
+- `firestore.rules`: collectie `bestuursfuncties` en type `overkoepelend` toegestaan.
+
 ## [0.3.1] – 2026-11-19
 
 ### Gewijzigd

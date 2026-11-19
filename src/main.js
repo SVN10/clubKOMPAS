@@ -64,8 +64,18 @@ function esc(s) {
 // Eén begrip "domein" met twee soorten. In de database blijft het veld `type`
 // 'pijler' (strategisch domein) of 'domein' (ondersteunend domein); alleen de
 // weergave gebruikt de nieuwe woorden.
-const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend' }
-const SOORT_SUB = { pijler: 'Pijler · strategisch domein', domein: 'Ondersteunend domein' }
+// Soorten domein. 'overkoepelend' (Projecten, Samenwerkingen) loopt dwars door de andere domeinen.
+const SOORTEN = [['pijler', 'Pijler'], ['domein', 'Ondersteunend domein'], ['overkoepelend', 'Overkoepelend domein']]
+const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend', overkoepelend: 'Overkoepelend' }
+const SOORT_SUB = { pijler: 'Pijler · strategisch domein', domein: 'Ondersteunend domein', overkoepelend: 'Overkoepelend domein' }
+const SOORT_KLEUR = { pijler: '', domein: 'background:var(--orange)', overkoepelend: 'background:var(--muted)' }
+
+function soortKeuzeHTML(naam, huidig) {
+  return SOORTEN.map(([k, label]) => `
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
+      <input type="radio" name="${esc(naam)}" value="${k}"${k === huidig ? ' checked' : ''}> ${label}
+    </label>`).join('')
+}
 
 // Vaste lijnpictogrammen uit de huisstijl (public/pictogrammen/<sleutel>.svg, petrol).
 // Een domein bewaart alleen de sleutel in het veld `icoon`.
@@ -83,6 +93,8 @@ const PICTOGRAMMEN = [
   ['hospitality', 'Kop koffie'],
   ['materiaal', 'Doos'],
   ['digitaal', 'Beeldscherm'],
+  ['projecten', 'Klembord met vinkje'],
+  ['samenwerkingen', 'Schakel'],
 ]
 const PICTOGRAM_SLEUTELS = new Set(PICTOGRAMMEN.map(([k]) => k))
 
@@ -118,6 +130,29 @@ async function bewerkStructuurelement(id, data) {
 
 async function verwijderStructuurelement(id) {
   await deleteDoc(doc(db, 'clubs', huidigClubId, 'structuurelementen', id))
+}
+
+// ── Bestuursfuncties (masterdata) ─────────────────────────────────────────────
+// Vaste lijst per club; een domein verwijst naar een functie via `bestuursfunctieId`.
+
+async function laadBestuursfuncties() {
+  const snap = await getDocs(collection(db, 'clubs', huidigClubId, 'bestuursfuncties'))
+  return sorteerDomeinen(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+}
+async function voegBestuursfunctieToe(item) {
+  await addDoc(collection(db, 'clubs', huidigClubId, 'bestuursfuncties'), item)
+}
+async function bewerkBestuursfunctie(id, data) {
+  await updateDoc(doc(db, 'clubs', huidigClubId, 'bestuursfuncties', id), data)
+}
+async function verwijderBestuursfunctie(id) {
+  await deleteDoc(doc(db, 'clubs', huidigClubId, 'bestuursfuncties', id))
+}
+
+function bestuursfunctieKeuzeHTML(id, huidig, functies) {
+  const opties = functies.map(f =>
+    `<option value="${esc(f.id)}"${f.id === huidig ? ' selected' : ''}>${esc(f.naam)}</option>`).join('')
+  return `<select class="form-input" id="${esc(id)}"><option value="">Kies een bestuursfunctie</option>${opties}</select>`
 }
 
 // ── Profiel ───────────────────────────────────────────────────────────────────
@@ -207,7 +242,7 @@ function navHTML(actief) {
   return `
     <nav class="top-nav">
       <a href="#" class="nav-home${actief === 'home' ? ' active' : ''}">Home</a>
-      <a href="#" class="nav-structuur${actief === 'structuur' ? ' active' : ''}">Domeinen</a>
+      <a href="#" class="nav-beheer${actief === 'beheer' ? ' active' : ''}">Beheer</a>
       <a href="#" class="nav-instellingen${actief === 'instellingen' ? ' active' : ''}">Instellingen</a>
     </nav>`
 }
@@ -230,7 +265,7 @@ function footerHTML() {
 function bindNavListeners(gebruiker) {
   document.getElementById('uitlog-knop').addEventListener('click', () => signOut(auth))
   document.querySelector('.nav-home').addEventListener('click', e => { e.preventDefault(); renderDashboard(gebruiker) })
-  document.querySelector('.nav-structuur')?.addEventListener('click', e => { e.preventDefault(); renderPijlersDomeinenBeheer(gebruiker) })
+  document.querySelector('.nav-beheer')?.addEventListener('click', e => { e.preventDefault(); renderPijlersDomeinenBeheer(gebruiker) })
   document.querySelector('.nav-instellingen').addEventListener('click', e => { e.preventDefault(); renderInstellingen(gebruiker) })
 }
 
@@ -264,7 +299,7 @@ async function renderStructuurGrid() {
         <h3 class="card-titel">${isPijler ? '' : pictogramHTML(item, 'picto-klein')}${esc(item.naam)}</h3>
         <div class="sub">${SOORT_SUB[item.type] || ''}</div>
         <p>${esc(item.omschrijving || '')}</p>
-        <span class="pill"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${SOORT_LABEL[item.type] || ''}</span>
+        <span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
       </div>`
     grid.appendChild(div)
   })
@@ -496,12 +531,32 @@ function renderDashboard(gebruiker) {
   renderStructuurGrid()
 }
 
+// Tabbladen binnen Beheer (masterdata)
+function beheerTabsHTML(actief) {
+  return `
+        <div class="filter-tabs beheer-tabs" role="group" aria-label="Beheer">
+          <button class="btn filter-knop${actief === 'domeinen' ? ' active' : ''}" data-beheer="domeinen"${actief === 'domeinen' ? ' aria-current="page"' : ''}>Domeinen</button>
+          <button class="btn filter-knop${actief === 'functies' ? ' active' : ''}" data-beheer="functies"${actief === 'functies' ? ' aria-current="page"' : ''}>Bestuursfuncties</button>
+        </div>`
+}
+function bindBeheerTabs(gebruiker) {
+  document.querySelector('.beheer-tabs')?.addEventListener('click', e => {
+    const knop = e.target.closest('[data-beheer]')
+    if (!knop) return
+    if (knop.dataset.beheer === 'functies') renderBestuursfunctiesBeheer(gebruiker)
+    else renderPijlersDomeinenBeheer(gebruiker)
+  })
+}
+
 async function renderPijlersDomeinenBeheer(gebruiker) {
+  const functies = await laadBestuursfuncties()
+  const functieNaam = new Map(functies.map(f => [f.id, f.naam]))
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
-    ${navHTML('structuur')}
+    ${navHTML('beheer')}
     <main>
       <div class="wrap">
+        ${beheerTabsHTML('domeinen')}
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
             <h2>Domeinen</h2>
@@ -512,19 +567,15 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
               <button class="btn filter-knop active" data-filter="alles">Alles</button>
               <button class="btn filter-knop" data-filter="pijler">Pijlers</button>
               <button class="btn filter-knop" data-filter="domein">Ondersteunend</button>
+              <button class="btn filter-knop" data-filter="overkoepelend">Overkoepelend</button>
             </div>
             <div id="structuur-lijst"></div>
             <button class="btn-toevoegen" id="structuur-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
             <div class="pijler-form" id="structuur-form" hidden>
               <div class="form-groep">
-                <span class="form-label">Type</span>
+                <span class="form-label">Soort</span>
                 <div class="form-rij" style="gap:16px;margin-top:4px">
-                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-                    <input type="radio" name="structuur-type" value="pijler" checked> Pijler
-                  </label>
-                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-                    <input type="radio" name="structuur-type" value="domein"> Ondersteunend domein
-                  </label>
+                  ${soortKeuzeHTML('structuur-type', 'pijler')}
                 </div>
               </div>
               <div class="form-groep">
@@ -539,7 +590,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
               </div>
               <div class="form-groep" id="structuur-verantw-groep">
                 <label class="form-label" for="structuur-verantw">Eindverantwoordelijke</label>
-                <input class="form-input" id="structuur-verantw" name="verantwoordelijke" type="text" placeholder="Bestuursfunctie, bijv. Voorzitter" autocomplete="off">
+                ${bestuursfunctieKeuzeHTML('structuur-verantw', '', functies)}
                 <span class="form-fout" id="structuur-verantw-fout"></span>
               </div>
               <div class="form-groep">
@@ -584,7 +635,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             ${kanVerplaatsen ? `<span class="volgorde-nr">${i + 1}</span>` : ''}
             ${pictogramHTML(item, 'picto-klein')}
             <strong>${esc(item.naam)}</strong>
-            <span class="pill" style="margin-top:0"><span class="stip" style="${isPijler ? '' : 'background:var(--orange)'}"></span>${SOORT_LABEL[item.type] || ''}</span>
+            <span class="pill" style="margin-top:0"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
+            ${functieNaam.has(item.bestuursfunctieId) ? `<span class="functie-label">${esc(functieNaam.get(item.bestuursfunctieId))}</span>` : ''}
             ${item.omschrijving ? `<span style="color:var(--muted);font-size:13px">${esc(item.omschrijving)}</span>` : ''}
           </div>
           <div class="kaart-acties" style="margin-top:0;flex-shrink:0">${verplaats}
@@ -595,9 +647,10 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     }).join('')
   }
 
+  bindBeheerTabs(gebruiker)
   await laadEnRender()
 
-  document.querySelector('.filter-tabs').addEventListener('click', async e => {
+  document.querySelector('.filter-tabs:not(.beheer-tabs)').addEventListener('click', async e => {
     const knop = e.target.closest('.filter-knop')
     if (!knop) return
     document.querySelectorAll('.filter-knop').forEach(k => k.classList.remove('active'))
@@ -639,12 +692,12 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     const checks = [
       [naamEl, 'structuur-naam-fout', 2],
       [omschrEl, 'structuur-omschr-fout', 2],
-      [verAntwEl, 'structuur-verantw-fout', 3]
+      [verAntwEl, 'structuur-verantw-fout', 1]
     ]
     checks.forEach(([el, foutId, min]) => {
       const fout = document.getElementById(foutId)
       if (!el.value.trim() || el.value.trim().length < min) {
-        fout.textContent = el.value.trim() ? `Minimaal ${min} tekens` : 'Verplicht veld'
+        fout.textContent = el.value.trim() ? `Minimaal ${min} tekens` : (foutId === 'structuur-verantw-fout' ? 'Kies een bestuursfunctie' : 'Verplicht veld')
         el.classList.add('fout'); el.setAttribute('aria-invalid', 'true'); ok = false
       } else {
         fout.textContent = ''; el.classList.remove('fout'); el.removeAttribute('aria-invalid')
@@ -655,7 +708,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     const bestaand = await laadStructuurelementen()
     const hoogste = bestaand.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
     const item = {
-      type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim(), verantwoordelijke: verAntwEl.value.trim(),
+      type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim(), bestuursfunctieId: verAntwEl.value,
       icoon: document.getElementById('structuur-icoon').value, volgorde: hoogste + 1,
     }
     await voegStructuurelementToe(item)
@@ -694,13 +747,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       const isPijler = item.type === 'pijler'
       rij.innerHTML = `
         <div class="pijler-bewerk-form" style="width:100%">
-          <div style="display:flex;gap:16px;margin-bottom:4px">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-              <input type="radio" name="bewerk-type-${esc(id)}" value="pijler" ${isPijler ? 'checked' : ''}> Pijler
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-              <input type="radio" name="bewerk-type-${esc(id)}" value="domein" ${!isPijler ? 'checked' : ''}> Ondersteunend domein
-            </label>
+          <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:4px">
+            ${soortKeuzeHTML(`bewerk-type-${id}`, item.type)}
           </div>
           <div class="form-groep">
             <label class="form-label">Naam</label>
@@ -713,8 +761,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             <span class="form-fout" id="bo-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep" id="bv-groep-${esc(id)}">
-            <label class="form-label">Eindverantwoordelijke</label>
-            <input class="form-input" id="bv-${esc(id)}" value="${esc(item.verantwoordelijke || '')}" placeholder="Bestuursfunctie, bijv. Voorzitter" autocomplete="off">
+            <label class="form-label" for="bv-${esc(id)}">Eindverantwoordelijke</label>
+            ${bestuursfunctieKeuzeHTML(`bv-${id}`, item.bestuursfunctieId || '', functies)}
             <span class="form-fout" id="bv-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
@@ -736,18 +784,169 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       const checks = [
         [naam, `bn-fout-${id}`, 2],
         [omschr, `bo-fout-${id}`, 2],
-        [verantw, `bv-fout-${id}`, 3]
+        [verantw, `bv-fout-${id}`, 1]
       ]
       checks.forEach(([val, foutId, min]) => {
         const el = document.getElementById(foutId)
-        if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
+        if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : (foutId.startsWith('bv-') ? 'Kies een bestuursfunctie' : 'Verplicht veld'); ok = false }
         else el.textContent = ''
       })
       if (!ok) return
       const icoon = document.getElementById(`bi-${id}`)?.value || ''
-      const data = { type, naam, omschrijving: omschr, verantwoordelijke: verantw, icoon }
+      const data = { type, naam, omschrijving: omschr, bestuursfunctieId: verantw, icoon }
       await bewerkStructuurelement(id, data)
       await laadEnRender()
+    } else if (actie === 'bewerk-annuleer') {
+      await laadEnRender()
+    }
+  })
+}
+
+async function renderBestuursfunctiesBeheer(gebruiker) {
+  document.querySelector('#app').innerHTML = `
+    ${topBarHTML()}
+    ${navHTML('beheer')}
+    <main>
+      <div class="wrap">
+        ${beheerTabsHTML('functies')}
+        <div class="sectie" style="margin-top:0">
+          <div class="sectie-kop">
+            <h2>Bestuursfuncties</h2>
+            <span class="toel">Eindverantwoordelijken voor de domeinen</span>
+          </div>
+          <div class="sectie-lijf">
+            <div id="functie-lijst"></div>
+            <p class="form-fout" id="functie-melding" role="status"></p>
+            <button class="btn-toevoegen" id="functie-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
+            <div class="pijler-form" id="functie-form" hidden>
+              <div class="form-groep">
+                <label class="form-label" for="functie-naam">Naam</label>
+                <input class="form-input" id="functie-naam" type="text" placeholder="Bijv. Bestuurslid Hockey" autocomplete="off">
+                <span class="form-fout" id="functie-naam-fout"></span>
+              </div>
+              <div class="form-rij">
+                <button class="btn primary" id="functie-opslaan">Opslaan</button>
+                <button class="btn" id="functie-annuleer">Annuleren</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    ${footerHTML()}
+  `
+  bindNavListeners(gebruiker)
+  bindBeheerTabs(gebruiker)
+
+  const melding = tekst => { const el = document.getElementById('functie-melding'); if (el) el.textContent = tekst }
+  const geldigeNaam = naam => naam.length >= 2 && naam.length <= 100
+
+  async function laadEnRender() {
+    const lijst = document.getElementById('functie-lijst')
+    if (!lijst) return
+    const [functies, domeinen] = await Promise.all([laadBestuursfuncties(), laadStructuurelementen()])
+    if (!lijst.isConnected) return
+    if (functies.length === 0) {
+      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:13px">Nog geen bestuursfuncties.</p>`
+      return
+    }
+    lijst.innerHTML = functies.map((f, i) => {
+      const aantal = domeinen.filter(d => d.bestuursfunctieId === f.id).length
+      return `
+        <div class="structuur-rij" data-id="${esc(f.id)}">
+          <div class="structuur-rij-info">
+            <span class="volgorde-nr">${i + 1}</span>
+            <strong>${esc(f.naam)}</strong>
+            <span style="color:var(--muted);font-size:13px">${aantal === 0 ? 'Geen domeinen' : aantal === 1 ? '1 domein' : `${aantal} domeinen`}</span>
+          </div>
+          <div class="kaart-acties" style="margin-top:0;flex-shrink:0">
+            <button class="btn-kaart-actie btn-volgorde" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="${esc(f.naam)} omhoog"${i === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="${esc(f.naam)} omlaag"${i === functies.length - 1 ? ' disabled' : ''}>↓</button>
+            <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(f.id)}">Bewerken</button>
+            <button class="btn-kaart-actie gevaar" data-actie="verwijder" data-id="${esc(f.id)}" data-aantal="${aantal}">Verwijderen</button>
+          </div>
+        </div>`
+    }).join('')
+  }
+
+  await laadEnRender()
+
+  const resetForm = () => {
+    document.getElementById('functie-form').hidden = true
+    document.getElementById('functie-toevoegen-knop').hidden = false
+    document.getElementById('functie-naam').value = ''
+    document.getElementById('functie-naam-fout').textContent = ''
+  }
+  document.getElementById('functie-toevoegen-knop').addEventListener('click', () => {
+    document.getElementById('functie-form').hidden = false
+    document.getElementById('functie-toevoegen-knop').hidden = true
+    document.getElementById('functie-naam').focus()
+  })
+  document.getElementById('functie-annuleer').addEventListener('click', resetForm)
+  document.getElementById('functie-opslaan').addEventListener('click', async () => {
+    const naam = document.getElementById('functie-naam').value.trim()
+    const fout = document.getElementById('functie-naam-fout')
+    if (!geldigeNaam(naam)) { fout.textContent = naam ? 'Tussen 2 en 100 tekens' : 'Verplicht veld'; return }
+    const functies = await laadBestuursfuncties()
+    if (functies.some(f => f.naam.toLowerCase() === naam.toLowerCase())) { fout.textContent = 'Deze bestuursfunctie bestaat al'; return }
+    const hoogste = functies.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
+    try {
+      await voegBestuursfunctieToe({ naam, volgorde: hoogste + 1 })
+      resetForm(); melding('')
+      await laadEnRender()
+    } catch { fout.textContent = 'Opslaan mislukt, probeer opnieuw.' }
+  })
+
+  document.getElementById('functie-lijst').addEventListener('click', async e => {
+    const knop = e.target.closest('[data-actie]')
+    if (!knop) return
+    const { actie, id } = knop.dataset
+    const rij = knop.closest('.structuur-rij')
+    melding('')
+    if (actie === 'omhoog' || actie === 'omlaag') {
+      const functies = await laadBestuursfuncties()
+      const i = functies.findIndex(x => x.id === id)
+      const j = actie === 'omhoog' ? i - 1 : i + 1
+      if (i < 0 || j < 0 || j >= functies.length) return
+      ;[functies[i], functies[j]] = [functies[j], functies[i]]
+      await Promise.all(functies.map((x, k) => (x.volgorde === k + 1 ? null : bewerkBestuursfunctie(x.id, { volgorde: k + 1 }))))
+      await laadEnRender()
+      const knopNa = document.querySelector(`#functie-lijst [data-actie="${actie}"][data-id="${id}"]`)
+      ;(knopNa && !knopNa.disabled ? knopNa : document.querySelector(`#functie-lijst [data-actie="bewerk"][data-id="${id}"]`))?.focus()
+    } else if (actie === 'verwijder') {
+      // Masterdata: een functie die nog bij een domein hoort, kan niet weg
+      const aantal = Number(knop.dataset.aantal || 0)
+      if (aantal > 0) { melding(`Deze bestuursfunctie is nog eindverantwoordelijke van ${aantal === 1 ? '1 domein' : `${aantal} domeinen`}. Kies daar eerst een andere bestuursfunctie.`); return }
+      if (confirm('Bestuursfunctie verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
+        await verwijderBestuursfunctie(id)
+        await laadEnRender()
+      }
+    } else if (actie === 'bewerk') {
+      const f = (await laadBestuursfuncties()).find(x => x.id === id)
+      if (!f) return
+      rij.innerHTML = `
+        <div class="pijler-bewerk-form" style="width:100%">
+          <div class="form-groep">
+            <label class="form-label" for="fn-${esc(id)}">Naam</label>
+            <input class="form-input" id="fn-${esc(id)}" value="${esc(f.naam)}" autocomplete="off">
+            <span class="form-fout" id="fn-fout-${esc(id)}"></span>
+          </div>
+          <div class="form-rij">
+            <button class="btn primary" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
+          </div>
+        </div>`
+      document.getElementById(`fn-${id}`)?.focus()
+    } else if (actie === 'bewerk-opslaan') {
+      const naam = document.getElementById(`fn-${id}`)?.value.trim() || ''
+      const fout = document.getElementById(`fn-fout-${id}`)
+      if (!geldigeNaam(naam)) { fout.textContent = naam ? 'Tussen 2 en 100 tekens' : 'Verplicht veld'; return }
+      const functies = await laadBestuursfuncties()
+      if (functies.some(x => x.id !== id && x.naam.toLowerCase() === naam.toLowerCase())) { fout.textContent = 'Deze bestuursfunctie bestaat al'; return }
+      try {
+        await bewerkBestuursfunctie(id, { naam })
+        await laadEnRender()
+      } catch { fout.textContent = 'Opslaan mislukt, probeer opnieuw.' }
     } else if (actie === 'bewerk-annuleer') {
       await laadEnRender()
     }
