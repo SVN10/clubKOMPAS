@@ -1,5 +1,8 @@
 # clubKOMPAS — Backlog
 
+> **Nummering:** deze bouwbacklog is leidend voor de CK-nummers, omdat de commits ernaar verwijzen.
+> De productbacklog-artifact (v4.1) gebruikt dezelfde nummers. "Clubidentiteit vastleggen" heet daar CK-018.
+
 ## Sprint 1 — Fundament
 
 ### ✅ CK-010 — Pijlers aanmaken (Model-laag M0)
@@ -129,7 +132,7 @@
 - [x] Scripts vragen het wachtwoord zonder het op het scherm te tonen
 
 **Open punten:**
-- [ ] Omschrijving van de HCA-pijlers is nu overal "Hockey"; echte teksten aanleveren
+- [ ] Omschrijving van de HCA-pijlers is nu overal "Hockey"; echte teksten aanleveren (#HCADoet bijgewerkt uit "De missie van HCA"; #HCASpeelt en #HCAGroeit wachten op hun eindverantwoordelijke)
 - [ ] Eindverantwoordelijke ontbreekt bij #HCASpeelt en #HCAGroeit
 
 ---
@@ -150,13 +153,13 @@
 
 ---
 
-### CK-017 — Dashboardcijfers uit echte gegevens
-**Status:** Open
+### ✅ CK-017 — Dashboardcijfers uit echte gegevens
+**Status:** Afgerond
 
 *Als bestuurder wil ik dat de cijfers op het dashboard kloppen met de gegevens van mijn club.*
 
 **Acceptatiecriteria:**
-- [ ] Aantal strategische pijlers en operationele domeinen wordt geteld uit `structuurelementen` (nu staat er vast "3" en "12")
+- [x] Aantal strategische pijlers en operationele domeinen wordt geteld uit `structuurelementen` (was vast "3" en "12")
 
 ---
 

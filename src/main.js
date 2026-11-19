@@ -141,6 +141,10 @@ async function renderStructuurGrid() {
   grid.querySelectorAll('.structuur-dyn').forEach(el => el.remove())
   const items = await laadStructuurelementen()
   if (!grid.isConnected) return
+  const telPijlers = document.getElementById('cijfer-pijlers')
+  const telDomeinen = document.getElementById('cijfer-domeinen')
+  if (telPijlers) telPijlers.textContent = items.filter(i => i.type === 'pijler').length
+  if (telDomeinen) telDomeinen.textContent = items.filter(i => i.type === 'domein').length
   if (items.length === 0) {
     const leeg = document.createElement('p')
     leeg.className = 'structuur-dyn'
@@ -268,8 +272,8 @@ function renderDashboard(gebruiker) {
               </div>
               <div>
                 <div class="cijfers" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
-                  <div class="cijfer"><span class="n">3</span><span class="l">Strategische pijlers</span></div>
-                  <div class="cijfer"><span class="n">12</span><span class="l">Operationele domeinen</span></div>
+                  <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Strategische pijlers</span></div>
+                  <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Operationele domeinen</span></div>
                   <div class="cijfer"><span class="n">∞</span><span class="l">Vermogens per club</span></div>
                   <div class="cijfer"><span class="n">1</span><span class="l">Overzicht voor alles</span></div>
                 </div>
