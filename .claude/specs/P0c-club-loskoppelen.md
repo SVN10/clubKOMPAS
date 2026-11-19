@@ -253,7 +253,7 @@ Alle zes adviezen zijn overgenomen:
 2. **Contact op het geen-club-scherm:** een algemeen SVN10-supportadres. Het exacte adres is nog niet bekend; de bouwer gebruikt één constante zodat het later op één plek in te vullen is.
 3. **Tweede bestuurder:** handmatige consoleprocedure (README). Uitnodigen via de app wordt een aparte story (P0d, samen met rollen).
 4. **Oude data onder `clubs/{oudeUid}`:** blijft staan in deze story; opruimen na minimaal één sprint, met apart script en expliciet akkoord.
-5. **Zelfregistratie in Firebase Auth:** uitzetten (console-instelling, door de PO na deze story).
+5. **Zelfregistratie in Firebase Auth:** uitzetten (console-instelling, door de PO na deze story). ✅ Gedaan op 19 november 2026.
 6. **Rol van de huidige HCA-gebruiker:** `beheerder`.
 
 ## Wijzigingen na kwaliteitscontrole (19 november 2026)

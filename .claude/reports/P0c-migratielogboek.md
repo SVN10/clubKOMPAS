@@ -22,4 +22,4 @@
 | 22:16 | 3c | Definitieve regels (`firestore.rules`) gepubliceerd (= overgangsregels **uit**) | Gepubliceerd door PO. Overgangsregels waren actief van 21:50 tot 22:16. |
 | 22:22 | 4 | Rookproef in de live app (v0.3.0, definitieve regels) | Geslaagd: inloggen, dashboard (naam, logo, favicon, 3 pijlers, 3 domeinen), pijler bewerken, domein toevoegen en verwijderen, profiel opslaan met logo (geen foutmelding), uit- en inloggen. |
 
-**Resultaat:** migratie P0c geslaagd. Open: zelfregistratie in Firebase Auth uitzetten; oude data onder `clubs/{oudeUid}` opruimen volgens CK-024.
+**Resultaat:** migratie P0c geslaagd. Zelfregistratie in Firebase Auth uitgezet om 22:27 (User actions → Enable create uit). Open: oude data onder `clubs/{oudeUid}` opruimen volgens CK-024.
