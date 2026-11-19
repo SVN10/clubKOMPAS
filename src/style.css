@@ -626,8 +626,9 @@ footer a:hover { opacity: 1; }
 }
 .structuur-rij.beheer-rij.bewerken { display: block; }
 /* Vaste breedte voor de actiekolom, zodat de kop (zonder knoppen) gelijk loopt met de rijen */
-.domein-rij { grid-template-columns: 28px 24px minmax(120px, 1.2fr) 140px minmax(150px, 1fr) 240px; }
-.functie-rij { grid-template-columns: 28px minmax(160px, 1.5fr) minmax(140px, 1fr) 240px; }
+/* Smalle, vaste kolommen die op elkaar aansluiten; de vrije ruimte zit vóór de knoppen */
+.domein-rij { grid-template-columns: 28px 24px 180px 140px 200px minmax(240px, 1fr); }
+.functie-rij { grid-template-columns: 28px 220px 180px minmax(240px, 1fr); }
 .beheer-rij.beheer-kop {
   display: grid;
   align-items: center;
@@ -671,3 +672,7 @@ select.form-input {
   background-position: right 12px center;
   cursor: pointer;
 }
+
+/* Soort-keuze: titel erboven, rondjes op één lijn met de velden */
+.soort-keuze { gap: 20px; flex-wrap: wrap; align-items: center; min-height: 38px; }
+.soort-keuze label { margin: 0; }

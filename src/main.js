@@ -70,6 +70,13 @@ const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend', overkoepelend: 
 const SOORT_SUB = { pijler: 'Pijler · strategisch domein', domein: 'Ondersteunend domein', overkoepelend: 'Overkoepelend domein' }
 const SOORT_KLEUR = { pijler: '', domein: 'background:var(--orange)', overkoepelend: 'background:var(--muted)' }
 
+// Optionele #hashtag per domein (bijv. #HCASpeelt): begint met #, geen spaties, max. 50 tekens
+function hashtagFout(waarde) {
+  if (!waarde) return ''
+  if (!/^#[^\s#]{1,49}$/.test(waarde)) return 'Begin met # en gebruik geen spaties (max. 50 tekens)'
+  return ''
+}
+
 function soortKeuzeHTML(naam, huidig) {
   return SOORTEN.map(([k, label]) => `
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
@@ -570,9 +577,9 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             <div id="structuur-lijst"></div>
             <button class="btn-toevoegen" id="structuur-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
             <div class="pijler-form" id="structuur-form" hidden>
-              <div class="form-groep">
-                <span class="form-label">Soort</span>
-                <div class="form-rij" style="gap:16px;margin-top:4px">
+              <div class="form-groep" role="radiogroup" aria-labelledby="structuur-soort-label">
+                <span class="form-label" id="structuur-soort-label">Soort</span>
+                <div class="form-rij soort-keuze">
                   ${soortKeuzeHTML('structuur-type', 'pijler')}
                 </div>
               </div>
@@ -580,6 +587,11 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
                 <label class="form-label" for="structuur-naam">Naam</label>
                 <input class="form-input" id="structuur-naam" name="naam" type="text" placeholder="Naam" autocomplete="off">
                 <span class="form-fout" id="structuur-naam-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="structuur-hashtag">#Hashtag</label>
+                <input class="form-input" id="structuur-hashtag" type="text" placeholder="Optioneel, bijv. #HCASpeelt" autocomplete="off">
+                <span class="form-fout" id="structuur-hashtag-fout"></span>
               </div>
               <div class="form-groep">
                 <label class="form-label" for="structuur-omschr">Omschrijving</label>
@@ -675,6 +687,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     document.getElementById('structuur-form').hidden = true
     document.getElementById('structuur-toevoegen-knop').hidden = false
     document.getElementById('structuur-naam').value = ''
+    document.getElementById('structuur-hashtag').value = ''
+    document.getElementById('structuur-hashtag-fout').textContent = ''
     document.getElementById('structuur-omschr').value = ''
     document.getElementById('structuur-verantw').value = ''
     document.getElementById('structuur-icoon').value = ''
@@ -709,12 +723,16 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         fout.textContent = ''; el.classList.remove('fout'); el.removeAttribute('aria-invalid')
       }
     })
+    const hashtag = document.getElementById('structuur-hashtag').value.trim()
+    const tagFout = hashtagFout(hashtag)
+    document.getElementById('structuur-hashtag-fout').textContent = tagFout
+    if (tagFout) ok = false
     if (!ok) return
 
     const bestaand = await laadStructuurelementen()
     const hoogste = bestaand.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
     const item = {
-      type, naam: naamEl.value.trim(), omschrijving: omschrEl.value.trim(), bestuursfunctieId: verAntwEl.value,
+      type, naam: naamEl.value.trim(), hashtag, omschrijving: omschrEl.value.trim(), bestuursfunctieId: verAntwEl.value,
       icoon: document.getElementById('structuur-icoon').value, volgorde: hoogste + 1,
     }
     await voegStructuurelementToe(item)
@@ -754,16 +772,24 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       rij.classList.add('bewerken')
       rij.innerHTML = `
         <div class="pijler-bewerk-form" style="width:100%">
-          <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:4px">
-            ${soortKeuzeHTML(`bewerk-type-${id}`, item.type)}
+          <div class="form-groep" role="radiogroup" aria-labelledby="bs-${esc(id)}">
+            <span class="form-label" id="bs-${esc(id)}">Soort</span>
+            <div class="form-rij soort-keuze">
+              ${soortKeuzeHTML(`bewerk-type-${id}`, item.type)}
+            </div>
           </div>
           <div class="form-groep">
-            <label class="form-label">Naam</label>
+            <label class="form-label" for="bn-${esc(id)}">Naam</label>
             <input class="form-input" id="bn-${esc(id)}" value="${esc(item.naam)}" autocomplete="off">
             <span class="form-fout" id="bn-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
-            <label class="form-label">Omschrijving</label>
+            <label class="form-label" for="bh-${esc(id)}">#Hashtag</label>
+            <input class="form-input" id="bh-${esc(id)}" value="${esc(item.hashtag || '')}" placeholder="Optioneel, bijv. #HCASpeelt" autocomplete="off">
+            <span class="form-fout" id="bh-fout-${esc(id)}"></span>
+          </div>
+          <div class="form-groep">
+            <label class="form-label" for="bo-${esc(id)}">Omschrijving</label>
             <input class="form-input" id="bo-${esc(id)}" value="${esc(item.omschrijving || '')}" autocomplete="off">
             <span class="form-fout" id="bo-fout-${esc(id)}"></span>
           </div>
@@ -798,9 +824,13 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : (foutId.startsWith('bv-') ? 'Kies een bestuursfunctie' : 'Verplicht veld'); ok = false }
         else el.textContent = ''
       })
+      const hashtag = document.getElementById(`bh-${id}`)?.value.trim() || ''
+      const tagFout = hashtagFout(hashtag)
+      document.getElementById(`bh-fout-${id}`).textContent = tagFout
+      if (tagFout) ok = false
       if (!ok) return
       const icoon = document.getElementById(`bi-${id}`)?.value || ''
-      const data = { type, naam, omschrijving: omschr, bestuursfunctieId: verantw, icoon }
+      const data = { type, naam, hashtag, omschrijving: omschr, bestuursfunctieId: verantw, icoon }
       await bewerkStructuurelement(id, data)
       await laadEnRender()
     } else if (actie === 'bewerk-annuleer') {

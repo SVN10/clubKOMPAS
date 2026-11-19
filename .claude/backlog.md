@@ -224,6 +224,17 @@
 
 ---
 
+### ✅ CK-030 — #Hashtag per domein en strakkere formulieren en tabellen
+**Status:** Gebouwd (20 november 2026)
+
+- [x] Optioneel veld `hashtag` per domein (bijv. #HCASpeelt), zodat de naam los kan staan (bijv. "Hockey"); controle: begint met #, geen spaties, max. 50 tekens
+- [x] Titel "Soort" boven de keuzerondjes, in toevoegen én bewerken
+- [x] Beheertabellen: smallere, vaste kolommen die op elkaar aansluiten; vrije ruimte vóór de knoppen
+
+**Later:** de hashtag tonen op het dashboard (nu alleen opgeslagen).
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
