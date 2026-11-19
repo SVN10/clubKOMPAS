@@ -17,10 +17,19 @@ function veiligLogo(waarde) {
   return typeof waarde === 'string' && waarde.startsWith('data:image/') ? waarde : ''
 }
 
+// Zet het clublogo als favicon, of zet het standaard kompas-icoon terug als er geen logo is.
+// Het type moet meeveranderen: met type="image/svg+xml" negeren browsers een PNG/JPEG-logo.
 function setFavicon(base64) {
   const link = document.getElementById('favicon')
+  if (!link) return
   const logo = veiligLogo(base64)
-  if (link && logo) link.href = logo
+  if (logo) {
+    link.type = logo.slice(5, logo.indexOf(';'))
+    link.href = logo
+  } else {
+    link.type = 'image/svg+xml'
+    link.href = '/favicon.svg'
+  }
 }
 
 async function resizeAfbeelding(file, maxPx = 300) {
@@ -849,6 +858,7 @@ function renderInstellingen(gebruiker) {
       const { logo: _removed, ...rest } = huidigProfiel || {}
       await slaaProfiel(rest)
       huidigProfiel = rest
+      setFavicon('')
       renderInstellingen(gebruiker)
     })
   }
@@ -991,6 +1001,7 @@ onAuthStateChanged(auth, async gebruiker => {
     huidigGebruiker = null
     huidigProfiel = null
     foutPogingen = 0
+    setFavicon('')
     renderInlogscherm()
   }
 })
