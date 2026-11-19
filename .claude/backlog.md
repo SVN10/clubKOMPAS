@@ -213,6 +213,17 @@
 
 ---
 
+### ✅ CK-029 — Layout: rustiger dashboard en uitgelijnde beheertabellen
+**Status:** Gebouwd (20 november 2026)
+
+- [x] Dashboard: drie domeinen per rij (twee op tablet, één op telefoon), alle kaarten even hoog en gelijk opgebouwd (pictogram naast de naam, omschrijving max. 3 regels, label onderaan)
+- [x] Beheer → Domeinen: tabel met vaste kolommen (#, pictogram, domein, soort, eindverantwoordelijke, acties) en kolomkoppen; omschrijving niet meer in de tabel
+- [x] Beheer → Bestuursfuncties: zelfde tabelopbouw (#, bestuursfunctie, eindverantwoordelijk voor, acties)
+- [x] Keuzelijsten even hoog als tekstvelden (38px), met eigen pijltje
+- [x] Opgelost: een filter kiezen haalde de markering van het tabblad Domeinen weg
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 

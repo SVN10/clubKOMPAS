@@ -590,3 +590,84 @@ footer a:hover { opacity: 1; }
   padding: 1px 7px;
   white-space: nowrap;
 }
+
+/* ── Layoutverbeteringen (CK-029) ── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* Dashboard: drie domeinen per rij, alle kaarten even hoog en gelijk opgebouwd */
+#structuur-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+@media (max-width: 900px) { #structuur-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { #structuur-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } }
+.structuur-dyn { display: flex; }
+.domein-kaart { flex: 1; display: flex; flex-direction: column; }
+.domein-kaart .card-titel { gap: 10px; }
+.picto-kaart { width: 28px; height: 28px; flex: none; }
+.kaart-omschrijving {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.domein-kaart .pill { align-self: flex-start; }
+
+/* Beheertabellen: vaste kolommen, alles netjes uitgelijnd */
+.structuur-rij.beheer-rij {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+.structuur-rij.beheer-rij.bewerken { display: block; }
+/* Vaste breedte voor de actiekolom, zodat de kop (zonder knoppen) gelijk loopt met de rijen */
+.domein-rij { grid-template-columns: 28px 24px minmax(120px, 1.2fr) 140px minmax(150px, 1fr) 240px; }
+.functie-rij { grid-template-columns: 28px minmax(160px, 1.5fr) minmax(140px, 1fr) 240px; }
+.beheer-rij.beheer-kop {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 6px;
+  border-bottom: 2px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.beheer-kop > span:first-child, .cel-nr { text-align: right; }
+.cel-nr { font-size: 13px; font-weight: 700; color: var(--muted); }
+.cel-picto { display: flex; align-items: center; }
+.cel-naam { overflow-wrap: anywhere; }
+.cel-functie { font-size: 13px; color: var(--text); }
+.cel-acties { justify-content: flex-end; margin-top: 0; }
+.onzichtbaar { visibility: hidden; }
+@media (max-width: 700px) {
+  .beheer-rij.beheer-kop { display: none; }
+  .domein-rij { grid-template-columns: 24px 24px 1fr; row-gap: 4px; }
+  .functie-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
+  .domein-rij > :nth-child(4), .domein-rij > :nth-child(5) { grid-column: 3; }
+  .functie-rij > :nth-child(3) { grid-column: 2; }
+  .beheer-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+}
+
+/* Keuzelijsten even hoog als tekstvelden */
+input.form-input, select.form-input {
+  height: 38px;
+  box-sizing: border-box;
+  line-height: 1.2;
+}
+select.form-input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%2346797B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}

@@ -290,15 +290,13 @@ async function renderStructuurGrid() {
     return
   }
   items.forEach(item => {
-    const isPijler = item.type === 'pijler'
     const div = document.createElement('div')
     div.className = 'structuur-dyn'
     div.innerHTML = `
-      <div class="card">
-        ${isPijler ? pictogramHTML(item, 'picto-groot') : ''}
-        <h3 class="card-titel">${isPijler ? '' : pictogramHTML(item, 'picto-klein')}${esc(item.naam)}</h3>
+      <div class="card domein-kaart">
+        <h3 class="card-titel">${pictogramHTML(item, 'picto-kaart')}<span>${esc(item.naam)}</span></h3>
         <div class="sub">${SOORT_SUB[item.type] || ''}</div>
-        <p>${esc(item.omschrijving || '')}</p>
+        <p class="kaart-omschrijving">${esc(item.omschrijving || '')}</p>
         <span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
       </div>`
     grid.appendChild(div)
@@ -624,22 +622,30 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       return
     }
     const kanVerplaatsen = actiefFilter === 'alles'
-    lijst.innerHTML = gefilterd.map((item, i) => {
-      const isPijler = item.type === 'pijler'
-      const verplaats = kanVerplaatsen ? `
-            <button class="btn-kaart-actie btn-volgorde" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omhoog"${i === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omlaag"${i === gefilterd.length - 1 ? ' disabled' : ''}>↓</button>` : ''
+    const kop = `
+        <div class="beheer-rij beheer-kop domein-rij" role="row">
+          <span role="columnheader">#</span>
+          <span role="columnheader"><span class="sr-only">Pictogram</span></span>
+          <span role="columnheader">Domein</span>
+          <span role="columnheader">Soort</span>
+          <span role="columnheader">Eindverantwoordelijke</span>
+          <span role="columnheader"><span class="sr-only">Acties</span></span>
+        </div>`
+    lijst.setAttribute('role', 'table')
+    lijst.setAttribute('aria-label', 'Domeinen')
+    lijst.innerHTML = kop + gefilterd.map((item, i) => {
+      // Verplaatsknoppen alleen bij "Alles"; anders onzichtbaar zodat de kolommen gelijk blijven
+      const verborgen = kanVerplaatsen ? '' : ' onzichtbaar" tabindex="-1" aria-hidden="true'
       return `
-        <div class="structuur-rij" data-id="${esc(item.id)}">
-          <div class="structuur-rij-info">
-            ${kanVerplaatsen ? `<span class="volgorde-nr">${i + 1}</span>` : ''}
-            ${pictogramHTML(item, 'picto-klein')}
-            <strong>${esc(item.naam)}</strong>
-            <span class="pill" style="margin-top:0"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
-            ${functieNaam.has(item.bestuursfunctieId) ? `<span class="functie-label">${esc(functieNaam.get(item.bestuursfunctieId))}</span>` : ''}
-            ${item.omschrijving ? `<span style="color:var(--muted);font-size:13px">${esc(item.omschrijving)}</span>` : ''}
-          </div>
-          <div class="kaart-acties" style="margin-top:0;flex-shrink:0">${verplaats}
+        <div class="structuur-rij beheer-rij domein-rij" role="row" data-id="${esc(item.id)}">
+          <span class="cel-nr" role="cell">${kanVerplaatsen ? i + 1 : ''}</span>
+          <span class="cel-picto" role="cell">${pictogramHTML(item, 'picto-klein')}</span>
+          <strong class="cel-naam" role="cell">${esc(item.naam)}</strong>
+          <span role="cell"><span class="pill" style="margin-top:0"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
+          <span class="cel-functie" role="cell">${esc(functieNaam.get(item.bestuursfunctieId) || '—')}</span>
+          <div class="kaart-acties cel-acties" role="cell">
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omhoog"${!kanVerplaatsen || i === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omlaag"${!kanVerplaatsen || i === gefilterd.length - 1 ? ' disabled' : ''}>↓</button>
             <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(item.id)}">Bewerken</button>
             <button class="btn-kaart-actie gevaar" data-actie="verwijder" data-id="${esc(item.id)}">Verwijderen</button>
           </div>
@@ -653,7 +659,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   document.querySelector('.filter-tabs:not(.beheer-tabs)').addEventListener('click', async e => {
     const knop = e.target.closest('.filter-knop')
     if (!knop) return
-    document.querySelectorAll('.filter-knop').forEach(k => k.classList.remove('active'))
+    knop.closest('.filter-tabs').querySelectorAll('.filter-knop').forEach(k => k.classList.remove('active'))
     knop.classList.add('active')
     actiefFilter = knop.dataset.filter
     await laadEnRender()
@@ -745,6 +751,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       const item = items.find(x => x.id === id)
       if (!item) return
       const isPijler = item.type === 'pijler'
+      rij.classList.add('bewerken')
       rij.innerHTML = `
         <div class="pijler-bewerk-form" style="width:100%">
           <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:4px">
@@ -850,16 +857,22 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:13px">Nog geen bestuursfuncties.</p>`
       return
     }
-    lijst.innerHTML = functies.map((f, i) => {
+    lijst.setAttribute('role', 'table')
+    lijst.setAttribute('aria-label', 'Bestuursfuncties')
+    lijst.innerHTML = `
+        <div class="beheer-rij beheer-kop functie-rij" role="row">
+          <span role="columnheader">#</span>
+          <span role="columnheader">Bestuursfunctie</span>
+          <span role="columnheader">Eindverantwoordelijk voor</span>
+          <span role="columnheader"><span class="sr-only">Acties</span></span>
+        </div>` + functies.map((f, i) => {
       const aantal = domeinen.filter(d => d.bestuursfunctieId === f.id).length
       return `
-        <div class="structuur-rij" data-id="${esc(f.id)}">
-          <div class="structuur-rij-info">
-            <span class="volgorde-nr">${i + 1}</span>
-            <strong>${esc(f.naam)}</strong>
-            <span style="color:var(--muted);font-size:13px">${aantal === 0 ? 'Geen domeinen' : aantal === 1 ? '1 domein' : `${aantal} domeinen`}</span>
-          </div>
-          <div class="kaart-acties" style="margin-top:0;flex-shrink:0">
+        <div class="structuur-rij beheer-rij functie-rij" role="row" data-id="${esc(f.id)}">
+          <span class="cel-nr" role="cell">${i + 1}</span>
+          <strong class="cel-naam" role="cell">${esc(f.naam)}</strong>
+          <span class="cel-functie" role="cell">${aantal === 0 ? 'Geen domeinen' : aantal === 1 ? '1 domein' : `${aantal} domeinen`}</span>
+          <div class="kaart-acties cel-acties" role="cell">
             <button class="btn-kaart-actie btn-volgorde" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="${esc(f.naam)} omhoog"${i === 0 ? ' disabled' : ''}>↑</button>
             <button class="btn-kaart-actie btn-volgorde" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="${esc(f.naam)} omlaag"${i === functies.length - 1 ? ' disabled' : ''}>↓</button>
             <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(f.id)}">Bewerken</button>
@@ -924,6 +937,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     } else if (actie === 'bewerk') {
       const f = (await laadBestuursfuncties()).find(x => x.id === id)
       if (!f) return
+      rij.classList.add('bewerken')
       rij.innerHTML = `
         <div class="pijler-bewerk-form" style="width:100%">
           <div class="form-groep">
