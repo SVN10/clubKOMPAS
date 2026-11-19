@@ -139,8 +139,10 @@
 
 ## Sprint 3 — Voorstel (nog in te plannen)
 
-### P0c — Club loskoppelen van gebruiker (Platform-laag P0)
-**Status:** Gebouwd in v0.3.0 (eindoordeel: GO met voorbehoud) · live na migratie en rookproef · **Prioriteit:** Must
+### ✅ P0c — Club loskoppelen van gebruiker (Platform-laag P0)
+**Status:** ✅ Live sinds 19 november 2026 (v0.3.0), migratie en rookproef geslaagd · **Prioriteit:** Must
+
+**Logboek:** `.claude/reports/P0c-migratielogboek.md`
 
 **Eindoordeel:** `.claude/reports/P0c-eindoordeel.md`
 
@@ -175,6 +177,17 @@
 **Acceptatiecriteria:**
 - [ ] Opslaan van het profiel schrijft alleen de gewijzigde velden (of controleert op een nieuwere versie)
 - [ ] Scenario: A wijzigt het seizoen, B uploadt daarna een logo zonder te herladen → het seizoen van A blijft staan
+
+---
+
+### CK-025 — Bevestiging na opslaan clubprofiel
+**Status:** Open · klein
+
+*Als bestuurder wil ik na het opslaan van het clubprofiel zien dat het gelukt is.*
+
+**Acceptatiecriteria:**
+- [ ] Na opslaan verschijnt "✓ Profiel opgeslagen." (het element bestaat al, maar wordt na het opnieuw tekenen van de pagina nooit getoond)
+- [ ] Hetzelfde voor "✓ Logo opgeslagen.", "✓ Naam opgeslagen.", "✓ E-mailadres gewijzigd." en "✓ Wachtwoord gewijzigd." (geen van deze meldingen wordt nu ooit zichtbaar)
 
 ---
 
