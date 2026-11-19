@@ -684,3 +684,14 @@ select.form-input {
 /* Soort-keuze: titel erboven, rondjes op één lijn met de velden */
 .soort-keuze { gap: 20px; flex-wrap: wrap; align-items: center; min-height: 38px; }
 .soort-keuze label { margin: 0; }
+
+/* Hashtag op de domeinkaart (CK-032): rechts naast het soortlabel, vet in petrol */
+.kaart-voet { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.kaart-voet .pill { margin-top: 0; }
+.kaart-hashtag {
+  font-size: var(--fs-toelichting);
+  font-weight: 700;
+  color: var(--petrol);
+  overflow-wrap: anywhere;
+  text-align: right;
+}

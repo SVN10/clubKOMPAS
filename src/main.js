@@ -304,7 +304,10 @@ async function renderStructuurGrid() {
         <h3 class="card-titel">${pictogramHTML(item, 'picto-kaart')}<span>${esc(item.naam)}</span></h3>
         <div class="sub">${SOORT_SUB[item.type] || ''}</div>
         <p class="kaart-omschrijving">${esc(item.omschrijving || '')}</p>
-        <span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
+        <div class="kaart-voet">
+          <span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
+          ${item.hashtag ? `<span class="kaart-hashtag">${esc(item.hashtag)}</span>` : ''}
+        </div>
       </div>`
     grid.appendChild(div)
   })
