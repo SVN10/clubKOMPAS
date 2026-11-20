@@ -679,3 +679,7 @@ select.form-input {
   .pagina-titel { font-size: var(--fs-hoofdstuk); }
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Titelbalk: titel en kompaslogo 15% groter (bewuste uitzondering op de tekstschaal) */
+.top-bar .app-title { font-size: calc(var(--fs-hoofdstuk) * 1.15); }
+.top-bar .app-icon { width: calc(30px * 1.15); height: calc(30px * 1.15); }
