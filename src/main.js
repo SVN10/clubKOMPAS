@@ -72,7 +72,7 @@ function esc(s) {
 // Soorten domein. 'overkoepelend' (Projecten, Samenwerkingen) loopt dwars door de andere domeinen.
 const SOORTEN = [['pijler', 'Pijler'], ['domein', 'Ondersteunend domein'], ['overkoepelend', 'Overkoepelend domein']]
 const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend', overkoepelend: 'Overkoepelend' }
-const SOORT_SUB = { pijler: 'Pijler · strategisch domein', domein: 'Ondersteunend domein', overkoepelend: 'Overkoepelend domein' }
+const SOORT_SUB = { pijler: 'Pijler', domein: 'Ondersteunend domein', overkoepelend: 'Overkoepelend domein' }
 const SOORT_KLEUR = { pijler: '', domein: 'background:var(--orange)', overkoepelend: 'background:var(--muted)' }
 
 // Optionele #hashtag per domein (bijv. #HCASpeelt): begint met #, geen spaties, max. 50 tekens
@@ -302,13 +302,12 @@ async function renderStructuurGrid() {
   const grid = document.getElementById('structuur-grid')
   if (!grid) return
   grid.querySelectorAll('.structuur-dyn').forEach(el => el.remove())
-  const [items, functies] = await Promise.all([laadStructuurelementen(), laadBestuursfuncties().catch(() => null)])
+  const items = await laadStructuurelementen()
   if (!grid.isConnected) return
   const zet = (id, waarde) => { const el = document.getElementById(id); if (el) el.textContent = waarde }
   zet('cijfer-pijlers', items.filter(i => i.type === 'pijler').length)
   zet('cijfer-domeinen', items.filter(i => i.type === 'domein').length)
   zet('cijfer-overkoepelend', items.filter(i => i.type === 'overkoepelend').length)
-  zet('cijfer-functies', functies ? functies.length : '–')
   if (items.length === 0) {
     const leeg = document.createElement('p')
     leeg.className = 'structuur-dyn'
@@ -489,8 +488,6 @@ function toonUitkomst(gebruiker, status) {
 }
 
 function renderDashboard(gebruiker) {
-  const seizoen = huidigProfiel?.seizoen ? `Seizoen ${esc(huidigProfiel.seizoen)}` : ''
-
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
     ${navHTML('home')}
@@ -500,19 +497,17 @@ function renderDashboard(gebruiker) {
 
         <div class="pagina-kop">
           <h1 class="pagina-titel">Domeinen<b>overzicht</b></h1>
-          ${seizoen ? `<span class="pagina-toel">${seizoen}</span>` : ''}
         </div>
 
-        <div class="cijfers" aria-label="Kerncijfers">
+        <div class="cijfers cijfers-3" aria-label="Kerncijfers">
           <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
           <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
           <div class="cijfer"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen</span></div>
-          <div class="cijfer"><span class="n" id="cijfer-functies">–</span><span class="l">Bestuursfuncties</span></div>
         </div>
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2>Domeinen</h2>
+            <h2 class="sr-only">Domeinen</h2>
             <span class="toel">De structuur van jouw club</span>
           </div>
           <div class="sectie-lijf">
@@ -564,7 +559,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         ${beheerTabsHTML('domeinen')}
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2>Domeinen</h2>
+            <h2 class="sr-only">Domeinen</h2>
             <span class="toel">Structuur van jouw club</span>
           </div>
           <div class="sectie-lijf">
@@ -848,7 +843,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
         ${beheerTabsHTML('functies')}
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2>Bestuursfuncties</h2>
+            <h2 class="sr-only">Bestuursfuncties</h2>
             <span class="toel">Eindverantwoordelijken voor de domeinen</span>
           </div>
           <div class="sectie-lijf">
@@ -1007,7 +1002,7 @@ function renderInstellingen(gebruiker) {
       <div class="wrap">
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2>Clubprofiel</h2>
+            <h2 class="sr-only">Clubprofiel</h2>
             <span class="toel">Basisinformatie van jouw club</span>
           </div>
           <div class="sectie-lijf">
@@ -1037,7 +1032,7 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2>Clublogo</h2>
+            <h2 class="sr-only">Clublogo</h2>
             <span class="toel">Zichtbaar in de titelbalk en als browser-icoon</span>
           </div>
           <div class="sectie-lijf">
@@ -1061,7 +1056,7 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2>Gebruiker</h2>
+            <h2 class="sr-only">Gebruiker</h2>
             <span class="toel">Jouw accountgegevens</span>
           </div>
           <div class="sectie-lijf">
@@ -1118,7 +1113,7 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2>Over clubKOMPAS</h2>
+            <h2 class="sr-only">Over clubKOMPAS</h2>
             <span class="toel">Versie-informatie</span>
           </div>
           <div class="sectie-lijf">
