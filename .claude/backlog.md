@@ -276,7 +276,7 @@
 - [x] Kopbalken alleen met de titel links; de toelichting rechts (bijv. "De structuur van jouw club") is weg
 - [x] Domeinenoverzicht: kerncijfer Bestuursfuncties en het seizoen weg; drie kerncijfers
 - [x] Domeinkaart: soort "Pijler" in plaats van "Pijler · strategisch domein"
-- [x] Instellingen: knoppen even hoog (35px) en wit zoals op de andere pagina's (niet meer oranje); Verwijderen kleurt rood bij aanwijzen; logoblok even breed als de formulieren en links uitgelijnd
+- [x] Opslaan-knoppen in Instellingen en Beheer wit (niet meer oranje); knoppen even hoog (35px); Verwijderen kleurt rood bij aanwijzen; logoblok even breed als de formulieren en links uitgelijnd
 
 ---
 

@@ -601,7 +601,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
                 ${pictogramKeuzeHTML('structuur-icoon', '')}
               </div>
               <div class="form-rij">
-                <button class="btn primary" id="structuur-opslaan">Opslaan</button>
+                <button class="btn" id="structuur-opslaan">Opslaan</button>
                 <button class="btn" id="structuur-annuleer">Annuleren</button>
               </div>
             </div>
@@ -796,7 +796,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             ${pictogramKeuzeHTML(`bi-${id}`, item.icoon || '')}
           </div>
           <div class="form-rij">
-            <button class="btn primary" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
         </div>`
@@ -854,7 +854,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
                 <span class="form-fout" id="functie-naam-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn primary" id="functie-opslaan">Opslaan</button>
+                <button class="btn" id="functie-opslaan">Opslaan</button>
                 <button class="btn" id="functie-annuleer">Annuleren</button>
               </div>
             </div>
@@ -968,7 +968,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
             <span class="form-fout" id="fn-fout-${esc(id)}"></span>
           </div>
           <div class="form-rij">
-            <button class="btn primary" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
         </div>`
