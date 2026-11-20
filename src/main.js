@@ -507,8 +507,7 @@ function renderDashboard(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2 class="sr-only">Domeinen</h2>
-            <span class="toel">De structuur van jouw club</span>
+            <h2>Domeinen</h2>
           </div>
           <div class="sectie-lijf">
             <div class="grid" id="structuur-grid">
@@ -559,8 +558,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         ${beheerTabsHTML('domeinen')}
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2 class="sr-only">Domeinen</h2>
-            <span class="toel">Structuur van jouw club</span>
+            <h2>Domeinen</h2>
           </div>
           <div class="sectie-lijf">
             <div class="filter-tabs" role="group" aria-label="Filter">
@@ -843,8 +841,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
         ${beheerTabsHTML('functies')}
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2 class="sr-only">Bestuursfuncties</h2>
-            <span class="toel">Eindverantwoordelijken voor de domeinen</span>
+            <h2>Bestuursfuncties</h2>
           </div>
           <div class="sectie-lijf">
             <div id="functie-lijst"></div>
@@ -1002,8 +999,7 @@ function renderInstellingen(gebruiker) {
       <div class="wrap">
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2 class="sr-only">Clubprofiel</h2>
-            <span class="toel">Basisinformatie van jouw club</span>
+            <h2>Clubprofiel</h2>
           </div>
           <div class="sectie-lijf">
             <div class="profiel-form-wrap">
@@ -1032,8 +1028,7 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2 class="sr-only">Clublogo</h2>
-            <span class="toel">Zichtbaar in de titelbalk en als browser-icoon</span>
+            <h2>Clublogo</h2>
           </div>
           <div class="sectie-lijf">
             <div class="logo-upload-wrap">
@@ -1056,8 +1051,7 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2 class="sr-only">Gebruiker</h2>
-            <span class="toel">Jouw accountgegevens</span>
+            <h2>Gebruiker</h2>
           </div>
           <div class="sectie-lijf">
             <div class="profiel-form-wrap">
@@ -1113,8 +1107,7 @@ function renderInstellingen(gebruiker) {
 
         <div class="sectie">
           <div class="sectie-kop">
-            <h2 class="sr-only">Over clubKOMPAS</h2>
-            <span class="toel">Versie-informatie</span>
+            <h2>Over clubKOMPAS</h2>
           </div>
           <div class="sectie-lijf">
             <dl class="versie-info">

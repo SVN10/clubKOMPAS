@@ -683,8 +683,8 @@ select.form-input {
 .top-bar .app-title { font-size: 30px; }
 .top-bar .app-icon { width: 30px; height: 30px; }
 
-/* Kopbalken zonder linkertitel (titel alleen voor schermlezers): toelichting rechts */
-.sectie-kop { justify-content: flex-end; min-height: 40px; }
+/* Kopbalken alleen met de titel links (geen toelichting rechts) */
+.sectie-kop { min-height: 40px; }
 
 /* Domeinenoverzicht: drie kerncijfers */
 .cijfers.cijfers-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

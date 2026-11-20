@@ -273,7 +273,7 @@
 ### ✅ CK-035 — Vereenvoudiging: kopbalken, overzicht en Instellingen
 **Status:** Gebouwd (20 november 2026)
 
-- [x] Linkertitels uit alle kopbalken (alleen nog voor schermlezers); toelichting blijft rechts
+- [x] Kopbalken alleen met de titel links; de toelichting rechts (bijv. "De structuur van jouw club") is weg
 - [x] Domeinenoverzicht: kerncijfer Bestuursfuncties en het seizoen weg; drie kerncijfers
 - [x] Domeinkaart: soort "Pijler" in plaats van "Pijler · strategisch domein"
 - [x] Instellingen: alle knoppen even hoog (35px), Verwijderen kleurt rood bij aanwijzen; logoblok even breed als de formulieren en links uitgelijnd
