@@ -1019,7 +1019,7 @@ function renderInstellingen(gebruiker) {
                 <span class="form-fout" id="profiel-seizoen-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn primary" id="profiel-opslaan">Opslaan</button>
+                <button class="btn" id="profiel-opslaan">Opslaan</button>
               </div>
               <p class="profiel-succes" id="profiel-succes" hidden>✓ Profiel opgeslagen.</p>
             </div>
@@ -1062,7 +1062,7 @@ function renderInstellingen(gebruiker) {
                 <span class="form-fout" id="geb-naam-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn primary" id="geb-naam-opslaan">Naam opslaan</button>
+                <button class="btn" id="geb-naam-opslaan">Naam opslaan</button>
               </div>
               <p class="profiel-succes" id="geb-naam-succes" hidden>✓ Naam opgeslagen.</p>
 
@@ -1080,7 +1080,7 @@ function renderInstellingen(gebruiker) {
                 <span class="form-fout" id="geb-email-ww-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn primary" id="geb-email-opslaan">E-mailadres wijzigen</button>
+                <button class="btn" id="geb-email-opslaan">E-mailadres wijzigen</button>
               </div>
               <p class="profiel-succes" id="geb-email-succes" hidden>✓ E-mailadres gewijzigd.</p>
 
@@ -1097,7 +1097,7 @@ function renderInstellingen(gebruiker) {
                 <span class="form-fout" id="geb-nieuw-ww-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn primary" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
+                <button class="btn" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
               </div>
               <p class="profiel-succes" id="geb-ww-succes" hidden>✓ Wachtwoord gewijzigd.</p>
 
