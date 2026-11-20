@@ -302,12 +302,13 @@ async function renderStructuurGrid() {
   const grid = document.getElementById('structuur-grid')
   if (!grid) return
   grid.querySelectorAll('.structuur-dyn').forEach(el => el.remove())
-  const items = await laadStructuurelementen()
+  const [items, functies] = await Promise.all([laadStructuurelementen(), laadBestuursfuncties().catch(() => null)])
   if (!grid.isConnected) return
-  const telPijlers = document.getElementById('cijfer-pijlers')
-  const telDomeinen = document.getElementById('cijfer-domeinen')
-  if (telPijlers) telPijlers.textContent = items.filter(i => i.type === 'pijler').length
-  if (telDomeinen) telDomeinen.textContent = items.filter(i => i.type === 'domein').length
+  const zet = (id, waarde) => { const el = document.getElementById(id); if (el) el.textContent = waarde }
+  zet('cijfer-pijlers', items.filter(i => i.type === 'pijler').length)
+  zet('cijfer-domeinen', items.filter(i => i.type === 'domein').length)
+  zet('cijfer-overkoepelend', items.filter(i => i.type === 'overkoepelend').length)
+  zet('cijfer-functies', functies ? functies.length : '–')
   if (items.length === 0) {
     const leeg = document.createElement('p')
     leeg.className = 'structuur-dyn'
@@ -488,12 +489,7 @@ function toonUitkomst(gebruiker, status) {
 }
 
 function renderDashboard(gebruiker) {
-  const sectieKopTitel = huidigProfiel?.naam
-    ? esc(huidigProfiel.naam)
-    : 'Verenigingsbeheer voor sportclubs'
-  const sectieKopToel = huidigProfiel?.seizoen
-    ? `Seizoen ${esc(huidigProfiel.seizoen)}`
-    : 'Jouw club. Jouw kompas.'
+  const seizoen = huidigProfiel?.seizoen ? `Seizoen ${esc(huidigProfiel.seizoen)}` : ''
 
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
@@ -502,35 +498,16 @@ function renderDashboard(gebruiker) {
     <main>
       <div class="wrap">
 
-        <div class="sectie" style="margin-top:0">
-          <div class="sectie-kop">
-            <h2>${sectieKopTitel}</h2>
-            <span class="toel">${sectieKopToel}</span>
-          </div>
-          <div class="sectie-lijf">
-            <div class="kolommen">
-              <div class="hero-tekst">
-                <h1>Alles wat je club <b>kan</b>, op één plek.</h1>
-                <p>
-                  clubKOMPAS geeft sportclubs overzicht over hun domeinen en
-                  vermogens — van ledenbeheer tot sponsoring, van strategie tot activiteiten.
-                  Ontworpen voor bestuurders die meer willen doen en minder willen zoeken.
-                </p>
-                <div class="hero-rij">
-                  <button class="btn primary">Kom met ons in contact</button>
-                  <button class="btn">Meer informatie</button>
-                </div>
-              </div>
-              <div>
-                <div class="cijfers" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
-                  <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
-                  <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
-                  <div class="cijfer"><span class="n">∞</span><span class="l">Vermogens per club</span></div>
-                  <div class="cijfer"><span class="n">1</span><span class="l">Overzicht voor alles</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="pagina-kop">
+          <h1 class="pagina-titel">Domeinen<b>overzicht</b></h1>
+          ${seizoen ? `<span class="pagina-toel">${seizoen}</span>` : ''}
+        </div>
+
+        <div class="cijfers" aria-label="Kerncijfers">
+          <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
+          <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
+          <div class="cijfer"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen</span></div>
+          <div class="cijfer"><span class="n" id="cijfer-functies">–</span><span class="l">Bestuursfuncties</span></div>
         </div>
 
         <div class="sectie">

@@ -259,6 +259,16 @@
 
 ---
 
+### ✅ CK-034 — Dashboard: Domeinenoverzicht met kerncijfers
+**Status:** Gebouwd (20 november 2026)
+
+- [x] Het introblok (verkooptekst, knoppen "Kom met ons in contact" / "Meer informatie", vulcijfers ∞ en 1) is weg
+- [x] Paginatitel "Domeinen**overzicht**" (huisstijl: titel 40, kernwoord vet), met het seizoen rechts als toelichting
+- [x] Eén rij kerncijfers uit de echte gegevens: pijlers, ondersteunende domeinen, overkoepelende domeinen, bestuursfuncties
+- [x] Daaronder het blok Domeinen met de kaarten
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
