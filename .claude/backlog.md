@@ -362,8 +362,8 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 
 ---
 
-### CK-025 — Bevestiging na opslaan clubprofiel
-**Status:** Open · klein
+### ✅ CK-025 — Bevestiging na opslaan clubprofiel
+**Status:** Afgerond en live in v0.5.0 (22 november 2026), gebouwd met CK-023
 
 *Als bestuurder wil ik na het opslaan van het clubprofiel zien dat het gelukt is.*
 
@@ -373,8 +373,8 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 
 ---
 
-### CK-023 — Melding bij mislukt opslaan
-**Status:** Gebouwd samen met CK-025 en token `--fout` (22 november 2026), kwaliteitscontroles en beoordelaar GO voor `test` · nog: testen op tst (17 stappen, `.claude/reports/CK-023-eindoordeel.md`), dan live
+### ✅ CK-023 — Melding bij mislukt opslaan
+**Status:** Afgerond en live in v0.5.0 (22 november 2026), samen met CK-025 en token `--fout` · getest op tst (o.a. geen toegang met tijdelijke regels in het testproject, teruggezet)
 
 *Als bestuurder wil ik een duidelijke melding krijgen als opslaan bij Pijlers & Domeinen mislukt, zodat ik niet denk dat mijn wijziging bewaard is.*
 

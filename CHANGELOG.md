@@ -1,6 +1,6 @@
 # Changelog
 
-## [Ongepubliceerd]
+## [0.5.0] – 2026-11-22
 
 ### Toegevoegd
 - Meldingen bij opslaan (CK-023 + CK-025): elke schrijfactie in Beheer (domeinen, bestuursfuncties, clubprofiel, clublogo) en Mijn account (naam, e-mailadres, wachtwoord) toont een statusregel onder de knoppen: "✓ …" bij succes (`role="status"`, ook na opnieuw tekenen) en een foutmelding in klare taal bij een fout (`role="alert"`), met knop "Opnieuw inloggen" bij een verlopen sessie of als opnieuw inloggen nodig is. Invoer blijft staan; serverfouten die bij een veld horen (dubbele functienaam, e-mailadres in gebruik, zwak of onjuist wachtwoord) staan onder dat veld. Geen ruwe foutcodes meer in beeld (wel in de console).
