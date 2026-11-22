@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Codex-configuratie (lokaal, niet in de repo)
+.codex/
