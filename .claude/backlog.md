@@ -292,6 +292,17 @@
 
 ---
 
+### ✅ CK-037 — Zijmenu en kruimelpad (volgens de mockup)
+**Status:** Gebouwd (22 november 2026)
+
+- [x] Beheer: zijmenu links met Domeinen · Bestuursfuncties · Club (lijnpictogram + naam); actief item petrol met witte tekst; vervangt de knoppen bovenaan
+- [x] Zijmenu in te klappen tot pictogrammen (44px); de keuze wordt onthouden in de browser
+- [x] Kruimelpad boven de inhoud: Home › Beheer › Domeinen, en Home › Mijn account; klikbaar
+- [x] Telefoon: zijmenu als horizontale rij bovenaan
+- [x] Home blijft zonder zijmenu en kruimelpad (volle breedte)
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 

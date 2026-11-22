@@ -555,7 +555,6 @@ footer a:hover { opacity: 1; }
 .btn-volgorde:disabled:hover { border-color: var(--border); color: inherit; }
 
 /* ── Beheer (CK-028) ── */
-.beheer-tabs { margin-bottom: 12px; }
 .functie-label {
   font-size: var(--fs-label);
   color: var(--petrol);
@@ -692,3 +691,60 @@ select.form-input {
 .footer-account { color: var(--on-petrol); text-decoration: none; opacity: 1; }
 .footer-account:hover { text-decoration: underline; text-underline-offset: 3px; }
 .footer-account:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+/* ── Zijmenu en kruimelpad (CK-037, volgens de mockup) ── */
+.app-lijf { display: flex; align-items: stretch; min-height: calc(100vh - 160px); }
+.app-kolom { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.app-kolom > main { flex: 1; }
+
+.zijmenu {
+  width: 172px; flex: none;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding-bottom: 6px;
+}
+.zijmenu-knop {
+  display: flex; align-items: center; justify-content: center;
+  height: 44px; width: 100%;
+  background: transparent; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--petrol); cursor: pointer;
+}
+.zijmenu-knop svg { width: 16px; height: 16px; opacity: .7; }
+.zijmenu-knop:hover { background: var(--card); }
+.zijmenu a {
+  display: flex; align-items: center; gap: 8px;
+  padding: 13px 12px;
+  color: var(--petrol); text-decoration: none;
+  border-left: 3px solid transparent;
+  font-size: var(--fs-toelichting); line-height: 18px;
+}
+.zijmenu a svg { width: 16px; height: 16px; flex: none; }
+.zijmenu a:hover { background: var(--card); border-left-color: var(--border); }
+.zijmenu a[aria-current="page"] { background: var(--petrol); color: var(--on-petrol); font-weight: 700; border-left-color: var(--petrol); }
+.zijmenu a:focus-visible, .zijmenu-knop:focus-visible, .kruimel:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.zijmenu.ingeklapt { width: 44px; }
+.zijmenu.ingeklapt a { justify-content: center; padding: 0; height: 44px; gap: 0; border-left-width: 2px; }
+.zijmenu.ingeklapt a .naam { display: none; }
+.zijmenu.ingeklapt a svg { width: 18px; height: 18px; }
+
+.kruimelpad {
+  height: 44px; padding: 0 16px;
+  display: flex; align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  font-size: var(--fs-toelichting); line-height: 18px;
+  white-space: nowrap; overflow: hidden;
+}
+.kruimel { color: var(--petrol); text-decoration: none; }
+.kruimel:hover { text-decoration: underline; }
+.kruimel-sep { color: var(--muted); padding: 0 6px; }
+.kruimel-huidig { color: var(--petrol); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 700px) {
+  .app-lijf { flex-direction: column; min-height: 0; }
+  .zijmenu, .zijmenu.ingeklapt { width: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .zijmenu-knop { display: none; }
+  .zijmenu a, .zijmenu.ingeklapt a { height: auto; padding: 10px 12px; gap: 6px; border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .zijmenu.ingeklapt a .naam { display: inline; }
+}

@@ -297,6 +297,11 @@ function footerHTML() {
 }
 
 function bindNavListeners(gebruiker) {
+  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', e => {
+    e.preventDefault()
+    if (el.dataset.nav === 'beheer') renderPijlersDomeinenBeheer(gebruiker)
+    else renderDashboard(gebruiker)
+  }))
   document.getElementById('uitlog-knop').addEventListener('click', () => signOut(auth))
   document.querySelector('.nav-home').addEventListener('click', e => { e.preventDefault(); renderDashboard(gebruiker) })
   document.querySelector('.nav-beheer')?.addEventListener('click', e => { e.preventDefault(); renderPijlersDomeinenBeheer(gebruiker) })
@@ -537,21 +542,86 @@ function renderDashboard(gebruiker) {
   renderStructuurGrid()
 }
 
-// Tabbladen binnen Beheer (masterdata)
-function beheerTabsHTML(actief) {
-  return `
-        <div class="filter-tabs beheer-tabs" role="group" aria-label="Beheer">
-          <button class="btn filter-knop${actief === 'domeinen' ? ' active' : ''}" data-beheer="domeinen"${actief === 'domeinen' ? ' aria-current="page"' : ''}>Domeinen</button>
-          <button class="btn filter-knop${actief === 'functies' ? ' active' : ''}" data-beheer="functies"${actief === 'functies' ? ' aria-current="page"' : ''}>Bestuursfuncties</button>
-          <button class="btn filter-knop${actief === 'club' ? ' active' : ''}" data-beheer="club"${actief === 'club' ? ' aria-current="page"' : ''}>Club</button>
-        </div>`
+// ── Navigatie: zijmenu en kruimelpad (volgens de mockup) ──────────────────────
+
+// Lijnpictogrammen voor het zijmenu (48×48, lijndikte 3), uit de clubKOMPAS-mockup
+const MENU_ICOON = {
+  plaat: '<rect x="6" y="8" width="10" height="32" rx="1.5"/><rect x="19" y="8" width="10" height="14" rx="1.5"/><rect x="19" y="26" width="10" height="14" rx="1.5"/><rect x="32" y="8" width="10" height="32" rx="1.5"/>',
+  persoon: '<circle cx="24" cy="16" r="7"/><path d="M10 41 C10 31.5 16 27 24 27 C32 27 38 31.5 38 41"/>',
+  vlag: '<path d="M12 42 V6"/><path d="M12 8 H37 L31.5 15.5 L37 23 H12"/>',
 }
+function menuIcoon(naam) {
+  return `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MENU_ICOON[naam] || ''}</svg>`
+}
+
+const BEHEER_ITEMS = [
+  ['domeinen', 'Domeinen', 'plaat'],
+  ['functies', 'Bestuursfuncties', 'persoon'],
+  ['club', 'Club', 'vlag'],
+]
+const BEHEER_NAAM = Object.fromEntries(BEHEER_ITEMS.map(([k, n]) => [k, n]))
+
+function zijmenuIngeklapt() {
+  try { return localStorage.getItem('zijmenu-ingeklapt') === '1' } catch { return false }
+}
+
+function beheerZijmenuHTML(actief) {
+  const klein = zijmenuIngeklapt()
+  const items = BEHEER_ITEMS.map(([k, naam, ico]) => `
+      <a href="#" data-beheer="${k}" title="${naam}"${k === actief ? ' aria-current="page"' : ''}>${menuIcoon(ico)}<span class="naam">${naam}</span></a>`).join('')
+  return `
+    <nav class="zijmenu${klein ? ' ingeklapt' : ''}" aria-label="Beheer">
+      <button class="zijmenu-knop" type="button" aria-label="${klein ? 'Zijmenu uitklappen' : 'Zijmenu inklappen'}" title="${klein ? 'Zijmenu uitklappen' : 'Zijmenu inklappen'}" aria-expanded="${klein ? 'false' : 'true'}">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="${klein ? 'M7 4l6 6-6 6V4z' : 'M13 4L7 10l6 6V4z'}"/></svg>
+      </button>${items}
+    </nav>`
+}
+
+// Kruimelpad: [['Home','home'], ['Beheer','beheer'], ['Domeinen']] — laatste deel is de huidige pagina
+function kruimelpadHTML(delen) {
+  const sep = '<span class="kruimel-sep" aria-hidden="true">›</span>'
+  const html = delen.map(([naam, doel], i) => i === delen.length - 1
+    ? `<span class="kruimel-huidig" aria-current="page">${esc(naam)}</span>`
+    : `<a href="#" class="kruimel" data-nav="${doel}">${esc(naam)}</a>`).join(sep)
+  return `<nav class="kruimelpad" aria-label="Kruimelpad">${html}</nav>`
+}
+
+// Pagina met (optioneel) zijmenu en kruimelpad rond de inhoud
+function paginaLijfHTML({ zijmenu = '', kruimels = null, inhoud }) {
+  return `
+    <div class="app-lijf">
+      ${zijmenu}
+      <div class="app-kolom">
+        ${kruimels ? kruimelpadHTML(kruimels) : ''}
+        <main>
+          <div class="wrap">
+${inhoud}
+          </div>
+        </main>
+      </div>
+    </div>`
+}
+
 function bindBeheerTabs(gebruiker) {
-  document.querySelector('.beheer-tabs')?.addEventListener('click', e => {
-    const knop = e.target.closest('[data-beheer]')
-    if (!knop) return
-    if (knop.dataset.beheer === 'functies') renderBestuursfunctiesBeheer(gebruiker)
-    else if (knop.dataset.beheer === 'club') renderClubBeheer(gebruiker)
+  const nav = document.querySelector('.zijmenu')
+  if (!nav) return
+  nav.addEventListener('click', e => {
+    const knop = e.target.closest('.zijmenu-knop')
+    if (knop) {
+      const klein = !nav.classList.contains('ingeklapt')
+      try { localStorage.setItem('zijmenu-ingeklapt', klein ? '1' : '0') } catch {}
+      nav.classList.toggle('ingeklapt', klein)
+      const label = klein ? 'Zijmenu uitklappen' : 'Zijmenu inklappen'
+      knop.setAttribute('aria-label', label); knop.title = label
+      knop.setAttribute('aria-expanded', klein ? 'false' : 'true')
+      knop.querySelector('path').setAttribute('d', klein ? 'M7 4l6 6-6 6V4z' : 'M13 4L7 10l6 6V4z')
+      return
+    }
+    const link = e.target.closest('[data-beheer]')
+    if (!link) return
+    e.preventDefault()
+    if (link.dataset.beheer === 'functies') renderBestuursfunctiesBeheer(gebruiker)
+    else if (link.dataset.beheer === 'club') renderClubBeheer(gebruiker)
     else renderPijlersDomeinenBeheer(gebruiker)
   })
 }
@@ -562,9 +632,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
     ${navHTML('beheer')}
-    <main>
-      <div class="wrap">
-        ${beheerTabsHTML('domeinen')}
+    ${paginaLijfHTML({ zijmenu: beheerZijmenuHTML('domeinen'), kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [BEHEER_NAAM['domeinen']]], inhoud: `
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
             <h2>Domeinen</h2>
@@ -616,8 +684,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             </div>
           </div>
         </div>
-      </div>
-    </main>
+` })}
     ${footerHTML()}
   `
 
@@ -670,7 +737,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   bindBeheerTabs(gebruiker)
   await laadEnRender()
 
-  document.querySelector('.filter-tabs:not(.beheer-tabs)').addEventListener('click', async e => {
+  document.querySelector('.filter-tabs').addEventListener('click', async e => {
     const knop = e.target.closest('.filter-knop')
     if (!knop) return
     knop.closest('.filter-tabs').querySelectorAll('.filter-knop').forEach(k => k.classList.remove('active'))
@@ -845,9 +912,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
     ${navHTML('beheer')}
-    <main>
-      <div class="wrap">
-        ${beheerTabsHTML('functies')}
+    ${paginaLijfHTML({ zijmenu: beheerZijmenuHTML('functies'), kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [BEHEER_NAAM['functies']]], inhoud: `
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
             <h2>Bestuursfuncties</h2>
@@ -869,8 +934,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
             </div>
           </div>
         </div>
-      </div>
-    </main>
+` })}
     ${footerHTML()}
   `
   bindNavListeners(gebruiker)
@@ -1005,9 +1069,7 @@ function renderClubBeheer(gebruiker) {
     ${topBarHTML()}
     ${navHTML('beheer')}
 
-    <main>
-      <div class="wrap">
-        ${beheerTabsHTML('club')}
+    ${paginaLijfHTML({ zijmenu: beheerZijmenuHTML('club'), kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [BEHEER_NAAM['club']]], inhoud: `
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
             <h2>Clubprofiel</h2>
@@ -1060,8 +1122,7 @@ function renderClubBeheer(gebruiker) {
           </div>
         </div>
 
-      </div>
-    </main>
+` })}
 
     ${footerHTML()}
   `
@@ -1133,8 +1194,7 @@ function renderMijnAccount(gebruiker) {
     ${topBarHTML()}
     ${navHTML('')}
 
-    <main>
-      <div class="wrap">
+    ${paginaLijfHTML({ kruimels: [['Home', 'home'], ['Mijn account']], inhoud: `
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
             <h2>Mijn account</h2>
@@ -1191,8 +1251,7 @@ function renderMijnAccount(gebruiker) {
           </div>
         </div>
 
-      </div>
-    </main>
+` })}
 
     ${footerHTML()}
   `
