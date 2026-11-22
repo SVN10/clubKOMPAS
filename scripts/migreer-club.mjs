@@ -1,67 +1,13 @@
 // Eenmalige migratie P0c: clubs/{uid}/... → clubs/{clubId}/... met lidmaatschap en gebruikerswijzer
 // Kopieert alleen; de brondata onder clubs/{uid} wordt niet gewijzigd of verwijderd.
-// Gebruik: node scripts/migreer-club.mjs [--droog]
+// Gebruik: node scripts/migreer-club.mjs [--droog] [--omgeving=test|productie]
 
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, collection, getDocs, getDoc, doc, writeBatch, serverTimestamp } from 'firebase/firestore'
-import { createInterface } from 'readline'
-import { readFileSync } from 'fs'
-import { dirname, join } from 'path'
-import { fileURLToPath } from 'url'
+import { startScript, vraag, inloggen, stop, waarschuw, gelukt } from './lib/omgeving.mjs'
 
-const __dir = dirname(fileURLToPath(import.meta.url))
-const DROOG = process.argv.includes('--droog')
 const MAX_DOCS = 450
-
-function leesEnv() {
-  return Object.fromEntries(
-    readFileSync(join(__dir, '..', '.env'), 'utf-8').split('\n')
-      .map(r => r.trim())
-      .filter(r => r && !r.startsWith('#') && r.includes('='))
-      .map(r => { const i = r.indexOf('='); return [r.slice(0, i).trim(), r.slice(i + 1).trim()] })
-  )
-}
-
-function vraag(prompt, verborgen = false) {
-  if (verborgen && process.stdin.isTTY) return vraagVerborgen(prompt)
-  const rl = createInterface({ input: process.stdin, output: process.stdout })
-  return new Promise(resolve => {
-    rl.question(prompt, ans => { rl.close(); resolve(ans) })
-  })
-}
-
-// Leest invoer zonder iets op het scherm te tonen (geen tekens, geen sterretjes)
-function vraagVerborgen(prompt) {
-  return new Promise(resolve => {
-    const stdin = process.stdin
-    let invoer = ''
-    process.stdout.write(prompt)
-    stdin.setRawMode(true)
-    stdin.resume()
-    stdin.setEncoding('utf8')
-    const opToets = tekens => {
-      for (const t of tekens) {
-        if (t === '\r' || t === '\n' || t === '\u0004') {        // Enter / Ctrl+D
-          stdin.setRawMode(false)
-          stdin.pause()
-          stdin.removeListener('data', opToets)
-          process.stdout.write('\n')
-          return resolve(invoer)
-        } else if (t === '\u0003') {                             // Ctrl+C
-          stdin.setRawMode(false)
-          process.stdout.write('\n')
-          process.exit(130)
-        } else if (t === '\u007f' || t === '\b') {              // Backspace
-          invoer = invoer.slice(0, -1)
-        } else if (t >= ' ') {
-          invoer += t
-        }
-      }
-    }
-    stdin.on('data', opToets)
-  })
-}
 
 // Diepe vergelijking van Firestore-waarden (Timestamp, GeoPoint, DocumentReference en Bytes hebben isEqual)
 function gelijk(a, b) {
@@ -105,34 +51,16 @@ function vergelijkClubdata(bron, doel) {
   return verschillen
 }
 
-function stop(melding, code = 1) {
-  console.error(melding)
-  process.exit(code)
-}
-
-const env = leesEnv()
-if (DROOG) console.log('DROOGTEST: er wordt niets geschreven.\n')
+const { projectId, firebaseConfig, droog: DROOG } = await startScript()
 const email = await vraag('E-mailadres: ')
 const wachtwoord = await vraag('Wachtwoord: ', true)
 
-const app = initializeApp({
-  apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: env.VITE_FIREBASE_APP_ID,
-})
+const app = initializeApp(firebaseConfig)
 const auth = getAuth(app)
 const db = getFirestore(app)
 
 console.log('\nInloggen...')
-let user
-try {
-  ({ user } = await signInWithEmailAndPassword(auth, email, wachtwoord))
-} catch (e) {
-  stop(`Inloggen mislukt: ${e.code}`)
-}
+const user = await inloggen(auth, signInWithEmailAndPassword, email, wachtwoord, projectId)
 const uid = user.uid
 console.log(`Ingelogd (uid: ${uid})\n`)
 
@@ -141,12 +69,12 @@ try {
   gebruikerSnap = await getDoc(doc(db, 'gebruikers', uid))
   bron = await leesClubdata(db, uid)
 } catch (e) {
-  if (e.code === 'permission-denied') stop('Geen leesrechten. Zijn de overgangsregels (scripts/firestore.rules.migratie) gepubliceerd met de juiste uid?')
-  stop(`Lezen mislukt: ${e.code || e.message}`)
+  if (e.code === 'permission-denied') stop(`Firestore weigert het lezen in ${projectId}.`, ['Zijn de overgangsregels (scripts/firestore.rules.migratie) gepubliceerd met de juiste uid?'])
+  stop(`lezen mislukt in ${projectId} (${e.code || e.message}).`)
 }
 
 if (!bron.profiel && bron.structuur.size === 0) {
-  stop(`Geen brondata gevonden onder clubs/${uid}. Niets te migreren (verkeerd account?).`)
+  stop(`geen brondata gevonden onder clubs/${uid}.`, ['Niets te migreren (verkeerd account?).'])
 }
 
 const waarschuwingen = []
@@ -175,10 +103,10 @@ if (hergebruik) {
     doelLid = lidSnap.exists() ? lidSnap.data() : null
     doel = await leesClubdata(db, clubId)
   } catch (e) {
-    stop(`Lezen van bestaande doelclub mislukt: ${e.code || e.message}`)
+    stop(`lezen van bestaande doelclub mislukt (${e.code || e.message}).`)
   }
   if (doelClub?.gemigreerdVan && doelClub.gemigreerdVan !== uid) {
-    stop(`Doelclub ${clubId} is gemigreerd vanaf een ander account. Afgebroken, niets geschreven.`)
+    stop(`doelclub ${clubId} is gemigreerd vanaf een ander account.`)
   }
 }
 
@@ -199,7 +127,7 @@ for (const w of waarschuwingen) console.log(`  LET OP: ${w}`)
 
 const aantalSchrijfacties = 3 + (bron.profiel ? 1 : 0) + bron.structuur.size
 if (aantalSchrijfacties > MAX_DOCS) {
-  stop(`\nTe veel documenten voor één batch (${aantalSchrijfacties} > ${MAX_DOCS}). Afgebroken, niets geschreven.`)
+  stop(`te veel documenten voor één batch (${aantalSchrijfacties} > ${MAX_DOCS}).`)
 }
 
 const doelVerschillen = hergebruik ? vergelijkClubdata(bron, doel) : []
@@ -218,7 +146,7 @@ if (hergebruik && doelHeeftData && doelVerschillen.length) {
 }
 
 if (DROOG) {
-  console.log(`\nDroogtest klaar: ${aantalSchrijfacties} schrijfacties zouden worden uitgevoerd. Niets geschreven.`)
+  gelukt(`droogtest: ${aantalSchrijfacties} schrijfacties zouden worden uitgevoerd in ${projectId}.`, ['Er is niets geschreven.'])
   process.exit(0)
 }
 
@@ -244,7 +172,7 @@ console.log('\nSchrijven...')
 try {
   await batch.commit()
 } catch (e) {
-  stop(`Schrijven mislukt (${e.code || e.message}). Door de batch is er niets geschreven.`)
+  stop(`schrijven mislukt in ${projectId} (${e.code || e.message}).`, ['Een batch schrijft alles of niets.'])
 }
 
 console.log('Controleren...')
@@ -274,7 +202,6 @@ if (fouten.length) {
   process.exit(1)
 }
 
-console.log(`\nOK: profiel${bron.profiel?.logo ? ' (incl. logo)' : ''} en ${bron.structuur.size} structuurelementen gekopieerd naar clubs/${clubId}. Bron ongewijzigd.`)
-console.log('\nVOLGENDE STAP (3): publiceer nu firestore.rules in de Firebase-console.')
-console.log('De overgangsregels geven dit account toegang tot de hele database en mogen niet blijven staan.')
+gelukt(`OK: profiel${bron.profiel?.logo ? ' (incl. logo)' : ''} en ${bron.structuur.size} structuurelementen gekopieerd naar clubs/${clubId} in ${projectId}. Bron ongewijzigd.`)
+waarschuw('VOLGENDE STAP (3): publiceer nu firestore.rules.', ['De overgangsregels geven dit account toegang tot de hele database en mogen niet blijven staan.'])
 process.exit(0)

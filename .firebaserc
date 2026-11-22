@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "test": "svn10-clubkompas-test",
+    "productie": "svn10-clubkompas"
+  }
+}

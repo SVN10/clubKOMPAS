@@ -1,5 +1,17 @@
 # Changelog
 
+## Ongepubliceerd
+
+### Toegevoegd
+- Aparte testomgeving (P0e): `npm run dev` draait tegen Firebase-project `svn10-clubkompas-test`; omgevingsbalk bij Test en Productie (lokaal); scripts kiezen hun omgeving met `--omgeving=test|productie` (standaard test, productie alleen na het intypen van de projectnaam); `scripts/seed-testclub.mjs`; regels publiceren met `npm run regels:test` en `npm run regels:productie`.
+- Beveiliging omgevingen: de lokale app stopt bij een gemengde configuratie (ontbrekende of niet-passende Firebase-waarden) en bij productie zonder `npm run dev:productie`; scripts weigeren een ingevuld `.env.test.local.voorbeeld`; wachtwoordinvoer negeert pijl- en functietoetsen.
+- Token `--on-orange` voor tekst op oranje vlakken.
+
+### Gewijzigd
+- Alle scripts gebruiken `scripts/lib/omgeving.mjs`; `scripts/import-hca.mjs` en `scripts/opschonen-dubbelen.mjs` kennen geen `--droog` en stoppen erop; `scripts/migrate.mjs` weigert altijd (verouderd).
+- `npm run dev` start in modus `test`; productie lokaal kan alleen met `npm run dev:productie`.
+- Technische documentatie: `.claude/docs/P0e-technisch.md`.
+
 ## [0.4.0] – 2026-11-20
 
 ### Toegevoegd

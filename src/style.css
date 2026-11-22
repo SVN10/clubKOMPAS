@@ -11,6 +11,7 @@
   --petrol-dark: #3A6567;
   --on-petrol:#FFFFFF;
   --orange:   #FF9E16;
+  --on-orange: #111212;
   --text:     #111212;
   --muted:    #6F6E6E;
   --font: "Barlow Semi Condensed", Arial, sans-serif;
@@ -34,6 +35,7 @@
     --petrol-dark: #2F5658;
     --on-petrol:#FFFFFF;
     --orange:   #FFAA33;
+    --on-orange: #111212;
     --text:     #E8EEEE;
     --muted:    #A3B0B0;
     color-scheme: dark;
@@ -48,6 +50,7 @@
   --petrol-dark: #2F5658;
   --on-petrol:#FFFFFF;
   --orange:   #FFAA33;
+  --on-orange: #111212;
   --text:     #E8EEEE;
   --muted:    #A3B0B0;
   color-scheme: dark;
@@ -203,7 +206,7 @@ body {
 .btn:hover { border-color: var(--petrol); }
 .btn.primary {
   background: var(--orange);
-  color: #111212;
+  color: var(--on-orange);
   border-color: var(--orange);
 }
 .btn.primary:hover { border-color: var(--text); }
@@ -753,3 +756,71 @@ select.form-input {
 /* Precies even breed als het ingeklapte zijmenu (44px, incl. rand), zodat ze verticaal uitlijnen */
 .top-nav a.nav-home { display: flex; align-items: center; justify-content: center; width: 44px; padding-left: 0; padding-right: 0; box-sizing: border-box; }
 .top-nav a.nav-home svg { width: 18px; height: 18px; flex: none; }
+
+/* ── Omgevingen (P0e) ── */
+.omgeving-balk {
+  padding: 6px 16px;
+  min-height: 28px;
+  text-align: center;
+  font-size: var(--fs-label);
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.omgeving-balk strong { font-weight: 700; }
+.omgeving-balk--test {
+  background: var(--petrol-dark);
+  color: var(--on-petrol);
+}
+.omgeving-balk--productie {
+  background: var(--orange);
+  color: var(--on-orange);
+  border-bottom: 1px solid var(--on-orange);
+}
+body.met-omgeving-balk #app:has(> .inlog-wrap) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+body.met-omgeving-balk .inlog-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.omgeving-label--waarschuwing {
+  background: var(--orange);
+  color: var(--on-orange);
+  font-weight: 700;
+  padding: 1px 6px;
+}
+
+.inlog-kaart.kaart-gestopt { border-top-color: var(--orange); }
+.config-gerust { font-weight: 700; }
+#config-herlaad { border-color: var(--petrol); }
+.config-stappen {
+  margin: -8px 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-lopend);
+  line-height: 21px;
+  color: var(--text);
+}
+.inlog-kaart code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-toelichting);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.inlog-test-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--fs-toelichting);
+  line-height: 19px;
+  color: var(--text);
+}

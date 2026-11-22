@@ -1,5 +1,5 @@
 import './style.css'
-import { auth, db } from './firebase.js'
+import { auth, db, projectId, configFout } from './firebase.js'
 import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
@@ -12,6 +12,10 @@ let huidigeRol = null
 // Omgeving waarin de app draait (midden in de footer). Per deploy in te stellen met
 // VITE_OMGEVING (bijv. "Productie"); zonder instelling is het "Ontwikkel".
 const OMGEVING = (import.meta.env.VITE_OMGEVING || 'Ontwikkel').trim()
+const SOORT = import.meta.env.DEV && import.meta.env.MODE === 'productie' ? 'productie-lokaal'
+  : OMGEVING.toLowerCase() === 'test' ? 'test'
+  : OMGEVING.toLowerCase() === 'productie' ? 'productie' : 'ontwikkel'
+const OMGEVING_LABEL = SOORT === 'productie-lokaal' ? 'Productie (lokaal)' : OMGEVING
 let laadTimer = null
 let foutPogingen = 0
 
@@ -285,10 +289,14 @@ function footerHTML() {
   const gebruikerLabel = huidigGebruiker
     ? `<a href="#" class="footer-account" title="Mijn account">${esc(sessieLabel())}</a>`
     : ''
+  const toonProject = SOORT === 'test' || SOORT === 'productie-lokaal'
+  const label = SOORT === 'productie-lokaal'
+    ? `<span class="omgeving-label--waarschuwing">${esc(OMGEVING_LABEL)}</span>`
+    : esc(OMGEVING_LABEL)
   return `
     <footer>
       <span>clubKOMPAS · een product van SVN10</span>
-      <span title="Gebouwd op ${esc(gebouwd)}">${esc(OMGEVING)} · Versie ${version}</span>
+      <span title="${toonProject ? `Project ${esc(projectId)} · ` : ''}Gebouwd op ${esc(gebouwd)}">${label} · Versie ${version}</span>
       <span class="footer-rechts">
         ${gebruikerLabel}
         <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
@@ -366,7 +374,7 @@ function renderInlogscherm() {
           <input class="form-input" id="inlog-wachtwoord" type="password" placeholder="••••••••" autocomplete="current-password">
           <span class="form-fout" id="inlog-wachtwoord-fout"></span>
         </div>
-        <div class="form-fout" id="inlog-algemeen-fout"></div>
+        <div class="form-fout" id="inlog-algemeen-fout" role="alert"></div>
         <button class="btn primary inlog-knop" id="inlog-knop">Inloggen</button>
       </div>
     </div>
@@ -402,6 +410,15 @@ function renderInlogscherm() {
         'auth/too-many-requests': 'Te veel pogingen. Probeer het later opnieuw.',
       }
       algFout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
+      if (SOORT === 'test' && ['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(e.code)) {
+        const hint = document.createElement('span')
+        hint.className = 'inlog-test-hint'
+        hint.append('Let op: je zit in de ')
+        const sterk = document.createElement('strong')
+        sterk.textContent = 'testomgeving'
+        hint.append(sterk, '. Gebruik je testaccount, niet je gewone clubKOMPAS-account.')
+        algFout.append(' ', hint)
+      }
     }
   })
 
@@ -413,10 +430,10 @@ function renderInlogscherm() {
   })
 }
 
-function toonTussenkaart(inhoudHTML, { laden = false } = {}) {
+function toonTussenkaart(inhoudHTML, { laden = false, gestopt = false } = {}) {
   document.querySelector('#app').innerHTML = `
     <div class="inlog-wrap">
-      <div class="inlog-kaart">
+      <div class="inlog-kaart${gestopt ? ' kaart-gestopt' : ''}">
         <div class="inlog-logo${laden ? ' laadt' : ''}">
           ${kompasIconSVG()}
           <span class="app-title">club<b>KOMPAS</b></span>
@@ -425,6 +442,70 @@ function toonTussenkaart(inhoudHTML, { laden = false } = {}) {
       </div>
     </div>`
   document.getElementById('tussen-titel')?.focus()
+}
+
+function renderConfigFout(fout) {
+  const bestand = import.meta.env.MODE === 'productie' ? '.env.productie.local' : '.env.test.local'
+  let titel, alinea, gerust = 'Er is niets gelezen of opgeslagen.', stappen = [], hint = ''
+  if (fout === 'productie-lokaal') {
+    titel = 'Gestopt: deze lokale app wijst naar de echte clubdata'
+    alinea = `Het project in de configuratie is <code>${esc(projectId)}</code> (productie). Lokaal mag dat alleen bewust, met <code>npm run dev:productie</code>.`
+    stappen = [
+      'Verwijder het oude bestand <code>.env</code> uit de projectmap, als dat er nog staat.',
+      'Controleer dat <code>.env.test.local</code> de waarden van het testproject bevat, niet die van productie.',
+      'Stop de app (Ctrl+C) en start opnieuw met <code>npm run dev</code>.',
+    ]
+    hint = 'Bewust op productie werken? Gebruik <code>npm run dev:productie</code>.'
+  } else if (fout === 'gemengde-config' && import.meta.env.DEV) {
+    titel = 'Gestopt: de configuratie is onvolledig of gemengd'
+    alinea = `In <code>${bestand}</code> ontbreekt een van de zes Firebase-waarden, of de waarden horen niet bij hetzelfde project (<code>${esc(projectId)}</code>). Een ontbrekende waarde vult Vite aan uit het oude bestand <code>.env</code> (productie).`
+    stappen = [
+      `Zet alle zes Firebase-waarden van het testproject in <code>${bestand}</code>, met dezelfde project-ID in <code>VITE_FIREBASE_PROJECT_ID</code> en <code>VITE_FIREBASE_AUTH_DOMAIN</code> (zie README, “Omgevingen”).`,
+      'Stop de app (Ctrl+C) en start opnieuw met <code>npm run dev</code>.',
+    ]
+  } else if (import.meta.env.DEV) {
+    titel = 'Geen verbinding ingesteld'
+    alinea = `De app weet niet met welke database hij moet praten: het bestand <code>${bestand}</code> ontbreekt of is leeg.`
+    stappen = [
+      `Zet de zes Firebase-waarden van het testproject in <code>${bestand}</code> (zie README, “Omgevingen”).`,
+      'Stop de app in de terminal (Ctrl+C) en start opnieuw met <code>npm run dev</code>.',
+      'Laad deze pagina daarna opnieuw.',
+    ]
+  } else {
+    titel = 'clubKOMPAS is tijdelijk niet beschikbaar'
+    alinea = 'De verbinding met de database is niet ingesteld. Probeer het later opnieuw.'
+    gerust = ''
+    hint = `Blijft dit zo? Mail naar ${supportLinkHTML('', 'Storing clubKOMPAS')}`
+  }
+  toonTussenkaart(`
+    <div role="alert">
+      <h1 class="inlog-titel" id="tussen-titel" tabindex="-1" aria-describedby="config-uitleg">${titel}</h1>
+      <p class="tussen-tekst" id="config-uitleg">${alinea}</p>
+    </div>
+    ${gerust ? `<p class="tussen-tekst config-gerust">${gerust}</p>` : ''}
+    ${stappen.length ? `<p class="form-label">Wat nu?</p>
+    <ol class="config-stappen">${stappen.map(s => `<li>${s}</li>`).join('')}</ol>` : ''}
+    ${hint ? `<p class="tussen-hint">${hint}</p>` : ''}
+    <button class="btn inlog-knop" id="config-herlaad">Opnieuw laden</button>`, { gestopt: fout !== 'geen-config' })
+  document.getElementById('config-herlaad').addEventListener('click', () => location.reload())
+  document.title = 'Gestopt · clubKOMPAS'
+  const tekst = html => html.replace(/<[^>]+>/g, '')
+  console.error(`${titel}. ${tekst(alinea)}`)
+}
+
+function toonOmgevingsBalk() {
+  if (SOORT !== 'test' && SOORT !== 'productie-lokaal') return
+  if (document.querySelector('.omgeving-balk')) return
+  const balk = document.createElement('div')
+  balk.className = `omgeving-balk omgeving-balk--${SOORT === 'test' ? 'test' : 'productie'}`
+  balk.setAttribute('role', 'note')
+  balk.setAttribute('aria-label', 'Omgeving')
+  balk.innerHTML = SOORT === 'test'
+    ? `<strong>Testomgeving</strong> · project ${esc(projectId)} · fictieve data`
+    : `<strong>Let op: echte clubdata</strong> · lokaal tegen ${esc(projectId)}`
+  document.body.prepend(balk)
+  document.body.classList.add('met-omgeving-balk')
+  document.title = `${SOORT === 'test' ? 'TEST' : 'PRODUCTIE LOKAAL'} · clubKOMPAS`
 }
 
 function renderLaadkaart() {
@@ -444,6 +525,11 @@ function renderGeenClub(gebruiker) {
     <h1 class="inlog-titel" id="tussen-titel" tabindex="-1">Geen club gekoppeld</h1>
     <p class="tussen-tekst">${alinea1}</p>
     <p class="tussen-tekst">${alinea2}</p>
+    ${SOORT === 'test' ? `<p class="tussen-hint">
+      <strong>Testomgeving:</strong> controleer in de testconsole (project <code>${esc(projectId)}</code>)
+      of <code>gebruikers/${esc(gebruiker?.uid || 'UID')}</code> bestaat met het veld <code>clubId</code>,
+      en of <code>clubs/&lt;clubId&gt;/leden/${esc(gebruiker?.uid || 'UID')}</code> bestaat met <code>rol</code> = <code>beheerder</code>.
+    </p>` : ''}
     <button class="btn primary inlog-knop" id="geen-club-uitlog">Uitloggen</button>`)
   document.getElementById('geen-club-uitlog').addEventListener('click', () => signOut(auth))
 }
@@ -1351,25 +1437,30 @@ function renderMijnAccount(gebruiker) {
   })
 }
 
-onAuthStateChanged(auth, async gebruiker => {
-  clearTimeout(laadTimer)
-  laadTimer = null
-  if (gebruiker) {
-    huidigGebruiker = gebruiker
-    foutPogingen = 0
-    laadTimer = setTimeout(renderLaadkaart, 500)
-    const { status } = await laadClub(gebruiker)
-    if (huidigGebruiker?.uid !== gebruiker.uid || status === 'afgebroken') return
+if (configFout) {
+  renderConfigFout(configFout)
+} else {
+  toonOmgevingsBalk()
+  onAuthStateChanged(auth, async gebruiker => {
     clearTimeout(laadTimer)
     laadTimer = null
-    toonUitkomst(gebruiker, status)
-  } else {
-    huidigClubId = null
-    huidigGebruiker = null
-    huidigProfiel = null
-    huidigeRol = null
-    foutPogingen = 0
-    setFavicon('')
-    renderInlogscherm()
-  }
-})
+    if (gebruiker) {
+      huidigGebruiker = gebruiker
+      foutPogingen = 0
+      laadTimer = setTimeout(renderLaadkaart, 500)
+      const { status } = await laadClub(gebruiker)
+      if (huidigGebruiker?.uid !== gebruiker.uid || status === 'afgebroken') return
+      clearTimeout(laadTimer)
+      laadTimer = null
+      toonUitkomst(gebruiker, status)
+    } else {
+      huidigClubId = null
+      huidigGebruiker = null
+      huidigProfiel = null
+      huidigeRol = null
+      foutPogingen = 0
+      setFavicon('')
+      renderInlogscherm()
+    }
+  })
+}
