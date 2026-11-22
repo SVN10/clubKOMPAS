@@ -268,20 +268,27 @@ function navHTML(actief) {
     <nav class="top-nav">
       <a href="#" class="nav-home${actief === 'home' ? ' active' : ''}">Home</a>
       <a href="#" class="nav-beheer${actief === 'beheer' ? ' active' : ''}">Beheer</a>
-      <a href="#" class="nav-instellingen${actief === 'instellingen' ? ' active' : ''}">Instellingen</a>
     </nav>`
 }
 
-function footerHTML() {
-  // Midden: OMGEVING · VERSIE; rechtsonder: NAAM · ROL (hoofdletters via de footer-stijl)
+// "NAAM · ROL" voor de footer
+function sessieLabel() {
   const delen = []
   if (huidigGebruiker) delen.push(huidigGebruiker.displayName || huidigGebruiker.email)
   if (huidigeRol) delen.push(huidigeRol)
-  const gebruikerLabel = delen.length ? `<span class="footer-sessie">${delen.map(esc).join(' · ')}</span>` : ''
+  return delen.join(' · ')
+}
+
+function footerHTML() {
+  // Midden: OMGEVING · VERSIE (bouwdatum als tooltip); rechtsonder: NAAM · ROL, klikbaar naar Mijn account
+  const gebouwd = new Date(__APP_BUILD__).toLocaleString('nl-NL', { dateStyle: 'long', timeStyle: 'short' })
+  const gebruikerLabel = huidigGebruiker
+    ? `<a href="#" class="footer-account" title="Mijn account">${esc(sessieLabel())}</a>`
+    : ''
   return `
     <footer>
       <span>clubKOMPAS · een product van SVN10</span>
-      <span>${esc(OMGEVING)} · Versie ${version}</span>
+      <span title="Gebouwd op ${esc(gebouwd)}">${esc(OMGEVING)} · Versie ${version}</span>
       <span class="footer-rechts">
         ${gebruikerLabel}
         <button class="btn uitlog-knop" id="uitlog-knop">Uitloggen</button>
@@ -293,7 +300,7 @@ function bindNavListeners(gebruiker) {
   document.getElementById('uitlog-knop').addEventListener('click', () => signOut(auth))
   document.querySelector('.nav-home').addEventListener('click', e => { e.preventDefault(); renderDashboard(gebruiker) })
   document.querySelector('.nav-beheer')?.addEventListener('click', e => { e.preventDefault(); renderPijlersDomeinenBeheer(gebruiker) })
-  document.querySelector('.nav-instellingen').addEventListener('click', e => { e.preventDefault(); renderInstellingen(gebruiker) })
+  document.querySelector('.footer-account')?.addEventListener('click', e => { e.preventDefault(); renderMijnAccount(gebruiker) })
 }
 
 // ── Structuur grid (dashboard, read-only) ────────────────────────────────────
@@ -536,6 +543,7 @@ function beheerTabsHTML(actief) {
         <div class="filter-tabs beheer-tabs" role="group" aria-label="Beheer">
           <button class="btn filter-knop${actief === 'domeinen' ? ' active' : ''}" data-beheer="domeinen"${actief === 'domeinen' ? ' aria-current="page"' : ''}>Domeinen</button>
           <button class="btn filter-knop${actief === 'functies' ? ' active' : ''}" data-beheer="functies"${actief === 'functies' ? ' aria-current="page"' : ''}>Bestuursfuncties</button>
+          <button class="btn filter-knop${actief === 'club' ? ' active' : ''}" data-beheer="club"${actief === 'club' ? ' aria-current="page"' : ''}>Club</button>
         </div>`
 }
 function bindBeheerTabs(gebruiker) {
@@ -543,6 +551,7 @@ function bindBeheerTabs(gebruiker) {
     const knop = e.target.closest('[data-beheer]')
     if (!knop) return
     if (knop.dataset.beheer === 'functies') renderBestuursfunctiesBeheer(gebruiker)
+    else if (knop.dataset.beheer === 'club') renderClubBeheer(gebruiker)
     else renderPijlersDomeinenBeheer(gebruiker)
   })
 }
@@ -989,14 +998,16 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   })
 }
 
-function renderInstellingen(gebruiker) {
+// Club (profiel en logo) — tabblad onder Beheer
+function renderClubBeheer(gebruiker) {
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
-    ${navHTML('instellingen')}
+    ${navHTML('beheer')}
 
     <main>
       <div class="wrap">
+        ${beheerTabsHTML('club')}
         <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
             <h2>Clubprofiel</h2>
@@ -1049,9 +1060,84 @@ function renderInstellingen(gebruiker) {
           </div>
         </div>
 
-        <div class="sectie">
+      </div>
+    </main>
+
+    ${footerHTML()}
+  `
+
+  bindNavListeners(gebruiker)
+  bindBeheerTabs(gebruiker)
+
+  document.getElementById('logo-input').addEventListener('change', async e => {
+    const file = e.target.files[0]
+    if (!file) return
+    const knop = e.target.closest('label')
+    knop.querySelector('span').textContent = 'Bezig...'
+    try {
+      const base64 = await resizeAfbeelding(file)
+      const nieuwProfiel = { ...(huidigProfiel || {}), logo: base64 }
+      await slaaProfiel(nieuwProfiel)
+      huidigProfiel = nieuwProfiel
+      setFavicon(base64)
+      renderClubBeheer(gebruiker)
+    } catch {
+      knop.querySelector('span').textContent = 'Fout — probeer opnieuw'
+    }
+  })
+
+  const verwijderKnop = document.getElementById('logo-verwijderen')
+  if (verwijderKnop) {
+    verwijderKnop.addEventListener('click', async () => {
+      const { logo: _removed, ...rest } = huidigProfiel || {}
+      await slaaProfiel(rest)
+      huidigProfiel = rest
+      setFavicon('')
+      renderClubBeheer(gebruiker)
+    })
+  }
+
+  document.getElementById('profiel-opslaan').addEventListener('click', async () => {
+    const naam = document.getElementById('profiel-naam').value.trim()
+    const afkorting = document.getElementById('profiel-afkorting').value.trim()
+    const seizoen = document.getElementById('profiel-seizoen').value.trim()
+
+    let ok = true
+    const checks = [
+      [naam, 'profiel-naam-fout', 2],
+      [afkorting, 'profiel-afkorting-fout', 2],
+      [seizoen, 'profiel-seizoen-fout', 4],
+    ]
+    checks.forEach(([val, foutId, min]) => {
+      const el = document.getElementById(foutId)
+      if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
+      else el.textContent = ''
+    })
+    if (!ok) return
+
+    const nieuwProfiel = { ...(huidigProfiel || {}), naam, afkorting, seizoen }
+    try {
+      await slaaProfiel(nieuwProfiel)
+      huidigProfiel = nieuwProfiel
+      renderClubBeheer(gebruiker)
+    } catch {
+      document.getElementById('profiel-naam-fout').textContent = 'Opslaan mislukt, probeer opnieuw.'
+    }
+  })
+
+}
+
+// Mijn account — bereikbaar via je naam in de footer
+function renderMijnAccount(gebruiker) {
+  document.querySelector('#app').innerHTML = `
+    ${topBarHTML()}
+    ${navHTML('')}
+
+    <main>
+      <div class="wrap">
+        <div class="sectie" style="margin-top:0">
           <div class="sectie-kop">
-            <h2>Gebruiker</h2>
+            <h2>Mijn account</h2>
           </div>
           <div class="sectie-lijf">
             <div class="profiel-form-wrap">
@@ -1105,18 +1191,6 @@ function renderInstellingen(gebruiker) {
           </div>
         </div>
 
-        <div class="sectie">
-          <div class="sectie-kop">
-            <h2>Over clubKOMPAS</h2>
-          </div>
-          <div class="sectie-lijf">
-            <dl class="versie-info">
-              <dt>Versie</dt><dd>v${version}</dd>
-              <dt>Gebouwd op</dt><dd>${new Date(__APP_BUILD__).toLocaleString('nl-NL', { dateStyle: 'long', timeStyle: 'short' })}</dd>
-            </dl>
-          </div>
-        </div>
-
       </div>
     </main>
 
@@ -1124,62 +1198,6 @@ function renderInstellingen(gebruiker) {
   `
 
   bindNavListeners(gebruiker)
-
-  document.getElementById('logo-input').addEventListener('change', async e => {
-    const file = e.target.files[0]
-    if (!file) return
-    const knop = e.target.closest('label')
-    knop.querySelector('span').textContent = 'Bezig...'
-    try {
-      const base64 = await resizeAfbeelding(file)
-      const nieuwProfiel = { ...(huidigProfiel || {}), logo: base64 }
-      await slaaProfiel(nieuwProfiel)
-      huidigProfiel = nieuwProfiel
-      setFavicon(base64)
-      renderInstellingen(gebruiker)
-    } catch {
-      knop.querySelector('span').textContent = 'Fout — probeer opnieuw'
-    }
-  })
-
-  const verwijderKnop = document.getElementById('logo-verwijderen')
-  if (verwijderKnop) {
-    verwijderKnop.addEventListener('click', async () => {
-      const { logo: _removed, ...rest } = huidigProfiel || {}
-      await slaaProfiel(rest)
-      huidigProfiel = rest
-      setFavicon('')
-      renderInstellingen(gebruiker)
-    })
-  }
-
-  document.getElementById('profiel-opslaan').addEventListener('click', async () => {
-    const naam = document.getElementById('profiel-naam').value.trim()
-    const afkorting = document.getElementById('profiel-afkorting').value.trim()
-    const seizoen = document.getElementById('profiel-seizoen').value.trim()
-
-    let ok = true
-    const checks = [
-      [naam, 'profiel-naam-fout', 2],
-      [afkorting, 'profiel-afkorting-fout', 2],
-      [seizoen, 'profiel-seizoen-fout', 4],
-    ]
-    checks.forEach(([val, foutId, min]) => {
-      const el = document.getElementById(foutId)
-      if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
-      else el.textContent = ''
-    })
-    if (!ok) return
-
-    const nieuwProfiel = { ...(huidigProfiel || {}), naam, afkorting, seizoen }
-    try {
-      await slaaProfiel(nieuwProfiel)
-      huidigProfiel = nieuwProfiel
-      renderInstellingen(gebruiker)
-    } catch {
-      document.getElementById('profiel-naam-fout').textContent = 'Opslaan mislukt, probeer opnieuw.'
-    }
-  })
 
   document.getElementById('geb-naam-opslaan').addEventListener('click', async () => {
     const naam = document.getElementById('geb-naam').value.trim()
@@ -1195,8 +1213,8 @@ function renderInstellingen(gebruiker) {
     try {
       await updateProfile(huidigGebruiker, { displayName: naam })
       document.getElementById('geb-naam-succes').hidden = false
-      const footerSpan = document.querySelector('footer .footer-rechts span')
-      if (footerSpan) footerSpan.textContent = huidigGebruiker.displayName || huidigGebruiker.email
+      const sessie = document.querySelector('footer .footer-account')
+      if (sessie) sessie.textContent = sessieLabel()
     } catch (e) {
       naamFout.textContent = `Fout: ${e.code || e.message}`
     } finally {

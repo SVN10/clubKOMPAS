@@ -280,6 +280,18 @@
 
 ---
 
+### ✅ CK-036 — Instellingen opgeheven: Club onder Beheer, Mijn account via je naam
+**Status:** Gebouwd (22 november 2026)
+
+- [x] Menu: Home · Beheer (Instellingen vervalt)
+- [x] Beheer krijgt het tabblad **Club** (clubprofiel en clublogo) naast Domeinen en Bestuursfuncties
+- [x] **Mijn account** (naam, e-mailadres, wachtwoord) via een klik op "NAAM · ROL" in de footer; na het opslaan van je naam wordt de footer bijgewerkt inclusief rol
+- [x] Blok "Over clubKOMPAS" vervalt; de bouwdatum staat als tooltip bij "ONTWIKKEL · VERSIE" in de footer
+
+**Later (P0d):** Beheer alleen tonen voor de rol `beheerder`; tabblad Toegang voor bestuurders en rollen.
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
