@@ -2,7 +2,7 @@ import './style.css'
 import { auth, db, projectId, configFout, SOORT, OMGEVING_LABEL, VERCEL_ENV } from './firebase.js'
 import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, writeBatch, deleteField } from 'firebase/firestore'
 
 let huidigClubId = null
 let huidigProfiel = null
@@ -158,6 +158,15 @@ async function verwijderBestuursfunctie(id) {
   await deleteDoc(doc(db, 'clubs', huidigClubId, 'bestuursfuncties', id))
 }
 
+// Hernummer 1 t/m n in één batch: alles of niets, nooit een half geschreven volgorde
+async function schrijfVolgorde(subcollectie, items) {
+  const batch = writeBatch(db)
+  items.forEach((x, k) => {
+    if (x.volgorde !== k + 1) batch.update(doc(db, 'clubs', huidigClubId, subcollectie, x.id), { volgorde: k + 1 })
+  })
+  await batch.commit()
+}
+
 function bestuursfunctieKeuzeHTML(id, huidig, functies) {
   const opties = functies.map(f =>
     `<option value="${esc(f.id)}"${f.id === huidig ? ' selected' : ''}>${esc(f.naam)}</option>`).join('')
@@ -171,8 +180,33 @@ async function laadProfiel() {
   return snap.exists() ? snap.data() : null
 }
 
-async function slaaProfiel(data) {
-  await setDoc(doc(db, 'clubs', huidigClubId, 'instellingen', 'profiel'), data)
+// Schrijft alleen de meegegeven velden (merge), zodat profiel en logo elkaar niet overschrijven
+async function slaaProfiel(clubId, velden) {
+  await setDoc(doc(db, 'clubs', clubId, 'instellingen', 'profiel'), velden, { merge: true })
+}
+
+// Legt club en gebruiker vast bij de start. Een (late) uitkomst werkt huidigProfiel alleen bij
+// als dezelfde gebruiker nog in dezelfde club zit, ook na een time-out of opnieuw inloggen.
+function profielSessie() {
+  const clubId = huidigClubId
+  const uid = huidigGebruiker?.uid
+  const geldig = () => clubId !== null && huidigClubId === clubId && huidigGebruiker?.uid === uid
+  return {
+    geldig,
+    async schrijf(velden, bijwerken) {
+      await slaaProfiel(clubId, velden)
+      if (geldig()) huidigProfiel = bijwerken({ ...(huidigProfiel || {}) })
+    },
+  }
+}
+
+const LOGO_MAX_BYTES = 10 * 1024 * 1024
+
+// Weigert een bestand vóór het inlezen als het geen afbeelding is of groter dan 10 MB
+async function leesLogoBestand(file, lees = resizeAfbeelding) {
+  if (typeof file?.type !== 'string' || !file.type.startsWith('image/')) throw { code: 'bestand-onleesbaar' }
+  if (!(file.size <= LOGO_MAX_BYTES)) throw { code: 'bestand-te-groot' }
+  try { return await lees(file) } catch { throw { code: 'bestand-onleesbaar' } }
 }
 
 // ── Club bepalen ──────────────────────────────────────────────────────────────
@@ -227,6 +261,216 @@ function supportMailto(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
 
 function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
   return `<a class="tussen-link" href="${esc(supportMailto(accountEmail, onderwerp))}">${esc(SUPPORT_EMAIL)}</a>`
+}
+
+// ── Meldingen bij opslaan (CK-023/CK-025) ─────────────────────────────────────
+
+const OPSLAAN_TIJDSLIMIET = 15000
+const INLOG_CODES = new Set(['unauthenticated', 'auth/user-token-expired', 'auth/requires-recent-login'])
+const WEG_CODES = new Set(['not-found', 'failed-precondition'])
+const VERBINDING_CODES = new Set(['unavailable', 'deadline-exceeded', 'auth/network-request-failed'])
+const STAART_INVOER = ' Wat je hebt ingevuld, staat er nog.'
+const STAART_LIJST = ' De lijst is niet gewijzigd.'
+const UITGELOGD = 'Je bent automatisch uitgelogd. Log opnieuw in en probeer het daarna nog een keer.'
+const BESTAAT_NIET = 'Dit item bestaat niet meer, misschien is het net door iemand anders verwijderd. De lijst is bijgewerkt.'
+const WW_KLOPT_NIET = 'Wachtwoord klopt niet.'
+const FOUTTEKSTEN = {
+  'permission-denied': 'Je hebt geen toestemming om dit op te slaan. Herlaad de pagina. Lukt het dan nog niet, neem contact op met SVN10.',
+  'resource-exhausted': 'Het is op dit moment erg druk op de server. Probeer het over een paar minuten opnieuw.',
+  unauthenticated: UITGELOGD,
+  'auth/user-token-expired': UITGELOGD,
+  'auth/requires-recent-login': 'Voor deze wijziging moet je eerst opnieuw inloggen. Dat is een extra beveiliging.',
+  'auth/too-many-requests': 'Te veel pogingen achter elkaar. Wacht een paar minuten en probeer het opnieuw.',
+  'not-found': BESTAAT_NIET,
+  'failed-precondition': BESTAAT_NIET,
+  'bestand-onleesbaar': 'Dit bestand kan niet als afbeelding worden gelezen. Kies een JPG- of PNG-bestand.',
+  'bestand-te-groot': 'Dit bestand is te groot (maximaal 10 MB).',
+  'auth/email-already-in-use': 'Dit e-mailadres wordt al gebruikt door een ander account. Kies een ander adres.',
+  'auth/invalid-email': 'Dit is geen geldig e-mailadres. Controleer of er een @ en een punt in staan.',
+  'auth/weak-password': 'Dit wachtwoord is te zwak. Gebruik minimaal 8 tekens, liefst met cijfers of leestekens.',
+  'auth/wrong-password': WW_KLOPT_NIET,
+  'auth/invalid-credential': WW_KLOPT_NIET,
+  'auth/operation-not-allowed': 'E-mailwijziging niet toegestaan in dit project.',
+  'dubbele-naam': 'Deze bestuursfunctie bestaat al',
+}
+
+const TIJD_OP_ACCOUNT = {
+  'account-wachtwoord': 'Het opslaan duurt te lang. Je wachtwoord is misschien toch gewijzigd: log uit en probeer in te loggen met je nieuwe wachtwoord.',
+  'account-email': 'Het opslaan duurt te lang. Misschien is de bevestigingsmail toch verstuurd: kijk in je mailbox voordat je het opnieuw probeert.',
+}
+
+// soort: 'formulier-lijst' | 'lijstactie' | 'formulier' | 'account-email' | 'account-wachtwoord' | 'logo'
+function foutTekst(e, soort = 'formulier-lijst') {
+  const code = e?.code
+  const lijstVariant = soort === 'formulier-lijst' || soort === 'lijstactie'
+  const staart = soort === 'lijstactie' ? STAART_LIJST : soort === 'logo' ? '' : STAART_INVOER
+  if (code === 'offline') return `Je bent niet verbonden met internet. Controleer je verbinding en probeer het opnieuw.${staart}`
+  if (VERBINDING_CODES.has(code)) return `Geen verbinding met de server. Controleer je internet en probeer het opnieuw.${staart}`
+  if (code === 'tijd-op') {
+    if (TIJD_OP_ACCOUNT[soort]) return TIJD_OP_ACCOUNT[soort]
+    return lijstVariant
+      ? 'Opslaan duurt te lang. Controleer je verbinding en kijk daarna of je wijziging in de lijst staat, voordat je het opnieuw probeert.'
+      : 'Opslaan duurt te lang. Controleer je verbinding en herlaad daarna de pagina om te zien of je wijziging is opgeslagen, voordat je het opnieuw probeert.'
+  }
+  if (code === 'invalid-argument' && soort === 'logo') return 'Dit logo is te groot om op te slaan. Kies een kleiner bestand.'
+  if (typeof code === 'string' && Object.hasOwn(FOUTTEKSTEN, code)) return FOUTTEKSTEN[code]
+  return 'Opslaan is niet gelukt. Probeer het opnieuw. Blijft dit gebeuren, neem dan contact op met SVN10.'
+}
+
+function wisMeldingen(blok) {
+  blok?.querySelectorAll('.melding').forEach(el => { el.textContent = '' })
+}
+
+function toonOk(el, tekst) {
+  if (!el) return
+  const vinkje = document.createElement('span')
+  vinkje.setAttribute('aria-hidden', 'true')
+  vinkje.textContent = '✓ '
+  el.replaceChildren(vinkje, tekst)
+}
+
+const SUPPORT_STAART = 'contact op met SVN10.'
+
+function toonFout(el, e, soort) {
+  if (!el) return
+  const tekst = foutTekst(e, soort)
+  if (SUPPORT_EMAIL && tekst.endsWith(SUPPORT_STAART)) {
+    const link = document.createElement('a')
+    link.className = 'tussen-link'
+    link.href = supportMailto(huidigGebruiker?.email, 'Opslaan lukt niet in clubKOMPAS')
+    link.textContent = SUPPORT_EMAIL
+    el.replaceChildren(`${tekst.slice(0, -1)}: `, link, '.')
+  } else {
+    el.replaceChildren(tekst)
+  }
+  if (!INLOG_CODES.has(e?.code)) return
+  const knop = document.createElement('button')
+  knop.type = 'button'
+  knop.className = 'btn melding-actie'
+  knop.textContent = 'Opnieuw inloggen'
+  knop.addEventListener('click', () => signOut(auth))
+  el.append(' ', knop)
+}
+
+// Een klik op een knop in een blok wist de meldingen van dat blok (niet: bezige knoppen en knoppen in een melding)
+function bindMeldblokken() {
+  document.querySelectorAll('[data-meldblok]').forEach(blok => {
+    if (blok.dataset.meldGebonden) return
+    blok.dataset.meldGebonden = '1'
+    blok.addEventListener('click', e => {
+      const knop = e.target.closest('button')
+      if (!knop || !blok.contains(knop)) return
+      if (knop.getAttribute('aria-disabled') === 'true') return
+      if (knop.closest('.melding')) return
+      if (knop.closest('[data-meldblok]') !== blok) return
+      wisMeldingen(blok)
+    }, true)
+  })
+}
+
+function metTijdslimiet(belofte, ms = OPSLAAN_TIJDSLIMIET) {
+  let timer
+  const tijdOp = new Promise((_, reject) => { timer = setTimeout(() => reject({ code: 'tijd-op' }), ms) })
+  return Promise.race([belofte, tijdOp]).finally(() => clearTimeout(timer))
+}
+
+function zetBezig(knop, lijst, bezig) {
+  const rij = knop.closest('.form-rij')
+  const knoppen = new Set([knop, ...(rij ? rij.querySelectorAll('button') : []), ...(lijst ? lijst.querySelectorAll('button[data-actie]') : [])])
+  const oudeTekst = knop.textContent
+  knoppen.forEach(k => k.setAttribute('aria-disabled', 'true'))
+  if (bezig) knop.textContent = bezig
+  if (lijst) lijst.setAttribute('aria-busy', 'true')
+  return () => {
+    knoppen.forEach(k => { if (k.isConnected) k.removeAttribute('aria-disabled') })
+    if (bezig && knop.isConnected) knop.textContent = oudeTekst
+    if (lijst?.isConnected) lijst.removeAttribute('aria-busy')
+  }
+}
+
+// Veldfout: tekst onder het veld, rode rand, aria-invalid en (standaard) focus op het veld
+function zetVeldFout(inputId, foutId, tekst, focus = true) {
+  const input = document.getElementById(inputId)
+  const fout = document.getElementById(foutId)
+  if (fout) fout.textContent = tekst
+  if (!input) return
+  input.classList.add('fout')
+  input.setAttribute('aria-invalid', 'true')
+  if (!input.getAttribute('aria-describedby')) input.setAttribute('aria-describedby', foutId)
+  if (focus) input.focus()
+}
+
+function wisVeldFout(inputId, foutId) {
+  const input = document.getElementById(inputId)
+  const fout = document.getElementById(foutId)
+  if (fout) fout.textContent = ''
+  if (input) { input.classList.remove('fout'); input.removeAttribute('aria-invalid') }
+}
+
+// Clientvalidatie: [inputId, foutId, foutTekst of ''] per veld. Wist alles, zet de fouten, focus op de eerste.
+function valideerVelden(regels) {
+  regels.forEach(([inputId, foutId]) => wisVeldFout(inputId, foutId))
+  const fouten = regels.filter(([, , tekst]) => tekst)
+  fouten.forEach(([inputId, foutId, tekst], i) => zetVeldFout(inputId, foutId, tekst, i === 0))
+  return fouten.length === 0
+}
+
+function minFout(waarde, min, leeg = 'Verplicht veld') {
+  if (!waarde) return leeg
+  return waarde.length < min ? `Minimaal ${min} tekens` : ''
+}
+
+// Terugval voor de focus: de toevoegknop, of het eerste veld van het open formulier als die verborgen is
+function zichtbareTerugval(toevoegKnop, form) {
+  if (!toevoegKnop?.hidden) return toevoegKnop
+  return form?.querySelector('input:not([type="radio"]), input[type="radio"]:checked, select, textarea') || null
+}
+
+// Retourneert 'ok' | 'fout' | 'weg'. Toont zelf alleen fouten; succes doet de aanroeper.
+async function metOpslaan(knop, actie, {
+  soort = 'formulier-lijst',
+  fout,
+  weg = fout,
+  lijst = null,
+  bezig = 'Bezig...',
+  veldFouten = {},
+} = {}) {
+  wisMeldingen(knop.closest('[data-meldblok]'))
+  Object.values(veldFouten).forEach(([foutId, inputId]) => wisVeldFout(inputId, foutId))
+  const herstel = zetBezig(knop, lijst, bezig)
+  try {
+    if (navigator.onLine === false) throw { code: 'offline' }
+    await metTijdslimiet(actie())
+    return 'ok'
+  } catch (e) {
+    if (import.meta.env.DEV) console.error('Opslaan mislukt:', e?.code, e?.name, e)
+    else console.error('Opslaan mislukt:', e?.code, e?.name)
+    const veld = veldFouten[e?.code]
+    if (veld) {
+      const [foutId, inputId, tekst] = veld
+      zetVeldFout(inputId, foutId, tekst || foutTekst(e, soort))
+      return 'fout'
+    }
+    if (WEG_CODES.has(e?.code)) { toonFout(weg, e, soort); return 'weg' }
+    toonFout(fout, e, soort)
+    return 'fout'
+  } finally {
+    herstel()
+  }
+}
+
+// Focus na verversen: dezelfde knop, anders Bewerken van dat item, anders de terugval
+function focusInLijst(lijstEl, actie, id, terugval) {
+  const zoek = a => lijstEl?.querySelector(`[data-actie="${a}"][data-id="${CSS.escape(id)}"]`)
+  const knop = zoek(actie)
+  const doel = knop && !knop.disabled && !knop.classList.contains('onzichtbaar') ? knop : (zoek('bewerk') || terugval)
+  doel?.focus()
+}
+
+// Live regions staan er vanaf het tekenen, leeg en zonder witruimte (anders werkt :empty niet)
+function meldingenHTML(okId, foutId) {
+  const okEl = okId ? `<div class="melding melding-ok" id="${esc(okId)}" role="status"></div>` : ''
+  return `<div class="meldingen">${okEl}<div class="melding melding-fout" id="${esc(foutId)}" role="alert"></div></div>`
 }
 
 function kompasIconSVG() {
@@ -773,7 +1017,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     ${topBarHTML()}
     ${navHTML('beheer')}
     ${paginaLijfHTML({ zijmenu: beheerZijmenuHTML('domeinen'), kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [BEHEER_NAAM['domeinen']]], inhoud: `
-        <div class="sectie" style="margin-top:0">
+        <div class="sectie" style="margin-top:0" data-meldblok>
           <div class="sectie-kop">
             <h2>Domeinen</h2>
           </div>
@@ -785,6 +1029,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
               <button class="btn filter-knop" data-filter="overkoepelend">Overkoepelend</button>
             </div>
             <div id="structuur-lijst"></div>
+            ${meldingenHTML('structuur-ok', 'structuur-fout')}
+            <div class="sr-only" id="structuur-volgorde" role="status"></div>
             <button class="btn-toevoegen" id="structuur-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
             <div class="pijler-form" id="structuur-form" hidden>
               <div class="form-groep" role="radiogroup" aria-labelledby="structuur-soort-label">
@@ -821,6 +1067,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
                 <button class="btn" id="structuur-opslaan">Opslaan</button>
                 <button class="btn" id="structuur-annuleer">Annuleren</button>
               </div>
+              ${meldingenHTML(null, 'structuur-form-fout')}
             </div>
           </div>
         </div>
@@ -829,6 +1076,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   `
 
   bindNavListeners(gebruiker)
+  bindMeldblokken()
 
   let actiefFilter = 'alles'
 
@@ -903,76 +1151,86 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     document.getElementById('structuur-icoon').value = ''
     const radios = document.querySelectorAll('[name="structuur-type"]')
     if (radios[0]) radios[0].checked = true
-    ;['structuur-naam-fout', 'structuur-omschr-fout', 'structuur-verantw-fout'].forEach(id => {
-      const el = document.getElementById(id)
-      if (el) el.textContent = ''
-    })
+    ;['naam', 'hashtag', 'omschr', 'verantw'].forEach(v => wisVeldFout(`structuur-${v}`, `structuur-${v}-fout`))
   }
 
-  document.getElementById('structuur-annuleer').addEventListener('click', resetForm)
+  const lijstEl = document.getElementById('structuur-lijst')
+  const toevoegKnop = document.getElementById('structuur-toevoegen-knop')
+  const terugval = () => zichtbareTerugval(toevoegKnop, document.getElementById('structuur-form'))
+  const volgordeStatus = document.getElementById('structuur-volgorde')
+  const sectieOk = document.getElementById('structuur-ok')
+  const sectieFout = document.getElementById('structuur-fout')
+  const opslaanKnop = document.getElementById('structuur-opslaan')
+  const annuleerKnop = document.getElementById('structuur-annuleer')
 
-  document.getElementById('structuur-opslaan').addEventListener('click', async () => {
+  annuleerKnop.addEventListener('click', () => {
+    if (annuleerKnop.getAttribute('aria-disabled') === 'true') return
+    resetForm()
+  })
+
+  opslaanKnop.addEventListener('click', async () => {
+    if (opslaanKnop.getAttribute('aria-disabled') === 'true') return
     const type = document.querySelector('[name="structuur-type"]:checked').value
     const naamEl = document.getElementById('structuur-naam')
     const omschrEl = document.getElementById('structuur-omschr')
     const verAntwEl = document.getElementById('structuur-verantw')
-    let ok = true
-
-    const checks = [
-      [naamEl, 'structuur-naam-fout', 2],
-      [omschrEl, 'structuur-omschr-fout', 2],
-      [verAntwEl, 'structuur-verantw-fout', 1]
-    ]
-    checks.forEach(([el, foutId, min]) => {
-      const fout = document.getElementById(foutId)
-      if (!el.value.trim() || el.value.trim().length < min) {
-        fout.textContent = el.value.trim() ? `Minimaal ${min} tekens` : (foutId === 'structuur-verantw-fout' ? 'Kies een bestuursfunctie' : 'Verplicht veld')
-        el.classList.add('fout'); el.setAttribute('aria-invalid', 'true'); ok = false
-      } else {
-        fout.textContent = ''; el.classList.remove('fout'); el.removeAttribute('aria-invalid')
-      }
-    })
     const hashtag = document.getElementById('structuur-hashtag').value.trim()
-    const tagFout = hashtagFout(hashtag)
-    document.getElementById('structuur-hashtag-fout').textContent = tagFout
-    if (tagFout) ok = false
-    if (!ok) return
+    if (!valideerVelden([
+      ['structuur-naam', 'structuur-naam-fout', minFout(naamEl.value.trim(), 2)],
+      ['structuur-hashtag', 'structuur-hashtag-fout', hashtagFout(hashtag)],
+      ['structuur-omschr', 'structuur-omschr-fout', minFout(omschrEl.value.trim(), 2)],
+      ['structuur-verantw', 'structuur-verantw-fout', minFout(verAntwEl.value.trim(), 1, 'Kies een bestuursfunctie')],
+    ])) return
 
-    const bestaand = await laadStructuurelementen()
-    const hoogste = bestaand.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
     const item = {
       type, naam: naamEl.value.trim(), hashtag, omschrijving: omschrEl.value.trim(), bestuursfunctieId: verAntwEl.value,
-      icoon: document.getElementById('structuur-icoon').value, volgorde: hoogste + 1,
+      icoon: document.getElementById('structuur-icoon').value,
     }
-    await voegStructuurelementToe(item)
+    const uitkomst = await metOpslaan(opslaanKnop, async () => {
+      const bestaand = await laadStructuurelementen()
+      const hoogste = bestaand.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
+      await voegStructuurelementToe({ ...item, volgorde: hoogste + 1 })
+    }, { soort: 'formulier-lijst', fout: document.getElementById('structuur-form-fout') })
+    if (uitkomst !== 'ok' || !opslaanKnop.isConnected) return
     resetForm()
-    await laadEnRender()
+    await laadEnRender().catch(e => console.error(e))
+    terugval()?.focus()
+    toonOk(sectieOk, `Domein ${item.naam} toegevoegd.`)
   })
 
-  document.getElementById('structuur-lijst').addEventListener('click', async e => {
+  lijstEl.addEventListener('click', async e => {
     const knop = e.target.closest('[data-actie]')
     if (!knop) return
+    if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true') return
     const actie = knop.dataset.actie
     const id = knop.dataset.id
     const rij = knop.closest('.structuur-rij')
 
     if (actie === 'omhoog' || actie === 'omlaag') {
-      const items = await laadStructuurelementen()
-      const i = items.findIndex(x => x.id === id)
-      const j = actie === 'omhoog' ? i - 1 : i + 1
-      if (i < 0 || j < 0 || j >= items.length) return
-      ;[items[i], items[j]] = [items[j], items[i]]
-      // Hernummer 1 t/m n en schrijf alleen wat veranderd is
-      await Promise.all(items.map((x, k) => (x.volgorde === k + 1 ? null : bewerkStructuurelement(x.id, { volgorde: k + 1 }))))
-      await laadEnRender()
-      // Focus blijft bij het verplaatste domein
-      const knopNa = document.querySelector(`[data-actie="${actie}"][data-id="${id}"]`)
-      ;(knopNa && !knopNa.disabled ? knopNa : document.querySelector(`[data-actie="bewerk"][data-id="${id}"]`))?.focus()
+      let plaats = ''
+      volgordeStatus.textContent = ''
+      const uitkomst = await metOpslaan(knop, async () => {
+        const items = await laadStructuurelementen()
+        const i = items.findIndex(x => x.id === id)
+        const j = actie === 'omhoog' ? i - 1 : i + 1
+        if (i < 0 || j < 0 || j >= items.length) return
+        ;[items[i], items[j]] = [items[j], items[i]]
+        await schrijfVolgorde('structuurelementen', items)
+        plaats = `Domein ${items[j].naam} staat nu op plaats ${j + 1} van ${items.length}.`
+      }, { soort: 'lijstactie', lijst: lijstEl, bezig: null, fout: sectieFout })
+      await laadEnRender().catch(e => console.error(e))
+      focusInLijst(lijstEl, actie, id, terugval())
+      if (uitkomst === 'ok' && plaats && volgordeStatus.isConnected) volgordeStatus.textContent = plaats
     } else if (actie === 'verwijder') {
-      if (confirm('Item verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
-        await verwijderStructuurelement(id)
-        await laadEnRender()
-      }
+      if (!confirm('Item verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
+      const naam = rij?.querySelector('.cel-naam')?.textContent || ''
+      const uitkomst = await metOpslaan(knop, () => verwijderStructuurelement(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout })
+      await laadEnRender().catch(e => console.error(e))
+      if (uitkomst === 'ok') {
+        terugval()?.focus()
+        toonOk(sectieOk, `Domein ${naam} verwijderd.`)
+      } else if (uitkomst === 'weg') terugval()?.focus()
+      else focusInLijst(lijstEl, 'verwijder', id, terugval())
     } else if (actie === 'bewerk') {
       const items = await laadStructuurelementen()
       const item = items.find(x => x.id === id)
@@ -1015,6 +1273,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
             <button class="btn" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
+          ${meldingenHTML(null, `bm-fout-${id}`)}
         </div>`
       document.getElementById(`bn-${id}`)?.focus()
     } else if (actie === 'bewerk-opslaan') {
@@ -1022,26 +1281,23 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       const naam = document.getElementById(`bn-${id}`)?.value.trim()
       const omschr = document.getElementById(`bo-${id}`)?.value.trim()
       const verantw = document.getElementById(`bv-${id}`)?.value.trim()
-      let ok = true
-      const checks = [
-        [naam, `bn-fout-${id}`, 2],
-        [omschr, `bo-fout-${id}`, 2],
-        [verantw, `bv-fout-${id}`, 1]
-      ]
-      checks.forEach(([val, foutId, min]) => {
-        const el = document.getElementById(foutId)
-        if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : (foutId.startsWith('bv-') ? 'Kies een bestuursfunctie' : 'Verplicht veld'); ok = false }
-        else el.textContent = ''
-      })
       const hashtag = document.getElementById(`bh-${id}`)?.value.trim() || ''
-      const tagFout = hashtagFout(hashtag)
-      document.getElementById(`bh-fout-${id}`).textContent = tagFout
-      if (tagFout) ok = false
-      if (!ok) return
+      if (!valideerVelden([
+        [`bn-${id}`, `bn-fout-${id}`, minFout(naam, 2)],
+        [`bh-${id}`, `bh-fout-${id}`, hashtagFout(hashtag)],
+        [`bo-${id}`, `bo-fout-${id}`, minFout(omschr, 2)],
+        [`bv-${id}`, `bv-fout-${id}`, minFout(verantw, 1, 'Kies een bestuursfunctie')],
+      ])) return
       const icoon = document.getElementById(`bi-${id}`)?.value || ''
       const data = { type, naam, hashtag, omschrijving: omschr, bestuursfunctieId: verantw, icoon }
-      await bewerkStructuurelement(id, data)
-      await laadEnRender()
+      const uitkomst = await metOpslaan(knop, () => bewerkStructuurelement(id, data), {
+        soort: 'formulier-lijst', fout: document.getElementById(`bm-fout-${id}`), weg: sectieFout,
+      })
+      if (uitkomst === 'fout') return
+      await laadEnRender().catch(e => console.error(e))
+      if (uitkomst === 'weg') { terugval()?.focus(); return }
+      focusInLijst(lijstEl, 'bewerk', id, terugval())
+      toonOk(sectieOk, `Domein ${naam} opgeslagen.`)
     } else if (actie === 'bewerk-annuleer') {
       await laadEnRender()
     }
@@ -1053,24 +1309,26 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     ${topBarHTML()}
     ${navHTML('beheer')}
     ${paginaLijfHTML({ zijmenu: beheerZijmenuHTML('functies'), kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [BEHEER_NAAM['functies']]], inhoud: `
-        <div class="sectie" style="margin-top:0">
+        <div class="sectie" style="margin-top:0" data-meldblok>
           <div class="sectie-kop">
             <h2>Bestuursfuncties</h2>
           </div>
           <div class="sectie-lijf">
             <div id="functie-lijst"></div>
-            <p class="form-fout" id="functie-melding" role="status"></p>
+            ${meldingenHTML('functie-ok', 'functie-fout')}
+            <div class="sr-only" id="functie-volgorde" role="status"></div>
             <button class="btn-toevoegen" id="functie-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
             <div class="pijler-form" id="functie-form" hidden>
               <div class="form-groep">
                 <label class="form-label" for="functie-naam">Naam</label>
-                <input class="form-input" id="functie-naam" type="text" placeholder="Bijv. Bestuurslid Hockey" autocomplete="off">
+                <input class="form-input" id="functie-naam" type="text" placeholder="Bijv. Bestuurslid Hockey" autocomplete="off" aria-describedby="functie-naam-fout">
                 <span class="form-fout" id="functie-naam-fout"></span>
               </div>
               <div class="form-rij">
                 <button class="btn" id="functie-opslaan">Opslaan</button>
                 <button class="btn" id="functie-annuleer">Annuleren</button>
               </div>
+              ${meldingenHTML(null, 'functie-form-fout')}
             </div>
           </div>
         </div>
@@ -1079,8 +1337,8 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   `
   bindNavListeners(gebruiker)
   bindBeheerTabs(gebruiker)
+  bindMeldblokken()
 
-  const melding = tekst => { const el = document.getElementById('functie-melding'); if (el) el.textContent = tekst }
   const geldigeNaam = naam => naam.length >= 2 && naam.length <= 100
 
   async function laadEnRender() {
@@ -1119,56 +1377,90 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 
   await laadEnRender()
 
+  const lijstEl = document.getElementById('functie-lijst')
+  const toevoegKnop = document.getElementById('functie-toevoegen-knop')
+  const sectieOk = document.getElementById('functie-ok')
+  const sectieFout = document.getElementById('functie-fout')
+  const opslaanKnop = document.getElementById('functie-opslaan')
+  const annuleerKnop = document.getElementById('functie-annuleer')
+  const naamInput = document.getElementById('functie-naam')
+  const terugval = () => zichtbareTerugval(toevoegKnop, document.getElementById('functie-form'))
+  const volgordeStatus = document.getElementById('functie-volgorde')
+  const naamRegel = naam => (geldigeNaam(naam) ? '' : naam ? 'Tussen 2 en 100 tekens' : 'Verplicht veld')
+
   const resetForm = () => {
     document.getElementById('functie-form').hidden = true
-    document.getElementById('functie-toevoegen-knop').hidden = false
-    document.getElementById('functie-naam').value = ''
-    document.getElementById('functie-naam-fout').textContent = ''
+    toevoegKnop.hidden = false
+    naamInput.value = ''
+    wisVeldFout('functie-naam', 'functie-naam-fout')
   }
-  document.getElementById('functie-toevoegen-knop').addEventListener('click', () => {
+  toevoegKnop.addEventListener('click', () => {
     document.getElementById('functie-form').hidden = false
-    document.getElementById('functie-toevoegen-knop').hidden = true
-    document.getElementById('functie-naam').focus()
+    toevoegKnop.hidden = true
+    naamInput.focus()
   })
-  document.getElementById('functie-annuleer').addEventListener('click', resetForm)
-  document.getElementById('functie-opslaan').addEventListener('click', async () => {
-    const naam = document.getElementById('functie-naam').value.trim()
-    const fout = document.getElementById('functie-naam-fout')
-    if (!geldigeNaam(naam)) { fout.textContent = naam ? 'Tussen 2 en 100 tekens' : 'Verplicht veld'; return }
-    const functies = await laadBestuursfuncties()
-    if (functies.some(f => f.naam.toLowerCase() === naam.toLowerCase())) { fout.textContent = 'Deze bestuursfunctie bestaat al'; return }
-    const hoogste = functies.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
-    try {
+  annuleerKnop.addEventListener('click', () => {
+    if (annuleerKnop.getAttribute('aria-disabled') === 'true') return
+    resetForm()
+  })
+  opslaanKnop.addEventListener('click', async () => {
+    if (opslaanKnop.getAttribute('aria-disabled') === 'true') return
+    const naam = naamInput.value.trim()
+    if (!valideerVelden([['functie-naam', 'functie-naam-fout', naamRegel(naam)]])) return
+    const uitkomst = await metOpslaan(opslaanKnop, async () => {
+      const functies = await laadBestuursfuncties()
+      if (functies.some(f => f.naam.toLowerCase() === naam.toLowerCase())) throw { code: 'dubbele-naam' }
+      const hoogste = functies.reduce((m, x) => (typeof x.volgorde === 'number' ? Math.max(m, x.volgorde) : m), 0)
       await voegBestuursfunctieToe({ naam, volgorde: hoogste + 1 })
-      resetForm(); melding('')
-      await laadEnRender()
-    } catch { fout.textContent = 'Opslaan mislukt, probeer opnieuw.' }
+    }, {
+      soort: 'formulier-lijst',
+      fout: document.getElementById('functie-form-fout'),
+      veldFouten: { 'dubbele-naam': ['functie-naam-fout', 'functie-naam'] },
+    })
+    if (uitkomst !== 'ok' || !opslaanKnop.isConnected) return
+    resetForm()
+    await laadEnRender().catch(e => console.error(e))
+    terugval()?.focus()
+    toonOk(sectieOk, `Bestuursfunctie ${naam} toegevoegd.`)
   })
 
-  document.getElementById('functie-lijst').addEventListener('click', async e => {
+  lijstEl.addEventListener('click', async e => {
     const knop = e.target.closest('[data-actie]')
     if (!knop) return
+    if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true') return
     const { actie, id } = knop.dataset
     const rij = knop.closest('.structuur-rij')
-    melding('')
     if (actie === 'omhoog' || actie === 'omlaag') {
-      const functies = await laadBestuursfuncties()
-      const i = functies.findIndex(x => x.id === id)
-      const j = actie === 'omhoog' ? i - 1 : i + 1
-      if (i < 0 || j < 0 || j >= functies.length) return
-      ;[functies[i], functies[j]] = [functies[j], functies[i]]
-      await Promise.all(functies.map((x, k) => (x.volgorde === k + 1 ? null : bewerkBestuursfunctie(x.id, { volgorde: k + 1 }))))
-      await laadEnRender()
-      const knopNa = document.querySelector(`#functie-lijst [data-actie="${actie}"][data-id="${id}"]`)
-      ;(knopNa && !knopNa.disabled ? knopNa : document.querySelector(`#functie-lijst [data-actie="bewerk"][data-id="${id}"]`))?.focus()
+      let plaats = ''
+      volgordeStatus.textContent = ''
+      const uitkomst = await metOpslaan(knop, async () => {
+        const functies = await laadBestuursfuncties()
+        const i = functies.findIndex(x => x.id === id)
+        const j = actie === 'omhoog' ? i - 1 : i + 1
+        if (i < 0 || j < 0 || j >= functies.length) return
+        ;[functies[i], functies[j]] = [functies[j], functies[i]]
+        await schrijfVolgorde('bestuursfuncties', functies)
+        plaats = `Bestuursfunctie ${functies[j].naam} staat nu op plaats ${j + 1} van ${functies.length}.`
+      }, { soort: 'lijstactie', lijst: lijstEl, bezig: null, fout: sectieFout })
+      await laadEnRender().catch(e => console.error(e))
+      focusInLijst(lijstEl, actie, id, terugval())
+      if (uitkomst === 'ok' && plaats && volgordeStatus.isConnected) volgordeStatus.textContent = plaats
     } else if (actie === 'verwijder') {
       // Masterdata: een functie die nog bij een domein hoort, kan niet weg
       const aantal = Number(knop.dataset.aantal || 0)
-      if (aantal > 0) { melding(`Deze bestuursfunctie is nog eindverantwoordelijke van ${aantal === 1 ? '1 domein' : `${aantal} domeinen`}. Kies daar eerst een andere bestuursfunctie.`); return }
-      if (confirm('Bestuursfunctie verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
-        await verwijderBestuursfunctie(id)
-        await laadEnRender()
+      if (aantal > 0) {
+        sectieFout.textContent = `Deze bestuursfunctie is nog eindverantwoordelijke van ${aantal === 1 ? '1 domein' : `${aantal} domeinen`}. Kies daar eerst een andere bestuursfunctie.`
+        return
       }
+      if (!confirm('Bestuursfunctie verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
+      const naam = rij?.querySelector('.cel-naam')?.textContent || ''
+      const uitkomst = await metOpslaan(knop, () => verwijderBestuursfunctie(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout })
+      await laadEnRender().catch(e => console.error(e))
+      if (uitkomst === 'ok') {
+        terugval()?.focus()
+        toonOk(sectieOk, `Bestuursfunctie ${naam} verwijderd.`)
+      } else if (uitkomst === 'weg') terugval()?.focus()
+      else focusInLijst(lijstEl, 'verwijder', id, terugval())
     } else if (actie === 'bewerk') {
       const f = (await laadBestuursfuncties()).find(x => x.id === id)
       if (!f) return
@@ -1177,40 +1469,56 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
         <div class="pijler-bewerk-form" style="width:100%">
           <div class="form-groep">
             <label class="form-label" for="fn-${esc(id)}">Naam</label>
-            <input class="form-input" id="fn-${esc(id)}" value="${esc(f.naam)}" autocomplete="off">
+            <input class="form-input" id="fn-${esc(id)}" value="${esc(f.naam)}" autocomplete="off" aria-describedby="fn-fout-${esc(id)}">
             <span class="form-fout" id="fn-fout-${esc(id)}"></span>
           </div>
           <div class="form-rij">
             <button class="btn" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
+          ${meldingenHTML(null, `fm-fout-${id}`)}
         </div>`
       document.getElementById(`fn-${id}`)?.focus()
     } else if (actie === 'bewerk-opslaan') {
       const naam = document.getElementById(`fn-${id}`)?.value.trim() || ''
-      const fout = document.getElementById(`fn-fout-${id}`)
-      if (!geldigeNaam(naam)) { fout.textContent = naam ? 'Tussen 2 en 100 tekens' : 'Verplicht veld'; return }
-      const functies = await laadBestuursfuncties()
-      if (functies.some(x => x.id !== id && x.naam.toLowerCase() === naam.toLowerCase())) { fout.textContent = 'Deze bestuursfunctie bestaat al'; return }
-      try {
+      if (!valideerVelden([[`fn-${id}`, `fn-fout-${id}`, naamRegel(naam)]])) return
+      const uitkomst = await metOpslaan(knop, async () => {
+        const functies = await laadBestuursfuncties()
+        if (functies.some(x => x.id !== id && x.naam.toLowerCase() === naam.toLowerCase())) throw { code: 'dubbele-naam' }
         await bewerkBestuursfunctie(id, { naam })
-        await laadEnRender()
-      } catch { fout.textContent = 'Opslaan mislukt, probeer opnieuw.' }
+      }, {
+        soort: 'formulier-lijst',
+        fout: document.getElementById(`fm-fout-${id}`),
+        weg: sectieFout,
+        veldFouten: { 'dubbele-naam': [`fn-fout-${id}`, `fn-${id}`] },
+      })
+      if (uitkomst === 'fout') return
+      await laadEnRender().catch(e => console.error(e))
+      if (uitkomst === 'weg') { terugval()?.focus(); return }
+      focusInLijst(lijstEl, 'bewerk', id, terugval())
+      toonOk(sectieOk, `Bestuursfunctie ${naam} opgeslagen.`)
     } else if (actie === 'bewerk-annuleer') {
       await laadEnRender()
     }
   })
 }
 
+// Bevestiging na opnieuw tekenen: [melding, tekst, knop die de focus krijgt]
+const CLUB_SUCCES = {
+  profiel: ['profiel-ok', 'Profiel opgeslagen.', 'profiel-opslaan'],
+  logo: ['logo-ok', 'Logo opgeslagen.', 'logo-kiezen'],
+  'logo-weg': ['logo-ok', 'Logo verwijderd.', 'logo-kiezen'],
+}
+
 // Club (profiel en logo) — tabblad onder Beheer
-function renderClubBeheer(gebruiker) {
+function renderClubBeheer(gebruiker, { succes } = {}) {
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   document.querySelector('#app').innerHTML = `
     ${topBarHTML()}
     ${navHTML('beheer')}
 
     ${paginaLijfHTML({ zijmenu: beheerZijmenuHTML('club'), kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [BEHEER_NAAM['club']]], inhoud: `
-        <div class="sectie" style="margin-top:0">
+        <div class="sectie" style="margin-top:0" data-meldblok>
           <div class="sectie-kop">
             <h2>Clubprofiel</h2>
           </div>
@@ -1234,12 +1542,12 @@ function renderClubBeheer(gebruiker) {
               <div class="form-rij">
                 <button class="btn" id="profiel-opslaan">Opslaan</button>
               </div>
-              <p class="profiel-succes" id="profiel-succes" hidden>✓ Profiel opgeslagen.</p>
+              ${meldingenHTML('profiel-ok', 'profiel-fout')}
             </div>
           </div>
         </div>
 
-        <div class="sectie">
+        <div class="sectie" data-meldblok>
           <div class="sectie-kop">
             <h2>Clublogo</h2>
           </div>
@@ -1248,16 +1556,14 @@ function renderClubBeheer(gebruiker) {
               ${logoSrc
                 ? `<img src="${esc(logoSrc)}" class="logo-preview" alt="Huidig logo">`
                 : `<div class="logo-leeg">Nog geen logo geüpload</div>`}
-              <div class="form-rij" style="margin-top:12px">
-                <label class="btn" style="cursor:pointer">
-                  <span>${logoSrc ? 'Logo wijzigen' : 'Logo uploaden'}</span>
-                  <input type="file" id="logo-input" accept="image/*" hidden>
-                </label>
+              <div class="form-rij">
+                <button type="button" class="btn" id="logo-kiezen">${logoSrc ? 'Logo wijzigen' : 'Logo uploaden'}</button>
+                <input type="file" id="logo-input" accept="image/*" hidden>
                 ${logoSrc
                   ? `<button class="btn gevaar" id="logo-verwijderen">Verwijderen</button>`
                   : ''}
               </div>
-              <p class="profiel-succes" id="logo-succes" hidden>✓ Logo opgeslagen.</p>
+              ${meldingenHTML('logo-ok', 'logo-fout')}
             </div>
           </div>
         </div>
@@ -1269,63 +1575,79 @@ function renderClubBeheer(gebruiker) {
 
   bindNavListeners(gebruiker)
   bindBeheerTabs(gebruiker)
+  bindMeldblokken()
 
-  document.getElementById('logo-input').addEventListener('change', async e => {
-    const file = e.target.files[0]
+  const logoKiezen = document.getElementById('logo-kiezen')
+  const logoInput = document.getElementById('logo-input')
+  const logoFout = document.getElementById('logo-fout')
+
+  logoKiezen.addEventListener('click', () => {
+    if (logoKiezen.getAttribute('aria-disabled') === 'true') return
+    logoInput.click()
+  })
+
+  logoInput.addEventListener('change', async () => {
+    const file = logoInput.files[0]
     if (!file) return
-    const knop = e.target.closest('label')
-    knop.querySelector('span').textContent = 'Bezig...'
+    const sessie = profielSessie()
+    let base64 = ''
+    let uitkomst
     try {
-      const base64 = await resizeAfbeelding(file)
-      const nieuwProfiel = { ...(huidigProfiel || {}), logo: base64 }
-      await slaaProfiel(nieuwProfiel)
-      huidigProfiel = nieuwProfiel
-      setFavicon(base64)
-      renderClubBeheer(gebruiker)
-    } catch {
-      knop.querySelector('span').textContent = 'Fout — probeer opnieuw'
+      uitkomst = await metOpslaan(logoKiezen, async () => {
+        base64 = await leesLogoBestand(file)
+        await sessie.schrijf({ logo: base64 }, p => ({ ...p, logo: base64 }))
+      }, { soort: 'logo', fout: logoFout })
+    } finally {
+      logoInput.value = ''
     }
+    if (uitkomst !== 'ok' || !logoKiezen.isConnected || !sessie.geldig()) return
+    setFavicon(base64)
+    renderClubBeheer(gebruiker, { succes: 'logo' })
   })
 
   const verwijderKnop = document.getElementById('logo-verwijderen')
   if (verwijderKnop) {
     verwijderKnop.addEventListener('click', async () => {
-      const { logo: _removed, ...rest } = huidigProfiel || {}
-      await slaaProfiel(rest)
-      huidigProfiel = rest
+      if (verwijderKnop.getAttribute('aria-disabled') === 'true') return
+      const sessie = profielSessie()
+      const uitkomst = await metOpslaan(verwijderKnop, () => sessie.schrijf({ logo: deleteField() }, ({ logo: _weg, ...rest }) => rest), {
+        soort: 'logo', fout: logoFout,
+      })
+      if (uitkomst !== 'ok' || !verwijderKnop.isConnected || !sessie.geldig()) return
       setFavicon('')
-      renderClubBeheer(gebruiker)
+      renderClubBeheer(gebruiker, { succes: 'logo-weg' })
     })
   }
 
-  document.getElementById('profiel-opslaan').addEventListener('click', async () => {
+  const profielKnop = document.getElementById('profiel-opslaan')
+  profielKnop.addEventListener('click', async () => {
+    if (profielKnop.getAttribute('aria-disabled') === 'true') return
     const naam = document.getElementById('profiel-naam').value.trim()
     const afkorting = document.getElementById('profiel-afkorting').value.trim()
     const seizoen = document.getElementById('profiel-seizoen').value.trim()
 
-    let ok = true
-    const checks = [
-      [naam, 'profiel-naam-fout', 2],
-      [afkorting, 'profiel-afkorting-fout', 2],
-      [seizoen, 'profiel-seizoen-fout', 4],
-    ]
-    checks.forEach(([val, foutId, min]) => {
-      const el = document.getElementById(foutId)
-      if (!val || val.length < min) { el.textContent = val ? `Minimaal ${min} tekens` : 'Verplicht veld'; ok = false }
-      else el.textContent = ''
-    })
-    if (!ok) return
+    if (!valideerVelden([
+      ['profiel-naam', 'profiel-naam-fout', minFout(naam, 2)],
+      ['profiel-afkorting', 'profiel-afkorting-fout', minFout(afkorting, 2)],
+      ['profiel-seizoen', 'profiel-seizoen-fout', minFout(seizoen, 4)],
+    ])) return
 
-    const nieuwProfiel = { ...(huidigProfiel || {}), naam, afkorting, seizoen }
-    try {
-      await slaaProfiel(nieuwProfiel)
-      huidigProfiel = nieuwProfiel
-      renderClubBeheer(gebruiker)
-    } catch {
-      document.getElementById('profiel-naam-fout').textContent = 'Opslaan mislukt, probeer opnieuw.'
-    }
+    const velden = { naam, afkorting, seizoen }
+    const sessie = profielSessie()
+    const uitkomst = await metOpslaan(profielKnop, () => sessie.schrijf(velden, p => ({ ...p, ...velden })), {
+      soort: 'formulier', fout: document.getElementById('profiel-fout'),
+    })
+    if (uitkomst !== 'ok' || !profielKnop.isConnected || !sessie.geldig()) return
+    renderClubBeheer(gebruiker, { succes: 'profiel' })
   })
 
+  const bevestiging = CLUB_SUCCES[succes]
+  if (bevestiging) {
+    const [meldId, tekst, knopId] = bevestiging
+    const el = document.getElementById(meldId)
+    document.getElementById(knopId)?.focus()
+    setTimeout(() => { if (el?.isConnected) toonOk(el, tekst) }, 100)
+  }
 }
 
 // Mijn account — bereikbaar via je naam in de footer
@@ -1342,50 +1664,56 @@ function renderMijnAccount(gebruiker) {
           <div class="sectie-lijf">
             <div class="profiel-form-wrap">
 
-              <div class="form-groep">
-                <label class="form-label" for="geb-naam">Naam</label>
-                <input class="form-input" id="geb-naam" type="text" placeholder="Jouw naam" autocomplete="name" value="${esc(huidigGebruiker?.displayName || '')}">
-                <span class="form-fout" id="geb-naam-fout"></span>
+              <div class="meld-blok" data-meldblok>
+                <div class="form-groep">
+                  <label class="form-label" for="geb-naam">Naam</label>
+                  <input class="form-input" id="geb-naam" type="text" placeholder="Jouw naam" autocomplete="name" value="${esc(huidigGebruiker?.displayName || '')}">
+                  <span class="form-fout" id="geb-naam-fout"></span>
+                </div>
+                <div class="form-rij">
+                  <button class="btn" id="geb-naam-opslaan">Naam opslaan</button>
+                </div>
+                ${meldingenHTML('geb-naam-ok', 'geb-naam-statusfout')}
               </div>
-              <div class="form-rij">
-                <button class="btn" id="geb-naam-opslaan">Naam opslaan</button>
-              </div>
-              <p class="profiel-succes" id="geb-naam-succes" hidden>✓ Naam opgeslagen.</p>
 
               <hr class="sectie-hr">
 
-              <p class="geb-info">Huidig e-mailadres: ${esc(huidigGebruiker?.email || '')}</p>
-              <div class="form-groep">
-                <label class="form-label" for="geb-email">Nieuw e-mailadres</label>
-                <input class="form-input" id="geb-email" type="email" placeholder="nieuw@voorbeeld.nl" autocomplete="off">
-                <span class="form-fout" id="geb-email-fout"></span>
+              <div class="meld-blok" data-meldblok>
+                <p class="geb-info">Huidig e-mailadres: ${esc(huidigGebruiker?.email || '')}</p>
+                <div class="form-groep">
+                  <label class="form-label" for="geb-email">Nieuw e-mailadres</label>
+                  <input class="form-input" id="geb-email" type="email" placeholder="nieuw@voorbeeld.nl" autocomplete="off" aria-describedby="geb-email-fout">
+                  <span class="form-fout" id="geb-email-fout"></span>
+                </div>
+                <div class="form-groep">
+                  <label class="form-label" for="geb-email-ww">Wachtwoord ter bevestiging</label>
+                  <input class="form-input" id="geb-email-ww" type="password" placeholder="••••••••" autocomplete="current-password" aria-describedby="geb-email-ww-fout">
+                  <span class="form-fout" id="geb-email-ww-fout"></span>
+                </div>
+                <div class="form-rij">
+                  <button class="btn" id="geb-email-opslaan">E-mailadres wijzigen</button>
+                </div>
+                ${meldingenHTML('geb-email-ok', 'geb-email-statusfout')}
               </div>
-              <div class="form-groep">
-                <label class="form-label" for="geb-email-ww">Wachtwoord ter bevestiging</label>
-                <input class="form-input" id="geb-email-ww" type="password" placeholder="••••••••" autocomplete="current-password">
-                <span class="form-fout" id="geb-email-ww-fout"></span>
-              </div>
-              <div class="form-rij">
-                <button class="btn" id="geb-email-opslaan">E-mailadres wijzigen</button>
-              </div>
-              <p class="profiel-succes" id="geb-email-succes" hidden>✓ E-mailadres gewijzigd.</p>
 
               <hr class="sectie-hr">
 
-              <div class="form-groep">
-                <label class="form-label" for="geb-huidig-ww">Huidig wachtwoord</label>
-                <input class="form-input" id="geb-huidig-ww" type="password" placeholder="••••••••" autocomplete="current-password">
-                <span class="form-fout" id="geb-huidig-ww-fout"></span>
+              <div class="meld-blok" data-meldblok>
+                <div class="form-groep">
+                  <label class="form-label" for="geb-huidig-ww">Huidig wachtwoord</label>
+                  <input class="form-input" id="geb-huidig-ww" type="password" placeholder="••••••••" autocomplete="current-password" aria-describedby="geb-huidig-ww-fout">
+                  <span class="form-fout" id="geb-huidig-ww-fout"></span>
+                </div>
+                <div class="form-groep">
+                  <label class="form-label" for="geb-nieuw-ww">Nieuw wachtwoord</label>
+                  <input class="form-input" id="geb-nieuw-ww" type="password" placeholder="Minimaal 8 tekens" autocomplete="new-password" aria-describedby="geb-nieuw-ww-fout">
+                  <span class="form-fout" id="geb-nieuw-ww-fout"></span>
+                </div>
+                <div class="form-rij">
+                  <button class="btn" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
+                </div>
+                ${meldingenHTML('geb-ww-ok', 'geb-ww-statusfout')}
               </div>
-              <div class="form-groep">
-                <label class="form-label" for="geb-nieuw-ww">Nieuw wachtwoord</label>
-                <input class="form-input" id="geb-nieuw-ww" type="password" placeholder="Minimaal 8 tekens" autocomplete="new-password">
-                <span class="form-fout" id="geb-nieuw-ww-fout"></span>
-              </div>
-              <div class="form-rij">
-                <button class="btn" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
-              </div>
-              <p class="profiel-succes" id="geb-ww-succes" hidden>✓ Wachtwoord gewijzigd.</p>
 
             </div>
           </div>
@@ -1397,97 +1725,81 @@ function renderMijnAccount(gebruiker) {
   `
 
   bindNavListeners(gebruiker)
+  bindMeldblokken()
 
-  document.getElementById('geb-naam-opslaan').addEventListener('click', async () => {
+  const naamKnop = document.getElementById('geb-naam-opslaan')
+  naamKnop.addEventListener('click', async () => {
+    if (naamKnop.getAttribute('aria-disabled') === 'true') return
     const naam = document.getElementById('geb-naam').value.trim()
-    const naamFout = document.getElementById('geb-naam-fout')
-    naamFout.textContent = ''
-    if (!naam || naam.length < 2) {
-      naamFout.textContent = naam ? 'Minimaal 2 tekens' : 'Verplicht veld'
-      return
-    }
-    const knop = document.getElementById('geb-naam-opslaan')
-    knop.textContent = 'Bezig...'
-    knop.disabled = true
-    try {
-      await updateProfile(huidigGebruiker, { displayName: naam })
-      document.getElementById('geb-naam-succes').hidden = false
-      const sessie = document.querySelector('footer .footer-account')
-      if (sessie) sessie.textContent = sessieLabel()
-    } catch (e) {
-      naamFout.textContent = `Fout: ${e.code || e.message}`
-    } finally {
-      knop.textContent = 'Naam opslaan'
-      knop.disabled = false
-    }
+    if (!valideerVelden([['geb-naam', 'geb-naam-fout', minFout(naam, 2)]])) return
+    const uitkomst = await metOpslaan(naamKnop, () => updateProfile(huidigGebruiker, { displayName: naam }), {
+      soort: 'formulier', fout: document.getElementById('geb-naam-statusfout'),
+    })
+    if (uitkomst !== 'ok' || !naamKnop.isConnected) return
+    toonOk(document.getElementById('geb-naam-ok'), 'Naam opgeslagen.')
+    const sessie = document.querySelector('footer .footer-account')
+    if (sessie) sessie.textContent = sessieLabel()
   })
 
-  document.getElementById('geb-email-opslaan').addEventListener('click', async () => {
+  const emailKnop = document.getElementById('geb-email-opslaan')
+  emailKnop.addEventListener('click', async () => {
+    if (emailKnop.getAttribute('aria-disabled') === 'true') return
     const email = document.getElementById('geb-email').value.trim()
     const ww = document.getElementById('geb-email-ww').value
-    const fout = document.getElementById('geb-email-fout')
-    const wwFout = document.getElementById('geb-email-ww-fout')
-    fout.textContent = ''
-    wwFout.textContent = ''
-    if (!email) { fout.textContent = 'E-mailadres verplicht'; return }
-    if (!ww) { wwFout.textContent = 'Wachtwoord verplicht'; return }
-    const knop = document.getElementById('geb-email-opslaan')
-    knop.textContent = 'Bezig...'
-    knop.disabled = true
-    try {
+    if (!valideerVelden([
+      ['geb-email', 'geb-email-fout', email ? '' : 'E-mailadres verplicht'],
+      ['geb-email-ww', 'geb-email-ww-fout', ww ? '' : 'Wachtwoord verplicht'],
+    ])) return
+    const emailVeld = ['geb-email-fout', 'geb-email']
+    const wwVeld = ['geb-email-ww-fout', 'geb-email-ww']
+    const uitkomst = await metOpslaan(emailKnop, async () => {
       const credential = EmailAuthProvider.credential(huidigGebruiker.email, ww)
       await reauthenticateWithCredential(huidigGebruiker, credential)
       await verifyBeforeUpdateEmail(huidigGebruiker, email)
-      const succesEl = document.getElementById('geb-email-succes')
-      succesEl.textContent = `✓ Verificatiemail gestuurd naar ${email}.`
-      succesEl.hidden = false
-      document.getElementById('geb-email').value = ''
-      document.getElementById('geb-email-ww').value = ''
-    } catch (e) {
-      const foutcodes = {
-        'auth/wrong-password': 'Wachtwoord klopt niet.',
-        'auth/invalid-credential': 'Wachtwoord klopt niet.',
-        'auth/email-already-in-use': 'Dit e-mailadres is al in gebruik.',
-        'auth/invalid-email': 'Ongeldig e-mailadres.',
-        'auth/operation-not-allowed': 'E-mailwijziging niet toegestaan in dit project.',
-      }
-      fout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
-    } finally {
-      knop.textContent = 'E-mailadres wijzigen'
-      knop.disabled = false
-    }
+    }, {
+      soort: 'account-email',
+      fout: document.getElementById('geb-email-statusfout'),
+      veldFouten: {
+        'auth/email-already-in-use': emailVeld,
+        'auth/invalid-email': emailVeld,
+        'auth/operation-not-allowed': emailVeld,
+        'auth/wrong-password': wwVeld,
+        'auth/invalid-credential': wwVeld,
+      },
+    })
+    if (uitkomst !== 'ok' || !emailKnop.isConnected) return
+    toonOk(document.getElementById('geb-email-ok'), `We hebben een bevestigingsmail gestuurd naar ${email}. Klik op de link in die mail om de wijziging af te ronden.`)
+    document.getElementById('geb-email').value = ''
+    document.getElementById('geb-email-ww').value = ''
   })
 
-  document.getElementById('geb-ww-opslaan').addEventListener('click', async () => {
+  const wwKnop = document.getElementById('geb-ww-opslaan')
+  wwKnop.addEventListener('click', async () => {
+    if (wwKnop.getAttribute('aria-disabled') === 'true') return
     const huidigWw = document.getElementById('geb-huidig-ww').value
     const nieuwWw = document.getElementById('geb-nieuw-ww').value
-    const huidigFout = document.getElementById('geb-huidig-ww-fout')
-    const nieuwFout = document.getElementById('geb-nieuw-ww-fout')
-    huidigFout.textContent = ''
-    nieuwFout.textContent = ''
-    if (!huidigWw) { huidigFout.textContent = 'Verplicht veld'; return }
-    if (!nieuwWw || nieuwWw.length < 8) { nieuwFout.textContent = nieuwWw ? 'Minimaal 8 tekens' : 'Verplicht veld'; return }
-    const knop = document.getElementById('geb-ww-opslaan')
-    knop.textContent = 'Bezig...'
-    knop.disabled = true
-    try {
+    if (!valideerVelden([
+      ['geb-huidig-ww', 'geb-huidig-ww-fout', huidigWw ? '' : 'Verplicht veld'],
+      ['geb-nieuw-ww', 'geb-nieuw-ww-fout', minFout(nieuwWw, 8)],
+    ])) return
+    const huidigVeld = ['geb-huidig-ww-fout', 'geb-huidig-ww']
+    const uitkomst = await metOpslaan(wwKnop, async () => {
       const credential = EmailAuthProvider.credential(huidigGebruiker.email, huidigWw)
       await reauthenticateWithCredential(huidigGebruiker, credential)
       await updatePassword(huidigGebruiker, nieuwWw)
-      document.getElementById('geb-ww-succes').hidden = false
-      document.getElementById('geb-huidig-ww').value = ''
-      document.getElementById('geb-nieuw-ww').value = ''
-    } catch (e) {
-      const foutcodes = {
-        'auth/wrong-password': 'Wachtwoord klopt niet.',
-        'auth/invalid-credential': 'Wachtwoord klopt niet.',
-        'auth/weak-password': 'Nieuw wachtwoord is te zwak.',
-      }
-      huidigFout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
-    } finally {
-      knop.textContent = 'Wachtwoord wijzigen'
-      knop.disabled = false
-    }
+    }, {
+      soort: 'account-wachtwoord',
+      fout: document.getElementById('geb-ww-statusfout'),
+      veldFouten: {
+        'auth/wrong-password': huidigVeld,
+        'auth/invalid-credential': huidigVeld,
+        'auth/weak-password': ['geb-nieuw-ww-fout', 'geb-nieuw-ww'],
+      },
+    })
+    if (uitkomst !== 'ok' || !wwKnop.isConnected) return
+    toonOk(document.getElementById('geb-ww-ok'), 'Je wachtwoord is gewijzigd.')
+    document.getElementById('geb-huidig-ww').value = ''
+    document.getElementById('geb-nieuw-ww').value = ''
   })
 }
 

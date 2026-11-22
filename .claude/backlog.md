@@ -338,6 +338,19 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 
 ---
 
+### Na CK-023 — vervolgpunten (nog te nummeren)
+**Status:** Open · uit de kwaliteitscontroles van CK-023 (22 november 2026)
+
+- [ ] **Firebase-console (Paul):** Email enumeration protection aan in beide projecten; e-mailsjabloon "E-mailadreswijziging" (met terugdraailink) aan en in het Nederlands, test en productie
+- [ ] **↑/↓ in één transactie** (`runTransaction`) tegen dubbele volgordenummers bij twee tabbladen tegelijk
+- [ ] **Geen dubbel item na time-out:** document-id vooraf vastleggen en bij een nieuwe poging hergebruiken
+- [ ] **`aria-describedby` en `aria-invalid`** ook op `structuur-naam`, `profiel-naam`, `profiel-afkorting`, `geb-naam`
+- [ ] **Groottelimiet logo in de Firestore-regels**
+- [ ] **Club vastleggen vóór het vooraf lezen** bij Domeinen en Bestuursfuncties (nu pas erna; clubwissel in die fractie kan het item bij de andere club zetten — bijna onmogelijk)
+- [ ] Optioneel: ✕-kenmerk bij foutmeldingen; `aria-describedby` altijd aanwezig
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
@@ -361,7 +374,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ---
 
 ### CK-023 — Melding bij mislukt opslaan
-**Status:** Open
+**Status:** Gebouwd samen met CK-025 en token `--fout` (22 november 2026), kwaliteitscontroles en beoordelaar GO voor `test` · nog: testen op tst (17 stappen, `.claude/reports/CK-023-eindoordeel.md`), dan live
 
 *Als bestuurder wil ik een duidelijke melding krijgen als opslaan bij Pijlers & Domeinen mislukt, zodat ik niet denk dat mijn wijziging bewaard is.*
 

@@ -14,6 +14,7 @@
   --on-orange: #111212;
   --text:     #111212;
   --muted:    #6F6E6E;
+  --fout:     #c0392b;
   --font: "Barlow Semi Condensed", Arial, sans-serif;
   /* Vaste tekstgroottes volgens de huisstijl HCA */
   --fs-titel: 40px;        /* titel, kernwoord vet */
@@ -38,6 +39,7 @@
     --on-orange: #111212;
     --text:     #E8EEEE;
     --muted:    #A3B0B0;
+    --fout:     #FF8A7A;
     color-scheme: dark;
   }
 }
@@ -53,6 +55,7 @@
   --on-orange: #111212;
   --text:     #E8EEEE;
   --muted:    #A3B0B0;
+  --fout:     #FF8A7A;
   color-scheme: dark;
 }
 
@@ -338,8 +341,8 @@ footer a:hover { opacity: 1; }
   background: var(--bg);
 }
 .form-input:focus { outline: none; border-color: var(--petrol); }
-.form-input.fout { border-color: #c0392b; }
-.form-fout { font-size: var(--fs-label); color: #c0392b; }
+.form-input.fout { border-color: var(--fout); }
+.form-fout { font-size: var(--fs-label); color: var(--fout); }
 .form-rij { display: flex; gap: 8px; }
 
 /* ── Inlogscherm ── */
@@ -454,7 +457,7 @@ footer a:hover { opacity: 1; }
   font-weight: 600;
 }
 .btn-kaart-actie:hover { border-color: var(--petrol); color: var(--petrol); }
-.btn-kaart-actie.gevaar:hover { border-color: #c0392b; color: #c0392b; }
+.btn-kaart-actie.gevaar:hover { border-color: var(--fout); color: var(--fout); }
 
 /* ── Inline bewerkform ── */
 .pijler-bewerk-form {
@@ -475,12 +478,6 @@ footer a:hover { opacity: 1; }
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-.profiel-succes {
-  font-size: var(--fs-toelichting);
-  color: var(--petrol);
-  font-weight: 600;
-  margin: 0;
 }
 
 /* ── Club logo ── */
@@ -682,9 +679,9 @@ select.form-input {
 /* Domeinenoverzicht: drie kerncijfers */
 .cijfers.cijfers-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-/* Knoppen overal even hoog: vaste regelhoogte, ook voor een <label class="btn"> */
+/* Knoppen overal even hoog: vaste regelhoogte */
 .btn { line-height: 1.2; display: inline-flex; align-items: center; justify-content: center; }
-.btn.gevaar:hover { border-color: #c0392b; color: #c0392b; }
+.btn.gevaar:hover { border-color: var(--fout); color: var(--fout); }
 
 /* Instellingen: logoblok even breed als de formulieren, links uitgelijnd */
 .logo-upload-wrap { max-width: 480px; align-items: flex-start; }
@@ -824,3 +821,45 @@ body.met-omgeving-balk .inlog-wrap {
   line-height: 19px;
   color: var(--text);
 }
+
+/* ── Meldingen bij opslaan (CK-023/CK-025) ── */
+.meldingen { display: flex; flex-direction: column; }
+/* Geen gap: lege live regions mogen geen ruimte innemen; tussenruimte alleen tussen twee gevulde meldingen */
+.melding:not(:empty) + .melding:not(:empty) { margin-top: 8px; }
+/* Leeg: heft de flex-gap van de ouder op (zelfde truc als .tussen-hint:empty) */
+.meldingen:not(:has(.melding:not(:empty))) { margin-top: calc(-1 * var(--meld-gap, 16px)); }
+.pijler-form        { --meld-gap: 12px; }
+.pijler-bewerk-form { --meld-gap: 10px; }
+.logo-upload-wrap   { --meld-gap: 8px; }
+
+.melding {
+  font-size: var(--fs-toelichting);
+  line-height: 19px;
+  font-weight: 600;
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid currentColor;
+  overflow-wrap: anywhere;
+}
+.melding:empty { border-left: 0; padding: 0; }
+.melding-ok   { color: var(--petrol); }
+.melding-fout { color: var(--fout); }
+.melding .melding-actie { display: flex; width: fit-content; margin-top: 8px; }
+.melding .tussen-link { color: inherit; }
+
+.btn[aria-disabled="true"],
+.btn-kaart-actie[aria-disabled="true"] { opacity: .6; cursor: progress; }
+.btn[aria-disabled="true"]:hover { border-color: var(--border); }
+.btn.primary[aria-disabled="true"]:hover { border-color: var(--orange); }
+.btn-kaart-actie[aria-disabled="true"]:hover { border-color: var(--border); color: var(--muted); }
+.btn.gevaar[aria-disabled="true"]:hover { color: var(--petrol); }
+
+/* Focusring op knoppen; een bezige knop met focus dimt niet mee, zodat de ring goed zichtbaar blijft */
+.btn:focus-visible,
+.btn-kaart-actie:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.btn[aria-disabled="true"]:focus-visible,
+.btn-kaart-actie[aria-disabled="true"]:focus-visible { opacity: 1; }
+
+.logo-upload-wrap .form-rij { margin-top: 12px; }
+
+.meld-blok { display: flex; flex-direction: column; gap: 16px; }

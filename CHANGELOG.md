@@ -2,6 +2,26 @@
 
 ## [Ongepubliceerd]
 
+### Toegevoegd
+- Meldingen bij opslaan (CK-023 + CK-025): elke schrijfactie in Beheer (domeinen, bestuursfuncties, clubprofiel, clublogo) en Mijn account (naam, e-mailadres, wachtwoord) toont een statusregel onder de knoppen: "✓ …" bij succes (`role="status"`, ook na opnieuw tekenen) en een foutmelding in klare taal bij een fout (`role="alert"`), met knop "Opnieuw inloggen" bij een verlopen sessie of als opnieuw inloggen nodig is. Invoer blijft staan; serverfouten die bij een veld horen (dubbele functienaam, e-mailadres in gebruik, zwak of onjuist wachtwoord) staan onder dat veld. Geen ruwe foutcodes meer in beeld (wel in de console).
+- Tijdens opslaan staat de knop op "Bezig..." (`aria-disabled`, focus blijft) en doet een tweede klik niets; bij lijstacties zijn alle actieknoppen van de lijst tijdelijk inactief. Offline wordt niet geschreven; na 15 seconden zonder antwoord volgt een melding (geen automatische nieuwe poging).
+- Token `--fout` (licht `#c0392b`, donker `#FF8A7A`) voor alle foutkleuren, ook in donkere modus.
+
+### Opgelost
+- Domein toevoegen, bewerken en verwijderen, bestuursfunctie verwijderen en logo verwijderen faalden stil bij een fout.
+- ↑/↓ schrijft de nieuwe volgorde in één `writeBatch` (alles of niets), zodat een mislukte verplaatsing de nummering niet meer half kan beschadigen.
+- Het vooraf lezen bij toevoegen (volgorde, dubbele-naamcheck) valt binnen de foutafhandeling.
+- Hetzelfde logobestand opnieuw kiezen werkt na een fout; de logoknop is een echte, focusbare knop.
+- Herstelronde CK-023 (bevindingen tester, huisstijl, beveiliging, compliance, toegankelijkheid):
+  - Een late profiel- of logo-opslag (bijv. na een time-out en opnieuw inloggen bij een andere club) werkt het profiel in het geheugen alleen bij als dezelfde gebruiker nog in dezelfde club zit.
+  - Profiel en logo schrijven alleen hun eigen velden (`merge`; logo verwijderen met `deleteField()`), zodat ze elkaar niet meer overschrijven. Geen regelwijziging nodig.
+  - Logo: bestanden die geen afbeelding zijn of groter dan 10 MB worden geweigerd vóór het inlezen.
+  - Console: bij opslagfouten alleen code en naam; het volledige foutobject alleen in de ontwikkelomgeving.
+  - Focus valt terug op het eerste veld van het open toevoegformulier als "+ Toevoegen" verborgen is; ↑/↓ meldt de nieuwe plaats aan schermlezers via een verborgen statusregel.
+  - Veldfouten bij de clientvalidatie zetten en wissen samen tekst, rode rand, `aria-invalid` en focus (eerste fout).
+  - Focusring op knoppen (oranje), ook zichtbaar op een bezige knop; bezige Verwijderen-knop kleurt bij hover niet meer rood; lege meldingen nemen geen ruimte meer in.
+  - "Neem contact op met SVN10" toont het supportadres als link; eigen time-outtekst bij e-mail en wachtwoord wijzigen.
+
 ### Gewijzigd
 - Eigen adressen per omgeving (P0f): live op `clubkompas.svn10.nl`, online test op `tst.clubkompas.svn10.nl` (branch `test`, Vercel Preview, project `svn10-clubkompas-test`), lokaal "Ontwikkelomgeving". De omgeving wordt op één plek bepaald (`src/firebase.js`: lokaal de Vite-modus, online `VITE_OMGEVING` plus het project; Vercel Production altijd productie); nieuwe stop `test-met-productie` en `gemengde-config` voor online testbuilds (nooit op Vercel Production); melding "Inloggen is op dit adres nog niet toegestaan" bij een niet-toegestaan domein; README "Omgevingen" met werkwijze `test` → `main` en de inrichtingsstappen.
 - Beveiliging omgevingen (P0f, herstel): elke online build buiten Vercel Production die naar het productieproject wijst, stopt met `test-met-productie`, ongeacht `VITE_OMGEVING`; `gemengde-config` controleert ook of `VITE_FIREBASE_APP_ID` bij `VITE_FIREBASE_MESSAGING_SENDER_ID` past (op live alleen een waarschuwing); een Vercel-build zonder `VERCEL_ENV` faalt, zodat de vorige deploy blijft staan.
