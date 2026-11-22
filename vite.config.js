@@ -21,12 +21,18 @@ function sleutelsInModusbestand(mode) {
   return [...gevonden]
 }
 
-export default defineConfig(({ mode }) => ({
-  optimizeDeps: {
-    exclude: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-  },
-  define: {
-    __APP_BUILD__: JSON.stringify(new Date().toISOString()),
-    __MODUS_SLEUTELS__: JSON.stringify(sleutelsInModusbestand(mode)),
-  },
-}))
+export default defineConfig(({ mode }) => {
+  if (process.env.VERCEL && !process.env.VERCEL_ENV) {
+    throw new Error('[clubKOMPAS] Build gestopt: VERCEL is gezet maar VERCEL_ENV is leeg. Zet in Vercel "Automatically expose System Environment Variables" aan. De vorige deploy blijft actief.')
+  }
+  return {
+    optimizeDeps: {
+      exclude: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+    },
+    define: {
+      __APP_BUILD__: JSON.stringify(new Date().toISOString()),
+      __MODUS_SLEUTELS__: JSON.stringify(sleutelsInModusbestand(mode)),
+      __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV || ''),
+    },
+  }
+})

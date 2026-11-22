@@ -1,5 +1,5 @@
 import './style.css'
-import { auth, db, projectId, configFout } from './firebase.js'
+import { auth, db, projectId, configFout, SOORT, OMGEVING_LABEL, VERCEL_ENV } from './firebase.js'
 import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore'
@@ -9,13 +9,6 @@ let huidigProfiel = null
 let huidigGebruiker = null
 let huidigeRol = null
 
-// Omgeving waarin de app draait (midden in de footer). Per deploy in te stellen met
-// VITE_OMGEVING (bijv. "Productie"); zonder instelling is het "Ontwikkel".
-const OMGEVING = (import.meta.env.VITE_OMGEVING || 'Ontwikkel').trim()
-const SOORT = import.meta.env.DEV && import.meta.env.MODE === 'productie' ? 'productie-lokaal'
-  : OMGEVING.toLowerCase() === 'test' ? 'test'
-  : OMGEVING.toLowerCase() === 'productie' ? 'productie' : 'ontwikkel'
-const OMGEVING_LABEL = SOORT === 'productie-lokaal' ? 'Productie (lokaal)' : OMGEVING
 let laadTimer = null
 let foutPogingen = 0
 
@@ -289,7 +282,7 @@ function footerHTML() {
   const gebruikerLabel = huidigGebruiker
     ? `<a href="#" class="footer-account" title="Mijn account">${esc(sessieLabel())}</a>`
     : ''
-  const toonProject = SOORT === 'test' || SOORT === 'productie-lokaal'
+  const toonProject = SOORT !== 'productie'
   const label = SOORT === 'productie-lokaal'
     ? `<span class="omgeving-label--waarschuwing">${esc(OMGEVING_LABEL)}</span>`
     : esc(OMGEVING_LABEL)
@@ -409,13 +402,18 @@ function renderInlogscherm() {
         'auth/invalid-email': 'Ongeldig e-mailadres.',
         'auth/too-many-requests': 'Te veel pogingen. Probeer het later opnieuw.',
       }
+      const testProject = SOORT === 'test' || SOORT === 'ontwikkel'
+      if (e.code === 'auth/unauthorized-domain' || e.code === 'auth/unauthorized-continue-uri' || String(e.code).startsWith('auth/requests-from-referer')) {
+        toonAdresNietToegestaan(algFout, testProject)
+        return
+      }
       algFout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
-      if (SOORT === 'test' && ['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(e.code)) {
+      if (testProject && ['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(e.code)) {
         const hint = document.createElement('span')
         hint.className = 'inlog-test-hint'
         hint.append('Let op: je zit in de ')
         const sterk = document.createElement('strong')
-        sterk.textContent = 'testomgeving'
+        sterk.textContent = SOORT === 'ontwikkel' ? 'ontwikkelomgeving' : 'testomgeving'
         hint.append(sterk, '. Gebruik je testaccount, niet je gewone clubKOMPAS-account.')
         algFout.append(' ', hint)
       }
@@ -428,6 +426,25 @@ function renderInlogscherm() {
   document.getElementById('inlog-wachtwoord').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('inlog-knop').click()
   })
+}
+
+function toonAdresNietToegestaan(algFout, testProject) {
+  const adres = location.host
+  const metTag = (tag, tekst) => {
+    const el = document.createElement(tag)
+    el.textContent = tekst
+    return el
+  }
+  algFout.replaceChildren('Inloggen is op dit adres (', metTag('strong', adres), ') nog niet toegestaan.')
+  const gerust = metTag('span', 'Dit ligt niet aan je e-mailadres of wachtwoord; er is niets gewijzigd. Probeer het later opnieuw of meld het aan de beheerder.')
+  gerust.className = 'inlog-test-hint'
+  algFout.append(' ', gerust)
+  if (!testProject) return
+  const hint = document.createElement('span')
+  hint.className = 'inlog-test-hint'
+  hint.append('Voeg ', metTag('code', adres), ' toe in de Firebase-console van ', metTag('strong', projectId),
+    ' (Authentication → Settings → Authorized domains) en, als die er is, aan de websitebeperking van de API-key in Google Cloud Console.')
+  algFout.append(' ', hint)
 }
 
 function toonTussenkaart(inhoudHTML, { laden = false, gestopt = false } = {}) {
@@ -456,12 +473,43 @@ function renderConfigFout(fout) {
       'Stop de app (Ctrl+C) en start opnieuw met <code>npm run dev</code>.',
     ]
     hint = 'Bewust op productie werken? Gebruik <code>npm run dev:productie</code>.'
+  } else if (fout === 'test-met-productie' && VERCEL_ENV) {
+    titel = 'Gestopt: deze testomgeving wijst naar de echte clubdata'
+    alinea = `Het project in de configuratie is <code>${esc(projectId)}</code> (productie). Waarschijnlijk staan bij Vercel onder <strong>Preview</strong> nog de productiewaarden.`
+    stappen = [
+      'Open in Vercel: Settings → Environment Variables.',
+      'Zorg dat elke <code>VITE_FIREBASE_*</code> onder Preview de waarden van <code>svn10-clubkompas-test</code> heeft.',
+      'Doe daarna een Redeploy van de branch <code>test</code>.',
+    ]
+    hint = 'Je wilde de echte clubdata? Ga naar <a class="tussen-link" href="https://clubkompas.svn10.nl">clubkompas.svn10.nl</a>.'
+  } else if (fout === 'test-met-productie') {
+    titel = 'Gestopt: deze testbuild wijst naar de echte clubdata'
+    alinea = `Het project in de configuratie is <code>${esc(projectId)}</code> (productie), terwijl het label een testomgeving aangeeft.`
+    stappen = [
+      `Controleer dat <code>.env.${esc(import.meta.env.MODE)}.local</code> de waarden van het testproject bevat.`,
+      'Bouw opnieuw (<code>npx vite build --mode test</code>) en laad deze pagina opnieuw.',
+    ]
   } else if (fout === 'gemengde-config' && import.meta.env.DEV) {
     titel = 'Gestopt: de configuratie is onvolledig of gemengd'
     alinea = `In <code>${bestand}</code> ontbreekt een van de zes Firebase-waarden, of de waarden horen niet bij hetzelfde project (<code>${esc(projectId)}</code>). Een ontbrekende waarde vult Vite aan uit het oude bestand <code>.env</code> (productie).`
     stappen = [
-      `Zet alle zes Firebase-waarden van het testproject in <code>${bestand}</code>, met dezelfde project-ID in <code>VITE_FIREBASE_PROJECT_ID</code> en <code>VITE_FIREBASE_AUTH_DOMAIN</code> (zie README, “Omgevingen”).`,
+      `Zet alle zes Firebase-waarden van het testproject in <code>${bestand}</code>, met dezelfde project-ID in <code>VITE_FIREBASE_PROJECT_ID</code> en <code>VITE_FIREBASE_AUTH_DOMAIN</code>, en met hetzelfde projectnummer in <code>VITE_FIREBASE_APP_ID</code> en <code>VITE_FIREBASE_MESSAGING_SENDER_ID</code> (zie README, “Omgevingen”).`,
       'Stop de app (Ctrl+C) en start opnieuw met <code>npm run dev</code>.',
+    ]
+  } else if (fout === 'gemengde-config' && VERCEL_ENV) {
+    titel = 'Gestopt: de instellingen van deze testomgeving zijn onvolledig of passen niet bij elkaar'
+    alinea = `Een van de zes Firebase-waarden ontbreekt, of de waarden horen niet bij hetzelfde project (<code>${esc(projectId)}</code>).`
+    stappen = [
+      'Controleer in Vercel (Settings → Environment Variables, Preview) of alle zes <code>VITE_FIREBASE_*</code> gevuld zijn en bij hetzelfde project horen; <code>VITE_FIREBASE_AUTH_DOMAIN</code> begint met de project-ID en het getal na de eerste dubbele punt in <code>VITE_FIREBASE_APP_ID</code> is gelijk aan <code>VITE_FIREBASE_MESSAGING_SENDER_ID</code>.',
+      'Doe daarna een Redeploy van de branch <code>test</code>.',
+    ]
+  } else if (fout === 'gemengde-config') {
+    const modusBestand = `.env.${esc(import.meta.env.MODE)}.local`
+    titel = 'Gestopt: de configuratie is onvolledig of gemengd'
+    alinea = `In <code>${modusBestand}</code> ontbreekt een van de zes Firebase-waarden, of de waarden horen niet bij hetzelfde project (<code>${esc(projectId)}</code>).`
+    stappen = [
+      `Controleer in <code>${modusBestand}</code> of alle zes <code>VITE_FIREBASE_*</code> gevuld zijn en bij hetzelfde project horen; <code>VITE_FIREBASE_AUTH_DOMAIN</code> begint met de project-ID en het getal na de eerste dubbele punt in <code>VITE_FIREBASE_APP_ID</code> is gelijk aan <code>VITE_FIREBASE_MESSAGING_SENDER_ID</code>.`,
+      'Bouw opnieuw en laad deze pagina opnieuw.',
     ]
   } else if (import.meta.env.DEV) {
     titel = 'Geen verbinding ingesteld'
@@ -493,19 +541,25 @@ function renderConfigFout(fout) {
   console.error(`${titel}. ${tekst(alinea)}`)
 }
 
+const OMGEVINGS_BALK = {
+  ontwikkel: { klasse: 'test', titel: 'ONTWIKKEL', tekst: () => `<strong>Ontwikkelomgeving</strong> · op deze computer · project ${esc(projectId)} · fictieve data` },
+  test: { klasse: 'test', titel: 'TEST', tekst: () => `<strong>Testomgeving</strong> · online · project ${esc(projectId)} · fictieve data` },
+  'productie-lokaal': { klasse: 'productie', titel: 'PRODUCTIE LOKAAL', tekst: () => `<strong>Let op: echte clubdata</strong> · lokaal tegen ${esc(projectId)}` },
+}
+
 function toonOmgevingsBalk() {
-  if (SOORT !== 'test' && SOORT !== 'productie-lokaal') return
+  const variant = OMGEVINGS_BALK[SOORT]
+  if (!variant) return
   if (document.querySelector('.omgeving-balk')) return
   const balk = document.createElement('div')
-  balk.className = `omgeving-balk omgeving-balk--${SOORT === 'test' ? 'test' : 'productie'}`
+  balk.className = `omgeving-balk omgeving-balk--${variant.klasse}`
+  balk.dataset.soort = SOORT
   balk.setAttribute('role', 'note')
   balk.setAttribute('aria-label', 'Omgeving')
-  balk.innerHTML = SOORT === 'test'
-    ? `<strong>Testomgeving</strong> · project ${esc(projectId)} · fictieve data`
-    : `<strong>Let op: echte clubdata</strong> · lokaal tegen ${esc(projectId)}`
+  balk.innerHTML = variant.tekst()
   document.body.prepend(balk)
   document.body.classList.add('met-omgeving-balk')
-  document.title = `${SOORT === 'test' ? 'TEST' : 'PRODUCTIE LOKAAL'} · clubKOMPAS`
+  document.title = `${variant.titel} · clubKOMPAS`
 }
 
 function renderLaadkaart() {
@@ -525,8 +579,8 @@ function renderGeenClub(gebruiker) {
     <h1 class="inlog-titel" id="tussen-titel" tabindex="-1">Geen club gekoppeld</h1>
     <p class="tussen-tekst">${alinea1}</p>
     <p class="tussen-tekst">${alinea2}</p>
-    ${SOORT === 'test' ? `<p class="tussen-hint">
-      <strong>Testomgeving:</strong> controleer in de testconsole (project <code>${esc(projectId)}</code>)
+    ${SOORT === 'test' || SOORT === 'ontwikkel' ? `<p class="tussen-hint">
+      <strong>${SOORT === 'ontwikkel' ? 'Ontwikkelomgeving' : 'Testomgeving'}:</strong> controleer in de testconsole (project <code>${esc(projectId)}</code>)
       of <code>gebruikers/${esc(gebruiker?.uid || 'UID')}</code> bestaat met het veld <code>clubId</code>,
       en of <code>clubs/&lt;clubId&gt;/leden/${esc(gebruiker?.uid || 'UID')}</code> bestaat met <code>rol</code> = <code>beheerder</code>.
     </p>` : ''}

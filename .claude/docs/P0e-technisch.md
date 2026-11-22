@@ -108,3 +108,60 @@ Van buiten naar binnen; elke laag werkt ook als de vorige faalt.
 - **Firebase SDK bijwerken** en `npm audit` opnieuw draaien (bestaande high-meldingen in de SDK-keten; de 14 moderate meldingen in `firebase-tools` zijn dev-tooling).
 - **Foutkleur in donkere modus**: `.form-fout` haalt daar de contrastnorm niet. Voorstel: token `--fout` per modus (`#c0392b` licht, `#FF8A7A` donker) en `.form-fout { color: var(--fout) }`. Raakt ook de nieuwe inlogfout.
 - **Productieregio en verwerkersvoorwaarden** vaststellen en vastleggen (regio is niet te wijzigen; ligt productie buiten de EU, dan eigen punt voor verhuizing of risicoafweging).
+
+## P0f — Eigen adressen en online test
+
+P0f vervangt de secties "src/main.js: SOORT" en (deels) "src/firebase.js: configFout" hierboven. Het backlogpunt "Vercel Preview" hierboven is hiermee opgepakt.
+
+### Adressen
+
+| Omgeving | Adres | Vercel | Firebase-project |
+|---|---|---|---|
+| Ontwikkel | `localhost:5173` (`npm run dev`) | – | `svn10-clubkompas-test` |
+| Test | `tst.clubkompas.svn10.nl` | Preview, branch `test` (testwaarden voor alle Preview-branches) | `svn10-clubkompas-test` |
+| Productie | `clubkompas.svn10.nl` | Production, branch `main` | `svn10-clubkompas` |
+| (oud) | `dev.clubkompas.svn10.nl` | 307 naar live, 4 weken | – |
+
+### `__VERCEL_ENV__` (vite.config.js)
+
+`define`: `__VERCEL_ENV__ = process.env.VERCEL_ENV || ''` (`production`, `preview`, `development`; lokaal leeg). Geen `VITE_`-variabele, dus niet via het dashboard te overschrijven. Is `process.env.VERCEL` gezet maar `VERCEL_ENV` leeg (systeemvariabelen niet zichtbaar gemaakt), dan gooit `vite.config.js` een fout: de build faalt en Vercel houdt de vorige deploy actief. Zo kan live nooit als niet-live worden gebouwd.
+
+### SOORT (src/firebase.js, geëxporteerd met OMGEVING_LABEL en VERCEL_ENV)
+
+`label = VITE_OMGEVING` getrimd en in kleine letters; project-ID's altijd met `===`. Eerste regel die past wint:
+
+| # | Voorwaarde | SOORT |
+|---|---|---|
+| 1 | DEV en modus `productie` | `productie-lokaal` |
+| 2 | DEV (andere modus) | `ontwikkel` |
+| 3 | build, productieproject, `VERCEL_ENV === 'production'` | `productie` |
+| 4 | build, productieproject, online buiten Production (`VERCEL_ENV` gevuld) | `ontwikkel` bij label ontwikkel, anders `test` (altijd gevolgd door `test-met-productie`) |
+| 5 | lokale build (`VERCEL_ENV` leeg), productieproject | label `test`/`ontwikkel` → dat label; anders `productie` |
+| 6 | build, ander project, label `ontwikkel` | `ontwikkel` |
+| 7 | build, ander project, elk ander label | `test` |
+
+Footerlabel en balk komen altijd uit SOORT. Wijkt in een build het label af van SOORT, dan `console.warn`.
+
+### configFout
+
+`onvolledig` = een van de zes waarden leeg, of `authDomain` begint niet met `${projectId}.`, of `appId.split(':')[1] !== messagingSenderId`. `nietLive = !DEV && VERCEL_ENV !== 'production'`.
+
+| Waarde | Wanneer |
+|---|---|
+| `geen-config` | geen `projectId` (ook op live, ongewijzigd) |
+| `productie-lokaal` | DEV, productieproject, modus ≠ `productie` (P0e) |
+| `gemengde-config` | DEV en (`onvolledig` of `__MODUS_SLEUTELS__` mist een sleutel) (P0e) |
+| `test-met-productie` | `nietLive`, productieproject, SOORT `test`/`ontwikkel` (dus elke Preview met het productieproject, ongeacht het label) |
+| `gemengde-config` | `nietLive` en `onvolledig` |
+
+Op Vercel Production kan alleen `geen-config` optreden; `onvolledig` geeft daar alleen `console.warn`. De foutpagina's hebben een online variant (`VERCEL_ENV` gevuld: Vercel-stappen, link naar `clubkompas.svn10.nl`) en een variant voor een lokale build (`.env.<MODE>.local`).
+
+Beperking: een productie-`apiKey` of -`messagingSenderId` naast een testproject-ID wordt niet herkend, behalve via de appId/senderId-controle. Daarvoor zouden de productiesleutels in de code moeten staan; daar is bewust van afgezien.
+
+### Inlogscherm
+
+M16 ("Inloggen is op dit adres (…) nog niet toegestaan") bij `auth/unauthorized-domain`, `auth/unauthorized-continue-uri` en `auth/requests-from-referer*`; extra regel met project en console-pad bij SOORT `ontwikkel`/`test`. Hints M5/M6 gelden ook bij `ontwikkel`.
+
+### Werkwijze test → main
+
+Werken op `test` (of een featurebranch die in `test` wordt gemerged), pushen, controleren op `tst.clubkompas.svn10.nl`, daarna live met `git checkout main && git merge --ff-only test && git push`. Een spoedfix op `main` wordt teruggemerged in `test`. Firestore-regels blijven via `npm run regels:test` en daarna `regels:productie`. Zie README, "Online test en werkwijze branch `test`".

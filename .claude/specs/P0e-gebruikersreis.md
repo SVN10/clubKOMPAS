@@ -17,7 +17,7 @@ Gevolg: elke proef is een proef op echte clubdata.
 
 ### Stap A1: Testproject aanmaken
 **Situatie:** Paul is ingelogd op console.firebase.google.com en ziet het project `svn10-clubkompas`.
-**Actie:** Hij klikt **Project toevoegen**, noemt het `clubkompas-test` en zet Google Analytics uit.
+**Actie:** Hij klikt **Project toevoegen**, noemt het `svn10-clubkompas-test` en zet Google Analytics uit.
 **Resultaat:** Er staat een tweede projectkaart naast de productiekaart. Paul noteert de project-ID die onder de naam staat (kan een achtervoegsel hebben, bv. `clubkompas-test-3f2a1`) en geeft die door aan de bouwer.
 
 > Tip voor herkenbaarheid: in de testconsole staat de projectnaam linksboven. Daar kijkt Paul voortaan altijd eerst naar voordat hij iets wijzigt.
@@ -40,7 +40,7 @@ Gevolg: elke proef is een proef op echte clubdata.
 Zie reis D. Dit moet **vóór** stap A7, anders mag het seed-script niets schrijven.
 
 ### Stap A6: Testgebruiker en testclub koppelen
-**Situatie:** Testconsole (Paul controleert linksboven: `clubkompas-test`).
+**Situatie:** Testconsole (Paul controleert linksboven: `svn10-clubkompas-test`).
 **Actie:** Gebruiker `test-beheerder@svn10.nl` aanmaken en de uid noteren. Daarna `clubs` (automatische ID, noteert testclubId) → `leden/{uid}` met `rol: beheerder` → `gebruikers/{uid}` met `clubId`.
 **Resultaat:** Drie documenten in Firestore. Het wachtwoord staat alleen in zijn wachtwoordmanager.
 **Valkuil:** dit is de foutgevoeligste stap (uid overtypen, veldnaam `clubId` met hoofdletter I, rol als string). Zie de meldingen bij reis C/A7: die moeten precies zeggen welk document ontbreekt.
@@ -88,7 +88,7 @@ Zie reis D. Dit moet **vóór** stap A7, anders mag het seed-script niets schrij
 **Actie:** bv. `node scripts/import-hca.mjs --droog`
 **Resultaat:** Als allereerste regel, vóór de inlogvraag:
 ```
-DOEL: TEST — project clubkompas-test
+DOEL: TEST — project svn10-clubkompas-test
 ```
 Daarna gaat alles zoals Paul gewend is: e-mail, verborgen wachtwoord, overzicht, "ja".
 
@@ -117,7 +117,7 @@ Met `--droog` hoeft hij de projectnaam niet te typen; de kopregel staat er wel.
 
 ### Stap D2: Naar test
 **Actie:** `npm run regels:test`
-**Resultaat:** Kopregel `REGELS NAAR: TEST — project clubkompas-test`, daarna de Firebase-uitvoer eindigend op **"Deploy complete!"**. Controle: testconsole → Firestore → Regels toont dezelfde tekst en een nieuwe publicatietijd.
+**Resultaat:** Kopregel `REGELS NAAR: TEST — project svn10-clubkompas-test`, daarna de Firebase-uitvoer eindigend op **"Deploy complete!"**. Controle: testconsole → Firestore → Regels toont dezelfde tekst en een nieuwe publicatietijd.
 
 ### Stap D3: Testen in test
 **Actie:** Paul gebruikt de app (reis B) en/of de Rules Playground **in de testconsole**.
@@ -162,7 +162,7 @@ Algemene regel: elke melding zegt **wat er aan de hand is**, **wat er níet gebe
   > Gestopt: het bestand `.env.test.local` ontbreekt. Dit script weet daardoor niet met welk project het moet werken. Er is niets geschreven. Zie README, "Omgevingen". *(Bij productie: `.env.productie.local`.)*
 
 - **M4 — Bestand past niet bij de gekozen omgeving**
-  > Gestopt: je koos TEST, maar `.env.test.local` wijst naar het productieproject `svn10-clubkompas`. Er is niets geschreven. Zet de waarden van `clubkompas-test` in dat bestand.
+  > Gestopt: je koos TEST, maar `.env.test.local` wijst naar het productieproject `svn10-clubkompas`. Er is niets geschreven. Zet de waarden van `svn10-clubkompas-test` in dat bestand.
   >
   > Gestopt: je koos PRODUCTIE, maar `.env.productie.local` wijst naar `<project-id>` in plaats van `svn10-clubkompas`. Er is niets geschreven.
 
@@ -179,13 +179,13 @@ Algemene regel: elke melding zegt **wat er aan de hand is**, **wat er níet gebe
   > Gestopt: het seed-script vult alleen de testclub en draait nooit tegen productie. Er is niets geschreven.
 
 - **M11 — Testgebruiker niet gekoppeld** (seed-script en andere scripts na inloggen)
-  > Ingelogd als test-beheerder@svn10.nl, maar er is geen document `gebruikers/<uid>` met een `clubId` in project clubkompas-test. Maak het aan in de testconsole (README, stap 6) en draai het script opnieuw. Er is niets geschreven.
+  > Ingelogd als test-beheerder@svn10.nl, maar er is geen document `gebruikers/<uid>` met een `clubId` in project svn10-clubkompas-test. Maak het aan in de testconsole (README, stap 6) en draai het script opnieuw. Er is niets geschreven.
 
 - **M12 — Geen schrijfrechten** (vertaling van `permission-denied`)
   > Firestore weigert het schrijven in clubkompas-test. Er is niets geschreven. Meest waarschijnlijke oorzaken: (1) de regels staan nog niet in test, draai `npm run regels:test`; (2) de testgebruiker is geen beheerder, controleer `clubs/<clubId>/leden/<uid>` met `rol` = `beheerder`.
 
 - **M13 — Inloggen mislukt in een script**
-  > Inloggen mislukt bij project clubkompas-test. Controleer e-mail en wachtwoord. Let op: je testaccount en je gewone account zijn verschillende accounts in verschillende projecten.
+  > Inloggen mislukt bij project svn10-clubkompas-test. Controleer e-mail en wachtwoord. Let op: je testaccount en je gewone account zijn verschillende accounts in verschillende projecten.
 
 **Bij regels publiceren**
 

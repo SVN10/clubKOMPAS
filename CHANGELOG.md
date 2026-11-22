@@ -1,5 +1,13 @@
 # Changelog
 
+## [Ongepubliceerd]
+
+### Gewijzigd
+- Eigen adressen per omgeving (P0f): live op `clubkompas.svn10.nl`, online test op `tst.clubkompas.svn10.nl` (branch `test`, Vercel Preview, project `svn10-clubkompas-test`), lokaal "Ontwikkelomgeving". De omgeving wordt op één plek bepaald (`src/firebase.js`: lokaal de Vite-modus, online `VITE_OMGEVING` plus het project; Vercel Production altijd productie); nieuwe stop `test-met-productie` en `gemengde-config` voor online testbuilds (nooit op Vercel Production); melding "Inloggen is op dit adres nog niet toegestaan" bij een niet-toegestaan domein; README "Omgevingen" met werkwijze `test` → `main` en de inrichtingsstappen.
+- Beveiliging omgevingen (P0f, herstel): elke online build buiten Vercel Production die naar het productieproject wijst, stopt met `test-met-productie`, ongeacht `VITE_OMGEVING`; `gemengde-config` controleert ook of `VITE_FIREBASE_APP_ID` bij `VITE_FIREBASE_MESSAGING_SENDER_ID` past (op live alleen een waarschuwing); een Vercel-build zonder `VERCEL_ENV` faalt, zodat de vorige deploy blijft staan.
+- README: inrichtingsstappen aangescherpt (Authorized domains en API-keybeperking, `VITE_OMGEVING=Productie` alleen Production, Deployment Protection controleren en tester toevoegen, opheffen van `dev.` met eerst de DNS-regel weg, uitwijkroute bij uitval van Vercel).
+- Technische documentatie: sectie "P0f" in `.claude/docs/P0e-technisch.md`.
+
 ## [0.4.1] – 2026-11-22
 
 ### Toegevoegd

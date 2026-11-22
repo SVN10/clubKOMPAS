@@ -319,6 +319,24 @@
 
 ---
 
+### P0f — Eigen adressen voor live en online test (Platform-laag P0)
+**Status:** Gebouwd, kwaliteitscontroles en beoordelaar GO (22 november 2026) · Paul: stap 1 (authorized domains) gedaan, stap 2 (live domein + Hostnet) bezig · nog: commit/push, Vercel-variabelen scheiden, branch `test`, tst koppelen, dev doorsturen · Spec: `.claude/specs/P0f-adressen.md` · Eindoordeel: `.claude/reports/P0f-eindoordeel.md` · neemt het vervolgpunt "Vercel Preview naar testwaarden" mee
+
+*Als PO wil ik dat het adres zegt welke omgeving erachter zit, zodat niemand per ongeluk op live test of op test werkt.*
+
+Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en gebruikt Vercel Preview de productiewaarden.
+
+**Acceptatiecriteria:**
+- [ ] Live op **`clubkompas.svn10.nl`** (besluit Paul, 22 november 2026) als Production-domein in Vercel
+- [ ] **`tst.clubkompas.svn10.nl`** = online test: vaste branch (bijv. `test`) in Vercel met Preview-waarden van `svn10-clubkompas-test` en `VITE_OMGEVING=Test`
+- [ ] Testbalk ook zichtbaar op de online test (nu alleen lokaal)
+- [ ] Labels zeggen waar je bent: **lokaal "Ontwikkel"** (balk bijv. "Ontwikkelomgeving · project svn10-clubkompas-test", footer "Ontwikkel · Versie …"), **online test "Test"**, **live "Productie"**. Lokaal en tst delen voorlopig het testproject `svn10-clubkompas-test`; een eigen ontwikkelproject of de emulator kan later.
+- [ ] Firebase Authentication → Authorized domains: live adres in `svn10-clubkompas`, `tst.` in `svn10-clubkompas-test`
+- [ ] `dev.clubkompas.svn10.nl` tijdelijk doorsturen naar het live adres, daarna opheffen
+- [ ] DNS-records bij svn10.nl volgens Vercel
+
+---
+
 ### CK-019 — Clubprofiel veilig opslaan met meerdere bestuurders
 **Status:** Open · **Moet af zijn vóór een echte tweede bestuurder wordt gekoppeld**
 
@@ -372,6 +390,10 @@
 - [ ] **Vercel Preview naar testwaarden:** vastgesteld 22 november 2026: de zes `VITE_FIREBASE_*`-variabelen gelden voor **Production én Preview**, dus elke preview-deploy praat nu met de echte HCA-data. Oplossing: in Vercel per variabele aparte Preview-waarden van `svn10-clubkompas-test` plus `VITE_OMGEVING=Test` voor Preview. (`VITE_OMGEVING=Productie` staat sinds 22 november 2026 alleen op Production.)
 - [ ] **Firebase SDK bijwerken + audit:** 4 high-meldingen in `firebase`/`@grpc/grpc-js` (bestonden al); geen `npm audit fix --force`
 - [ ] **Foutkleur in donkere modus:** `.form-fout` haalt maar 2,73:1; token `--fout` per modus (bv. `#FF8A7A` in donker)
+- [ ] **Besluit Vercel Pro:** Hobby is alleen voor niet-commercieel gebruik en heeft geen verwerkersovereenkomst (DPA alleen Pro/Enterprise). Vóór een tweede club of betaalde afspraak overstappen; tot dan Vercel als subverwerker melden aan HCA (uit P0f-compliance)
+- [ ] **Deployment Protection van tst.:** staat hij open voor een HCA-tester, noteer begin- en einddatum en zet hem daarna weer aan (liever een Shareable Link)
+- [ ] **Verwerkingsregister (AVG art. 30):** Vercel (IP-adressen/logs, VS/DPF), Firebase live en test (test alleen fictieve data), Hostnet (DNS), acceptatiedata verwerkersvoorwaarden
+- [ ] **Websitebeperking op de Firebase API-key overwegen:** echte poort tegen gebruik vanaf andere sites; vraagt een aparte key voor de scripts (Node, zonder Referer)
 - [ ] **Productieregio en verwerkersvoorwaarden vastleggen:** regio noteren; Firebase-verwerkersvoorwaarden geaccepteerd in beide projecten; Google als subverwerker in de verwerkersovereenkomst met HCA
 
 ---
