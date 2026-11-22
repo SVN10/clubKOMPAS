@@ -1,6 +1,6 @@
 # Changelog
 
-## Ongepubliceerd
+## [0.4.1] – 2026-11-22
 
 ### Toegevoegd
 - Aparte testomgeving (P0e): `npm run dev` draait tegen Firebase-project `svn10-clubkompas-test`; omgevingsbalk bij Test en Productie (lokaal); scripts kiezen hun omgeving met `--omgeving=test|productie` (standaard test, productie alleen na het intypen van de projectnaam); `scripts/seed-testclub.mjs`; regels publiceren met `npm run regels:test` en `npm run regels:productie`.
@@ -11,6 +11,7 @@
 - Alle scripts gebruiken `scripts/lib/omgeving.mjs`; `scripts/import-hca.mjs` en `scripts/opschonen-dubbelen.mjs` kennen geen `--droog` en stoppen erop; `scripts/migrate.mjs` weigert altijd (verouderd).
 - `npm run dev` start in modus `test`; productie lokaal kan alleen met `npm run dev:productie`.
 - Technische documentatie: `.claude/docs/P0e-technisch.md`.
+- Navigatie en vormgeving sinds 0.4.0 (CK-029 t/m CK-037): rustiger dashboard als Domeinenoverzicht met kerncijfers; uitgelijnde beheertabellen; #hashtag per domein (ook op het dashboard); tekstgroottes volgens de huisstijl; titelbalk 30px; omgeving, versie en rol in de footer; Instellingen opgeheven (Club onder Beheer, Mijn account via je naam); zijmenu en kruimelpad; Home als huisje in het hoofdmenu.
 
 ## [0.4.0] – 2026-11-20
 

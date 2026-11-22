@@ -304,15 +304,15 @@
 
 ---
 
-### P0e — Aparte testomgeving (Platform-laag P0)
-**Status:** Gebouwd, kwaliteitscontroles GO, testproject ingericht en lokaal getest (22 november 2026) · nog: commit/push en Vercel-controle · Spec: `.claude/specs/P0e-testomgeving.md` · Bouwverslag: `.claude/reports/P0e-bouwverslag.md` · Hosting: Vercel
+### ✅ P0e — Aparte testomgeving (Platform-laag P0)
+**Status:** Afgerond en live in v0.4.1 (22 november 2026) · Vercel: `VITE_OMGEVING=Productie` op Production, live footer "Productie · Versie 0.4.1" · Spec: `.claude/specs/P0e-testomgeving.md` · Bouwverslag: `.claude/reports/P0e-bouwverslag.md` · Hosting: Vercel
 
 *Als ontwikkelaar en PO wil ik lokaal en met scripts testen op een apart Firebase-project, zodat de echte HCA-gegevens niet geraakt worden.*
 
 **Acceptatiecriteria (samengevat, zie spec):**
 - [x] Tweede Firebase-project `svn10-clubkompas-test` (gratis Spark), zelfde regio als productie (eur3)
 - [x] `npm run dev` draait standaard tegen test; footer toont "Test"
-- [ ] Lokaal tegen productie alleen bewust (`dev:productie`), met waarschuwing in de footer
+- [x] Lokaal tegen productie alleen bewust (`dev:productie`), met waarschuwing in de footer (gebouwd en getest op de code; nog niet in de browser bekeken)
 - [x] Scripts kiezen een omgeving (`--omgeving=test|productie`), tonen het project en vragen extra bevestiging voor productie
 - [x] Seed-script maakt een testclub met 15 domeinen en 6 bestuursfuncties
 - [x] Regels publiceren via de Firebase CLI: eerst test, dan productie (test gedaan; productie bij de volgende regelwijziging)
@@ -369,7 +369,7 @@
 ### Na P0e — vier vervolgpunten (nog te nummeren)
 **Status:** Open · uit de kwaliteitscontroles van P0e (22 november 2026), zie `.claude/docs/P0e-technisch.md`
 
-- [ ] **Vercel Preview naar testwaarden:** nagaan of de `VITE_FIREBASE_*`-variabelen ook voor Preview gelden; zo ja, Preview aan `svn10-clubkompas-test` koppelen (anders praat elke preview-deploy met de echte HCA-data)
+- [ ] **Vercel Preview naar testwaarden:** vastgesteld 22 november 2026: de zes `VITE_FIREBASE_*`-variabelen gelden voor **Production én Preview**, dus elke preview-deploy praat nu met de echte HCA-data. Oplossing: in Vercel per variabele aparte Preview-waarden van `svn10-clubkompas-test` plus `VITE_OMGEVING=Test` voor Preview. (`VITE_OMGEVING=Productie` staat sinds 22 november 2026 alleen op Production.)
 - [ ] **Firebase SDK bijwerken + audit:** 4 high-meldingen in `firebase`/`@grpc/grpc-js` (bestonden al); geen `npm audit fix --force`
 - [ ] **Foutkleur in donkere modus:** `.form-fout` haalt maar 2,73:1; token `--fout` per modus (bv. `#FF8A7A` in donker)
 - [ ] **Productieregio en verwerkersvoorwaarden vastleggen:** regio noteren; Firebase-verwerkersvoorwaarden geaccepteerd in beide projecten; Google als subverwerker in de verwerkersovereenkomst met HCA
