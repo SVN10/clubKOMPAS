@@ -300,6 +300,7 @@
 - [x] Kruimelpad boven de inhoud: Home › Beheer › Domeinen, en Home › Mijn account; klikbaar
 - [x] Telefoon: zijmenu als horizontale rij bovenaan
 - [x] Home blijft zonder zijmenu en kruimelpad (volle breedte)
+- [x] Home in het hoofdmenu als huisje (pictogram, met "Home" voor schermlezers en als tooltip)
 
 ---
 

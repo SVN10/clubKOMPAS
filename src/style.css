@@ -748,3 +748,8 @@ select.form-input {
   .zijmenu a, .zijmenu.ingeklapt a { height: auto; padding: 10px 12px; gap: 6px; border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; }
   .zijmenu.ingeklapt a .naam { display: inline; }
 }
+
+/* Home in het hoofdmenu als huisje (zoals in de mockup) */
+/* Precies even breed als het ingeklapte zijmenu (44px, incl. rand), zodat ze verticaal uitlijnen */
+.top-nav a.nav-home { display: flex; align-items: center; justify-content: center; width: 44px; padding-left: 0; padding-right: 0; box-sizing: border-box; }
+.top-nav a.nav-home svg { width: 18px; height: 18px; flex: none; }

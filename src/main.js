@@ -266,7 +266,7 @@ function topBarHTML() {
 function navHTML(actief) {
   return `
     <nav class="top-nav">
-      <a href="#" class="nav-home${actief === 'home' ? ' active' : ''}">Home</a>
+      <a href="#" class="nav-home${actief === 'home' ? ' active' : ''}" title="Home"${actief === 'home' ? ' aria-current="page"' : ''}><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 2L2 9h2v9h4v-5h4v5h4V9h2z"/></svg><span class="sr-only">Home</span></a>
       <a href="#" class="nav-beheer${actief === 'beheer' ? ' active' : ''}">Beheer</a>
     </nav>`
 }
