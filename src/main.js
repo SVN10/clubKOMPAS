@@ -1018,7 +1018,7 @@ function plaatKaartHTML(d, lijst, functieNaam, onderdelen = null) {
   const soort = d.type === 'pijler' ? 'pijler' : d.type === 'domein' ? 'steun' : 'over'
   const sub = d.type !== 'overkoepelend' && d.hashtag ? `<p class="plaat-sub">${esc(d.hashtag)}</p>` : ''
   const verantw = functieNaam
-    ? `<p class="plaat-verantw">Eindverantwoordelijke: <strong>${esc(functieNaam.get(d.bestuursfunctieId) || 'nog niet gekozen')}</strong></p>`
+    ? `<p class="plaat-verantw"><span class="sr-only">Eindverantwoordelijke: </span><strong>${esc(functieNaam.get(d.bestuursfunctieId) || 'nog niet gekozen')}</strong></p>`
     : ''
   let rest
   if (d.type === 'overkoepelend' && onderdelen) {
