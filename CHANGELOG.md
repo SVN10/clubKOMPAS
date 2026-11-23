@@ -1,5 +1,24 @@
 # Changelog
 
+## Ongepubliceerd
+
+### Gewijzigd
+- Eén navigatie op elke ingelogde pagina (CK-044): Home, Domeinen, Bestuursfuncties, Club en Mijn account delen één app-shell met dezelfde petrol balk, hetzelfde zijmenu, kruimelpad en footer. Draait "Home zonder zijmenu" (CK-037) terug.
+  - Zijmenu met de groepen **Overzicht** (Home) en **Beheer** (Domeinen, Bestuursfuncties, Club), onderaan "naam · rol" (naar Mijn account) en **Uitloggen** (zonder bevestiging), daaronder de knop Menu inklappen/uitklappen. Inklapbaar tot 44px; de stand blijft bewaard (`zijmenu-ingeklapt`), standaard uitgeklapt. Het zijmenu blijft in beeld bij scrollen. Actief item wit met oranje linkerrand, vet en `aria-current="page"`; ingeklapt verschijnt de naam als tooltip bij aanwijzen én bij toetsenbordfocus.
+  - De witte titelbalk, het huisje en "Beheer" in de balk vervallen. De petrol balk (oranje onderrand, 52px) toont het kompas en "club**KOMPAS** · clubnaam" in wit op 22px (herziet de 30px-uitzondering uit CK-031); een lange clubnaam wordt afgekapt met "…". Het clublogo (78px, `alt=""`) staat half over de balk en half over het kruimelpad, met vrije ruimte rechts; op mobiel 36px binnen de balk.
+  - Mobiel (≤700px): menuknop ☰ opent het zijmenu als uitschuifpaneel onder de omgevingsbalk, met gedimde achtergrond. Sluiten met ✕, Esc, een tik op de achtergrond of een keuze; focus gaat naar ✕ en terug naar ☰; de rest van de pagina is intussen onbereikbaar (`inert`) en scrollt niet.
+  - Overslaglink "Direct naar inhoud" als eerste element.
+  - Footer: links "clubKOMPAS · een product van SVN10", rechts omgeving · versie (tooltip met bouwdatum). Naam · rol en de uitlogknop zijn uit de footer verhuisd naar het zijmenu.
+  - Opgeruimd: oude klassen en functies voor de bovenbalknavigatie, de footer-account en de uitlogknop.
+  - Na een paginawissel via het menu, het kruimelpad of "Beheer →" krijgt het tabblad de paginanaam ("Domeinen · clubKOMPAS", met het omgevingsvoorvoegsel op Test/Ontwikkel) en gaat de focus naar de nieuwe inhoud.
+  - Ingeklapt menu: de tooltip is met Esc weg te halen en met de muis te bereiken. Bij weinig schermhoogte scrolt het ingeklapte menu, zodat Uitloggen bereikbaar blijft. De lijsten in het menu blijven lijsten voor VoiceOver (`role="list"`).
+  - Donker thema: balk, footer en sectiekoppen krijgen een donkere petrol (`--petrol-vlak`, wit erop 8,1:1). Het lichte thema is ongewijzigd.
+  - Zonder ingestelde naam toont de accountregel alleen het deel van het e-mailadres vóór de @.
+  - Huisstijl: het ☰-icoon heeft dezelfde lijndikte als de menupictogrammen; schaduwen en dimlaag lopen via tokens.
+
+### Beveiliging
+- `esc()` escapet ook enkele aanhalingstekens. Navigatie zoekt alleen in een vaste tabel (`Map`), ids in het menu worden ge-escaped. Uitloggen buiten het menu om (bijv. in een ander tabblad) ruimt een open menupaneel op. Een mislukte uitlog wordt gelogd (alleen de foutcode).
+
 ## [0.5.0] – 2026-11-22
 
 ### Toegevoegd

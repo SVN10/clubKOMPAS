@@ -236,6 +236,7 @@
 ---
 
 ### ✅ CK-031 — Tekstgroottes volgens de huisstijl
+*Herzien in CK-044: de titelbalk-uitzondering van 30px vervalt; de titel staat nu op 22px in de petrol balk.*
 **Status:** Gebouwd (20 november 2026)
 
 - [x] Vaste schaal als CSS-variabelen: titel 40, hoofdstuk 24, paragraaf 18, bloknaam 15, lopende tekst 14, toelichting 13, label 12
@@ -293,6 +294,7 @@
 ---
 
 ### ✅ CK-037 — Zijmenu en kruimelpad (volgens de mockup)
+*Herzien in CK-044: het zijmenu staat nu op elke pagina, ook Home; het huisje en het menu in de petrol balk vervallen.*
 **Status:** Gebouwd (22 november 2026)
 
 - [x] Beheer: zijmenu links met Domeinen · Bestuursfuncties · Club (lijnpictogram + naam); actief item petrol met witte tekst; vervangt de knoppen bovenaan
@@ -348,6 +350,40 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 - [ ] **Groottelimiet logo in de Firestore-regels**
 - [ ] **Club vastleggen vóór het vooraf lezen** bij Domeinen en Bestuursfuncties (nu pas erna; clubwissel in die fractie kan het item bij de andere club zetten — bijna onmogelijk)
 - [ ] Optioneel: ✕-kenmerk bij foutmeldingen; `aria-describedby` altijd aanwezig
+
+---
+
+### CK-044 — Eén navigatie: zijmenu op elke pagina (Platform-laag)
+**Status:** Gebouwd, kwaliteitscontroles en beoordelaar GO voor `test` (23 november 2026) · nog: testen op tst (13 stappen, `.claude/reports/CK-044-eindoordeel.md`), dan live · Bouwverslag: `.claude/reports/CK-044-bouwverslag.md` · **MoSCoW:** Should · **Laag:** Platform (app-shell, generiek voor elke club) · Besluiten: `.claude/specs/CK-044-besluiten.md` (Paul, 22 november 2026) · Draait CK-037 "Home zonder zijmenu" terug en herziet de 30px-uitzondering uit CK-031
+
+*Als bestuurder wil ik op elke pagina hetzelfde zijmenu met overzicht, beheer en mijn account, zodat ik altijd op één plek navigeer en weet waar ik ben.*
+
+**Acceptatiecriteria:**
+- [ ] **Zijmenu op elke pagina, ook Home**, met kopjes **Overzicht** (Home; later Vermogens, Activiteiten, Seizoensplanner, Documenten — pas zichtbaar als gebouwd) en **Beheer** (Domeinen, Bestuursfuncties, Club); inklapbaar tot 44px (alleen pictogrammen), stand onthouden in localStorage `zijmenu-ingeklapt`; kruimelpad blijft (Home › Beheer › Domeinen)
+- [ ] **Onderaan het zijmenu:** "naam · rol" → Mijn account, en **Uitloggen**; de footer houdt omgeving en versie in het midden (naam · rol verhuist uit de footer)
+- [ ] **Witte titelbalk vervalt;** de petrol balk (oranje onderrand) toont het kompas + "club**KOMPAS** · Hockey Club Alphen" in wit (ca. 22px, CK-031-uitzondering herzien); huisje en Beheer verdwijnen uit de balk; omgevingsbalk (P0e/P0f) blijft boven alles
+- [ ] **Clublogo** 78px rechtsboven, half over de petrol balk en half over de pagina (absoluut); titel, kruimelpad en eerste inhoud laten rechtsboven ruimte vrij; op mobiel kleiner en binnen de balk
+- [ ] **Mobiel:** menuknop (☰) in de petrol balk opent het zijmenu als uitschuifpaneel (vervangt de horizontale rij uit CK-037); toegankelijk: `aria-expanded`/`aria-controls` op de knop, focus naar het paneel en terug naar de knop bij sluiten, sluiten met Esc en met een klik op de achtergrond, geen focus achter het paneel
+
+**Risico's:**
+- Bestaande layout-klassen (`.top-bar`, `.top-nav`, `.app-lijf`, `.zijmenu`, `.kruimelpad`) worden omgebouwd: Home krijgt nu ook `.app-lijf` met zijmenu; controleer dat Beheer, Mijn account en de foutmeldingen/bevestigingen uit CK-023/CK-025 niet verschuiven of dubbel renderen. Eerst inventariseren waar deze klassen gebruikt worden; oude klassen echt opruimen, geen dode CSS.
+- Clublogo met absolute positie kan over titel of kruimelpad vallen bij smalle schermen en ingeklapt/uitgeklapt menu; testen op ca. 400px, 768px en desktop.
+- Uitschuifpaneel: focusbeheer en Esc zijn de grootste kans op een toegankelijkheidsfout; ook ingeklapt menu heeft namen voor schermlezers en tooltips nodig.
+- Groep Beheer wordt later rolafhankelijk (P0d): nu al als aparte groep opbouwen, zodat verbergen één voorwaarde is.
+
+---
+
+### Na CK-044 — vervolgpunten (nog te nummeren)
+**Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
+
+- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+- [ ] **Eén `h1` per pagina** (nu alleen Home)
+- [ ] **Domeinenlijst op ~768px** met uitgeklapt zijmenu: vaste kolommen (~900px) passen niet; responsieve rij
+- [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
+- [ ] **Ongebruikte CSS opruimen:** `.functie-label`, `.picto-groot`, `.structuur-rij-info`, `.volgorde-nr`
+- [ ] **Uitloggen mislukt:** nu alleen een melding in de console; zichtbare melding voor de gebruiker
+- [ ] **Laadsignaal bij navigeren** naar Domeinen/Bestuursfuncties (en geen shell terug over het inlogscherm bij uitloggen tijdens laden)
+- [ ] **Donker thema: `.filter-knop.active`** (Domeinen) haalt 2,38:1; ook `--petrol-vlak` gebruiken
 
 ---
 

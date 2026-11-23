@@ -9,6 +9,7 @@
   --border:   #C9D7D7;
   --petrol:   #46797B;
   --petrol-dark: #3A6567;
+  --petrol-vlak: var(--petrol);   /* vlakken met witte tekst: balk, footer, sectiekop */
   --on-petrol:#FFFFFF;
   --orange:   #FF9E16;
   --on-orange: #111212;
@@ -24,6 +25,10 @@
   --fs-lopend: 14px;       /* lopende tekst */
   --fs-toelichting: 13px;  /* ondertitels en korte toelichtingen */
   --fs-label: 12px;        /* kleine labels, nooit kleiner */
+  /* Schaduwen en dimlaag: in licht en donker thema gelijk */
+  --schaduw-tooltip: 0 2px 6px rgba(0,0,0,.18);
+  --schaduw-paneel: 4px 0 16px rgba(0,0,0,.2);
+  --dimlaag: rgba(0,0,0,.45);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +39,7 @@
     --border:   #2E4447;
     --petrol:   #7DB1B3;
     --petrol-dark: #2F5658;
+    --petrol-vlak: #2F5658;
     --on-petrol:#FFFFFF;
     --orange:   #FFAA33;
     --on-orange: #111212;
@@ -50,6 +56,7 @@
   --border:   #2E4447;
   --petrol:   #7DB1B3;
   --petrol-dark: #2F5658;
+  --petrol-vlak: #2F5658;
   --on-petrol:#FFFFFF;
   --orange:   #FFAA33;
   --on-orange: #111212;
@@ -70,17 +77,7 @@ body {
   flex-direction: column;
 }
 
-/* ── Top bar ── */
-.top-bar {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  position: relative;
-}
-.top-bar.heeft-logo { padding-right: 110px; }
+/* ── Kompas en titel (petrol; wit binnen .top-bar) ── */
 .app-icon {
   width: 30px; height: 30px; flex: none;
   color: var(--petrol);
@@ -92,32 +89,6 @@ body {
   color: var(--petrol);
 }
 .app-title b { font-weight: 700; }
-
-/* ── Top nav ── */
-.top-nav {
-  background: var(--petrol);
-  border-bottom: 4px solid var(--orange);
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-.top-nav a {
-  color: var(--on-petrol);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: var(--fs-lopend);
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  padding: 13px 16px;
-  display: block;
-  white-space: nowrap;
-  border-right: 1px solid rgba(255,255,255,.18);
-}
-.top-nav a:hover { background: rgba(255,255,255,.12); }
-.top-nav a.active {
-  background: var(--surface);
-  color: var(--petrol);
-}
 
 /* ── Wrap ── */
 .wrap {
@@ -159,7 +130,7 @@ body {
 /* ── Sectie blokken ── */
 .sectie { margin-bottom: 20px; }
 .sectie-kop {
-  background: var(--petrol);
+  background: var(--petrol-vlak);
   color: var(--on-petrol);
   border-bottom: 4px solid var(--orange);
   padding: 8px 14px;
@@ -264,35 +235,19 @@ body {
 
 /* ── Footer ── */
 footer {
-  background: var(--petrol);
+  background: var(--petrol-vlak);
   color: var(--on-petrol);
   padding: 12px 16px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
   gap: 8px 20px;
   font-size: var(--fs-label);
   line-height: 16px;
   letter-spacing: .08em;
   text-transform: uppercase;
-  margin-top: 32px;
-}
-footer a { color: var(--on-petrol); text-decoration: none; opacity: .8; }
-footer a:hover { opacity: 1; }
-.footer-rechts {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: flex-end;
-}
-.footer-rechts .btn {
-  font-size: var(--fs-label);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--on-petrol);
-  border-color: rgba(255,255,255,.4);
-  background: transparent;
-  padding: 4px 10px;
+  margin-top: 0;
 }
 
 /* ── Pijler toevoegen ── */
@@ -395,8 +350,6 @@ footer a:hover { opacity: 1; }
 
 .inlog-knop { width: 100%; justify-content: center; margin-top: 4px; }
 
-.uitlog-knop { font-size: var(--fs-toelichting); padding: 6px 12px; }
-
 /* ── Tussenkaarten (laden / geen club / fout) ── */
 .inlog-titel[tabindex="-1"]:focus { outline: none; }
 
@@ -480,16 +433,7 @@ footer a:hover { opacity: 1; }
   gap: 16px;
 }
 
-/* ── Club logo ── */
-.club-logo {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  height: 78px;
-  width: auto;
-  object-fit: contain;
-  z-index: 2;
-}
+/* ── Clublogo uploaden ── */
 .logo-upload-wrap { display: flex; flex-direction: column; gap: 8px; }
 .logo-preview { height: 80px; width: auto; object-fit: contain; border: 1px solid var(--border); padding: 8px; background: var(--card); }
 .logo-leeg { font-size: var(--fs-toelichting); color: var(--muted); font-style: italic; }
@@ -669,10 +613,6 @@ select.form-input {
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Titelbalk: titel en kompaslogo 30px (bewuste uitzondering op de tekstschaal) */
-.top-bar .app-title { font-size: 30px; }
-.top-bar .app-icon { width: 30px; height: 30px; }
-
 /* Kopbalken alleen met de titel links (geen toelichting rechts) */
 .sectie-kop { min-height: 40px; }
 
@@ -687,49 +627,146 @@ select.form-input {
 .logo-upload-wrap { max-width: 480px; align-items: flex-start; }
 .logo-preview { max-width: 100%; }
 
-/* Naam · rol in de footer: link naar Mijn account (CK-036) */
-.footer-account { color: var(--on-petrol); text-decoration: none; opacity: 1; }
-.footer-account:hover { text-decoration: underline; text-underline-offset: 3px; }
-.footer-account:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+/* ── App-shell (CK-044) ── */
+:root { --kop-h: 52px; }                              /* hoogte petrol balk incl. oranje rand */
+body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 
-/* ── Zijmenu en kruimelpad (CK-037, volgens de mockup) ── */
-.app-lijf { display: flex; align-items: stretch; min-height: calc(100vh - 160px); }
+#app:has(> .app-shell) { flex: 1; display: flex; flex-direction: column; }
+.app-shell { flex: 1; display: flex; flex-direction: column; position: relative; --logo-ruimte: 16px; }
+.app-shell.heeft-logo { --logo-ruimte: 192px; }      /* max-width logo 160 + rechts 16 + lucht 16 */
+
+/* Overslaglink */
+.overslaan {
+  position: absolute; left: 16px; top: 8px; z-index: 50;
+  background: var(--orange); color: var(--on-orange);
+  font-size: var(--fs-lopend); font-weight: 700; text-decoration: none;
+  padding: 8px 14px;
+}
+.overslaan:not(:focus) { width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.overslaan:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.app-kolom > main:focus { outline: none; }
+
+/* Petrol balk */
+.top-bar {
+  position: relative;
+  height: 52px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 var(--logo-ruimte) 0 16px;
+  background: var(--petrol-vlak); color: var(--on-petrol);
+  border-bottom: 4px solid var(--orange);
+}
+.top-bar .app-icon { width: 24px; height: 24px; color: var(--on-petrol); }
+.top-bar .app-title {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 22px; line-height: 26px;               /* bewuste uitzondering op de tekstschaal (herziet CK-031) */
+  color: var(--on-petrol);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.menu-knop { display: none; }
+
+/* Clublogo: verticaal gecentreerd op de onderrand van de balk (13 + 39 = 52) */
+.club-logo {
+  position: absolute; top: 13px; right: 16px; z-index: 3;
+  height: 78px; width: auto; max-width: 160px; object-fit: contain;
+}
+
+/* Lijf */
+.app-lijf { flex: 1; display: flex; align-items: stretch; }
 .app-kolom { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.app-kolom > main { flex: 1; }
+.app-kolom > main { flex: 1; padding-bottom: 32px; }   /* neemt de margin-top van de footer over */
 
-.zijmenu {
-  width: 172px; flex: none;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+/* Zijmenu */
+.zijmenu { width: 172px; flex: none; background: var(--surface); border-right: 1px solid var(--border); }
+.zijmenu-binnen {
+  position: sticky; top: 0; z-index: 5;
+  height: min(100%, calc(100dvh - var(--kop-h)));
   display: flex; flex-direction: column;
-  padding-bottom: 6px;
+  overflow-y: auto; padding-top: 4px;
 }
-.zijmenu-knop {
-  display: flex; align-items: center; justify-content: center;
-  height: 44px; width: 100%;
-  background: transparent; border: 0; border-bottom: 1px solid var(--border);
-  color: var(--petrol); cursor: pointer;
+.zijmenu-paneelkop { display: none; }
+.zijmenu-groep ul { list-style: none; }
+.zijmenu-kop {
+  display: block; padding: 12px 12px 4px 16px;      /* 16 = rand 4 + padding 12: lijnt uit met de pictogrammen */
+  font-size: var(--fs-label); line-height: 16px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
 }
-.zijmenu-knop svg { width: 16px; height: 16px; opacity: .7; }
-.zijmenu-knop:hover { background: var(--card); }
-.zijmenu a {
-  display: flex; align-items: center; gap: 8px;
-  padding: 13px 12px;
-  color: var(--petrol); text-decoration: none;
-  border-left: 3px solid transparent;
-  font-size: var(--fs-toelichting); line-height: 18px;
+.zijmenu-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 44px; padding: 0 12px;
+  border: 0; border-left: 4px solid transparent; background: transparent;
+  color: var(--petrol); font-family: var(--font); font-size: var(--fs-lopend); line-height: 18px;
+  text-align: left; text-decoration: none; cursor: pointer;
 }
-.zijmenu a svg { width: 16px; height: 16px; flex: none; }
-.zijmenu a:hover { background: var(--card); border-left-color: var(--border); }
-.zijmenu a[aria-current="page"] { background: var(--petrol); color: var(--on-petrol); font-weight: 700; border-left-color: var(--petrol); }
-.zijmenu a:focus-visible, .zijmenu-knop:focus-visible, .kruimel:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
-.zijmenu.ingeklapt { width: 44px; }
-.zijmenu.ingeklapt a { justify-content: center; padding: 0; height: 44px; gap: 0; border-left-width: 2px; }
-.zijmenu.ingeklapt a .naam { display: none; }
-.zijmenu.ingeklapt a svg { width: 18px; height: 18px; }
+.zijmenu-item svg { width: 18px; height: 18px; flex: none; }
+.zijmenu-item .naam { min-width: 0; }
+.zijmenu-item:hover { background: var(--card); border-left-color: var(--border); }
+.zijmenu-item[aria-current="page"] { background: var(--card); border-left-color: var(--orange); font-weight: 700; }
 
+/* Onderblok: account + uitloggen, daaronder de inklapknop */
+.zijmenu-onder { margin-top: auto; padding-top: 8px; }
+.zijmenu-account { border-top: 1px solid var(--border); padding-block: 8px; }
+.naam-voor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.naam-sessie {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere; font-size: var(--fs-toelichting); line-height: 17px;
+}
+.zijmenu-knop { border-top: 1px solid var(--border); color: var(--muted); font-size: var(--fs-toelichting); }
+.zijmenu-knop svg { width: 16px; height: 16px; }
+
+/* Focusringen in de shell: oranje 2px + 1px donkere binnenlijn (contrast ≥3:1 op wit/surface) */
+.zijmenu-item:focus-visible,
+.zijmenu-sluit:focus-visible { outline: 2px solid var(--orange); outline-offset: -2px; box-shadow: inset 0 0 0 3px var(--text); }
+.menu-knop:focus-visible     { outline: 2px solid var(--orange); outline-offset: -2px; box-shadow: inset 0 0 0 3px var(--on-petrol); }
+.kruimel:focus-visible       { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }
+
+/* Ingeklapt: alleen op desktop; op mobiel wordt .ingeklapt genegeerd */
+@media (min-width: 701px) {
+  .zijmenu.ingeklapt { width: 44px; }
+  .zijmenu.ingeklapt .zijmenu-binnen { overflow: visible; }       /* anders knipt de tooltip af */
+  .zijmenu.ingeklapt .zijmenu-kop,
+  .zijmenu.ingeklapt .zijmenu-item .naam {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .zijmenu.ingeklapt .zijmenu-groep + .zijmenu-groep::before {
+    content: ""; display: block; height: 1px; margin: 8px 10px; background: var(--border);
+  }
+  .zijmenu.ingeklapt .zijmenu-item { justify-content: center; gap: 0; padding: 0 4px 0 0; }  /* 4px rechts compenseert de linkerrand */
+  .zijmenu.ingeklapt .zijmenu-account { padding-block: 0; }
+  .zijmenu.ingeklapt .zijmenu-knop svg { transform: scaleX(-1); }
+
+  /* Tooltip = de .naam zelf, bij hover en toetsenbordfocus */
+  .zijmenu.ingeklapt:not(.tip-uit) .zijmenu-item:is(:hover, :focus-visible) .naam {
+    left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+    width: auto; height: auto; margin: 0; padding: 4px 8px;
+    overflow: visible; clip-path: none; white-space: nowrap;
+    background: var(--petrol-dark); color: var(--on-petrol);
+    font-size: var(--fs-label); line-height: 16px; font-weight: 600;
+    border-radius: 4px; box-shadow: var(--schaduw-tooltip);
+    z-index: 40;
+  }
+  /* Brug over de 8px tussenruimte, zodat de muis de tooltip kan bereiken zonder dat hij verdwijnt */
+  .zijmenu.ingeklapt:not(.tip-uit) .zijmenu-item:is(:hover, :focus-visible) .naam::before {
+    content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 8px;
+  }
+  .zijmenu.ingeklapt:not(.tip-uit) .zijmenu-account:is(:hover, :focus-visible) .naam-voor {
+    position: static; display: block; width: auto; height: auto; margin: 0;
+    overflow: visible; clip-path: none; font-weight: 700;
+  }
+  .zijmenu.ingeklapt:not(.tip-uit) .zijmenu-account:is(:hover, :focus-visible) .naam-sessie {
+    display: block; -webkit-line-clamp: unset; font-size: var(--fs-label); line-height: 16px; font-weight: 400;
+  }
+  .zijmenu-achtergrond { display: none; }
+}
+/* Lage viewport (bijv. ingezoomd): bereikbaarheid gaat voor de tooltip */
+@media (min-width: 701px) and (max-height: 480px) {
+  .zijmenu.ingeklapt .zijmenu-binnen { overflow-y: auto; }
+}
+
+/* Kruimelpad; rechts ruimte voor het logo */
 .kruimelpad {
-  height: 44px; padding: 0 16px;
+  height: 44px; padding: 0 var(--logo-ruimte, 16px) 0 16px;
   display: flex; align-items: center;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
@@ -741,18 +778,45 @@ select.form-input {
 .kruimel-sep { color: var(--muted); padding: 0 6px; }
 .kruimel-huidig { color: var(--petrol); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 
+/* Mobiel: uitschuifpaneel */
 @media (max-width: 700px) {
-  .app-lijf { flex-direction: column; min-height: 0; }
-  .zijmenu, .zijmenu.ingeklapt { width: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 0; }
-  .zijmenu-knop { display: none; }
-  .zijmenu a, .zijmenu.ingeklapt a { height: auto; padding: 10px 12px; gap: 6px; border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; }
-  .zijmenu.ingeklapt a .naam { display: inline; }
-}
+  .app-shell.heeft-logo { --logo-ruimte: 124px; }    /* logo 96 + 16 + 12 */
+  .top-bar { padding-left: 8px; gap: 8px; }
+  .menu-knop {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; flex: none;
+    background: transparent; border: 0; color: var(--on-petrol); cursor: pointer;
+  }
+  .menu-knop svg { width: 24px; height: 24px; stroke-width: 2.25; }   /* gerenderd 1,125px, gelijk aan de 18px-items */
+  .top-bar .app-icon { width: 22px; height: 22px; }
+  .top-bar .app-title { font-size: var(--fs-paragraaf); line-height: 22px; }
+  .club-logo { top: 6px; height: 36px; max-width: 96px; }   /* binnen de balk: (48 - 36) / 2 */
+  .kruimelpad { padding-right: 16px; }
 
-/* Home in het hoofdmenu als huisje (zoals in de mockup) */
-/* Precies even breed als het ingeklapte zijmenu (44px, incl. rand), zodat ze verticaal uitlijnen */
-.top-nav a.nav-home { display: flex; align-items: center; justify-content: center; width: 44px; padding-left: 0; padding-right: 0; box-sizing: border-box; }
-.top-nav a.nav-home svg { width: 18px; height: 18px; flex: none; }
+  .zijmenu {
+    position: fixed; top: var(--paneel-top, 0px); bottom: 0; left: 0; z-index: 30;
+    width: 260px; max-width: calc(100vw - 48px);
+    box-shadow: var(--schaduw-paneel);
+    transform: translateX(-100%); visibility: hidden;
+    transition: transform .2s ease, visibility 0s linear .2s;
+  }
+  .zijmenu.open { transform: none; visibility: visible; transition: transform .2s ease, visibility 0s; }
+  .zijmenu-binnen { position: static; height: 100%; padding-top: 0; }
+  .zijmenu-paneelkop { display: flex; justify-content: flex-end; border-bottom: 1px solid var(--border); }
+  .zijmenu-sluit {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; background: transparent; border: 0; color: var(--petrol); cursor: pointer;
+  }
+  .zijmenu-sluit svg { width: 20px; height: 20px; }
+  .zijmenu-knop { display: none; }
+  .zijmenu-achtergrond { position: fixed; inset: var(--paneel-top, 0px) 0 0 0; z-index: 20; background: var(--dimlaag); }
+  body.paneel-open { overflow: hidden; }
+
+  footer { flex-direction: column; align-items: center; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zijmenu, .zijmenu.open { transition: none; }
+}
 
 /* ── Omgevingen (P0e) ── */
 .omgeving-balk {
