@@ -4,12 +4,15 @@
 
 ### Toegevoegd
 - Projecten en samenwerkingen beheren (CK-046): nieuwe pagina's **Beheer → Projecten** en **Beheer → Samenwerkingen** (naam, omschrijving, eigenaar uit de bestuursfuncties; een project ook status en begin- en einddatum). Toevoegen, bewerken, ↑/↓, verwijderen, statusfilter bij projecten, lege staat en laadfout met **Opnieuw laden**.
-- Vermogensoverzicht: in het overkoepelende domein met `bevat` staan kaartjes voor projecten en samenwerkingen in plaats van de omschrijving. Een project in voorbereiding is gestippeld, een afgerond project staat er niet op.
+- Vermogensoverzicht: in het overkoepelende domein met `bevat` staan kaartjes voor projecten en samenwerkingen in plaats van de omschrijving. Een project in voorbereiding is gestippeld (zonder zichtbare tekst; voor schermlezers staat "in voorbereiding" erbij), een afgerond project staat er niet op.
 - Firestore-regels voor `projecten` en `samenwerkingen`, en het veld `bevat` op structuurelementen. Datums zijn `JJJJ-MM-DD` of leeg, met einddatum niet vóór begindatum.
+- Vermogensoverzicht: kerncijfers bovenaan (Pijlers, Ondersteunende domeinen, Vermogens, Projecten, Samenwerkingen), in dezelfde vorm als op het Domeinenoverzicht. Projecten telt alleen wat op de plaat staat (lopend en in voorbereiding). Alle kerncijfers (ook op het Domeinenoverzicht) zijn doorklikbaar naar de beheerpagina; Pijlers, Ondersteunende en Overkoepelende domeinen openen Beheer → Domeinen met het juiste filter.
 - Script `npm run projecten:import` (HCA, `--droog`, idempotent, één batch) dat de projecten en samenwerkingen aanmaakt en `bevat` zet.
 
 ### Gewijzigd
 - Beheer → Bestuursfuncties: de kolom toont ook projecten en samenwerkingen waarvan de functie eigenaar is. Verwijderen is geblokkeerd zolang de functie ergens eindverantwoordelijke of eigenaar van is.
+- Alle beheertabellen (Domeinen, Vermogens, Bestuursfuncties, Projecten, Samenwerkingen): de rijen staan als witte kaart met een rand op het grijze vlak, zoals in het prototype van CK-046. Alle lijnen zijn 1 px.
+- Beheertabellen Domeinen, Bestuursfuncties, Projecten en Samenwerkingen: kolommen staan van links achter elkaar, zo breed als hun langste waarde, met 30 px ertussen; de knoppen blijven rechts. Geen vette waarden meer, nooit twee waarden onder elkaar (Domeinen krijgt een kolom Vermogens); omschrijvingen staan nooit in een tabel. Labels van soorten zijn rond, zoals de status van projecten. Het woord "Toon" voor de filters is weg (blijft als verborgen label voor schermlezers). De knoppen ↑/↓ zijn pictogrammen in dezelfde lijnstijl als bewerken en verwijderen.
 
 ## [0.9.0] – 2026-11-23
 

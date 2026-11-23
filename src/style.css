@@ -223,13 +223,17 @@ body {
   gap: 5px;
   font-size: var(--fs-label);
   letter-spacing: .04em;
+  line-height: 16px;
+  white-space: nowrap;
   padding: 1px 8px;
   border: 1px solid var(--border);
+  border-radius: 999px;
   margin-top: 8px;
 }
 .stip {
   width: 9px; height: 9px;
   display: inline-block;
+  border-radius: 50%;
   background: var(--petrol);
 }
 
@@ -488,7 +492,7 @@ footer {
   color: var(--muted);
   text-align: right;
 }
-.btn-volgorde { min-width: 32px; font-size: var(--fs-lopend); }
+.btn-volgorde { min-width: 32px; font-size: var(--fs-lopend); display: inline-flex; align-items: center; justify-content: center; }
 .btn-volgorde:disabled { opacity: .35; cursor: default; }
 .btn-volgorde:disabled:hover { border-color: var(--border); color: inherit; }
 
@@ -531,9 +535,15 @@ footer {
 .structuur-rij.beheer-rij {
   display: grid;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
+  gap: 30px;
+  padding: 8px 12px;
+  /* CK-046: rijen als witte kaart op het grijze vlak, zoals in het prototype */
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: 0;
 }
+.structuur-rij.beheer-rij:last-child { border-bottom: 1px solid var(--border); }
+.structuur-rij.beheer-rij:first-child { border-top: 1px solid var(--border); }
 .structuur-rij.beheer-rij.bewerken { display: block; }
 /* CK-044: de kolommen geven mee met de breedte van de lijst (zijmenu in- of uitgeklapt).
    De actiekolom is vast, zodat de kop gelijk loopt met de rijen. Rasters en container queries:
@@ -541,9 +551,9 @@ footer {
 .beheer-rij.beheer-kop {
   display: grid;
   align-items: center;
-  gap: 12px;
-  padding: 0 0 6px;
-  border-bottom: 2px solid var(--border);
+  gap: 30px;
+  padding: 0 13px 6px;
+  border-bottom: 1px solid var(--border);
   font-size: var(--fs-label);
   font-weight: 700;
   letter-spacing: .06em;
@@ -733,7 +743,7 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
     width: auto; height: auto; margin: 0; padding: 4px 8px;
     overflow: visible; clip-path: none; white-space: nowrap;
     background: var(--petrol-dark); color: var(--on-petrol);
-    font-size: var(--fs-label); line-height: 16px; font-weight: 600;
+    font-size: var(--fs-label); line-height: 16px;
     border-radius: 4px; box-shadow: var(--schaduw-tooltip);
     z-index: 40;
   }
@@ -956,14 +966,14 @@ a.btn { text-decoration: none; }
 /* Rijknoppen: ↑/↓ en pictogramknoppen even hoog; tooltip als in het ingeklapte zijmenu (besluit 19) */
 .cel-acties .btn-volgorde { height: 28px; padding: 0; }
 .btn-icoon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0; }
-.btn-icoon svg { width: 18px; height: 18px; }
+.btn-icoon svg, .btn-volgorde svg { width: 18px; height: 18px; }
 .cel-acties .btn-icoon.gevaar { margin-left: 6px; }
 .btn-icoon.gevaar:focus-visible { color: var(--fout); border-color: var(--fout); }
 .btn-icoon .tip {
   display: none; position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 40;
   padding: 4px 8px; white-space: nowrap;
   background: var(--petrol-dark); color: var(--on-petrol);
-  font-size: var(--fs-label); line-height: 16px; font-weight: 600; letter-spacing: 0; text-transform: none;
+  font-size: var(--fs-label); line-height: 16px; letter-spacing: 0; text-transform: none;
   border-radius: 4px; box-shadow: var(--schaduw-tooltip);
 }
 .btn-icoon .tip::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 6px; }
@@ -981,7 +991,7 @@ a.btn { text-decoration: none; }
 @container (max-width: 660px) {
   .beheer-rij.beheer-kop.domein-rij { display: none; }
   .domein-rij { grid-template-columns: 24px 24px 1fr; row-gap: 4px; }
-  .domein-rij > :nth-child(4), .domein-rij > :nth-child(5) { grid-column: 3; }
+  .domein-rij > :nth-child(4), .domein-rij > :nth-child(5), .domein-rij > :nth-child(6) { grid-column: 3; }
   .domein-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
 }
 @container (max-width: 500px) {
@@ -998,7 +1008,7 @@ a.btn { text-decoration: none; }
 .vermogen-groep { display: flex; flex-direction: column; }
 .groep-kop {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
-  padding: 0 0 6px; border-bottom: 2px solid var(--border);
+  padding: 0 0 6px; border-bottom: 1px solid var(--border);
   font-size: var(--fs-lopend); line-height: 19px; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase; color: var(--petrol);
 }
@@ -1036,14 +1046,11 @@ a.btn { text-decoration: none; }
 .project-rij      { grid-template-columns: 28px minmax(140px, 1.4fr) 128px 140px minmax(110px, 1fr) 152px; }
 .samenwerking-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 152px; }
 @media (max-width: 700px) { .samenwerking-rij { grid-template-columns: 28px minmax(100px, 1.2fr) minmax(100px, 1fr) 200px; } }
-.cel-project { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cel-project .cel-naam { font-weight: 700; overflow-wrap: anywhere; }
-.cel-omschrijving { font-size: var(--fs-toelichting); line-height: 18px; color: var(--muted); overflow-wrap: anywhere; }
 .cel-label { display: none; color: var(--muted); }
 .leeg-streep { color: var(--muted); }
 .status-label {
   display: inline-block; width: fit-content; padding: 1px 8px; white-space: nowrap;
-  font-size: var(--fs-label); line-height: 16px; font-weight: 600;
+  font-size: var(--fs-label); line-height: 16px;
   border: 1px solid var(--border); border-radius: 999px; color: var(--text);
 }
 .status-label.lopend { border-color: var(--petrol); color: var(--petrol); }
@@ -1074,9 +1081,42 @@ a.btn { text-decoration: none; }
 }
 @media (max-width: 480px) { .form-rij-datums { grid-template-columns: 1fr; } }
 
+/* CK-046: kolommen in één raster voor de hele tabel (subgrid). Kolommen staan van links
+   achter elkaar, zo breed als hun langste waarde, met 30px ertussen. Een lege kolom vult de rest
+   (omschrijvingen staan nooit in een tabel); de knoppen staan altijd rechts. Op smalle breedte stapelt elke rij. */
+#structuur-lijst[role="table"], #functie-lijst[role="table"], #onderdeel-lijst > [role="table"] {
+  display: grid; column-gap: 30px; row-gap: 0;
+}
+#structuur-lijst[role="table"]                             { grid-template-columns: 28px 24px auto auto auto auto minmax(0, 1fr) 152px; }
+#functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
+#onderdeel-lijst > [role="table"]:has(> .project-rij)      { grid-template-columns: 28px auto auto auto auto minmax(0, 1fr) 152px; }
+#onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
+@media (max-width: 700px) {
+  #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
+  #onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
+}
+#structuur-lijst[role="table"] > *, #functie-lijst[role="table"] > *, #onderdeel-lijst > [role="table"] > * { grid-column: 1 / -1; }
+#structuur-lijst .beheer-rij, #functie-lijst .beheer-rij, #onderdeel-lijst .beheer-rij { column-gap: 30px; }
+@container (min-width: 661px) {
+  #structuur-lijst .beheer-rij.domein-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #structuur-lijst .domein-rij > :last-child { grid-column: -2 / -1; }
+}
+@container (min-width: 501px) {
+  #functie-lijst .beheer-rij.functie-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #functie-lijst .functie-rij > :last-child { grid-column: -2 / -1; }
+}
+@container (min-width: 761px) {
+  #onderdeel-lijst .beheer-rij.project-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #onderdeel-lijst .project-rij > :last-child { grid-column: -2 / -1; }
+}
+@container (min-width: 501px) {
+  #onderdeel-lijst .beheer-rij.samenwerking-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #onderdeel-lijst .samenwerking-rij > :last-child { grid-column: -2 / -1; }
+}
+
 /* Domeinen: aantal vermogens onder de naam (besluit 16) */
 .cel-domein { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cel-sub { font-size: var(--fs-toelichting); line-height: 18px; font-weight: 600; width: fit-content; }
+.cel-sub { width: fit-content; font-weight: 400; }
 
 /* Home */
 .card .kaart-vermogens { margin-top: 8px; font-size: var(--fs-toelichting); line-height: 18px; font-weight: 600; color: var(--petrol); }
@@ -1093,6 +1133,10 @@ a.btn { text-decoration: none; }
 /* Kerncijfers: onder 900px is de inhoud naast het zijmenu te smal voor vier op een rij */
 @media (max-width: 900px) {
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Vermogensoverzicht (CK-046): vijf kerncijfers op een rij vanaf 900px */
+@media (min-width: 901px) {
+  .cijfers.cijfers-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {

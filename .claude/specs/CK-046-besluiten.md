@@ -44,3 +44,18 @@ Ontwerp: `.claude/specs/CK-046-ontwerp.md`. Prototype: https://claude.ai/artifac
 16. **#-kolom met een filter:** de kolom toont de plaats in de hele lijst. Met een filter kunnen er dus gaten in de nummers zitten.
 17. **Laadfout op de plaat:** lukt het laden niet, dan staat in het blok de omschrijving van het domein zoals nu, met een melding erbij.
 18. **Lopend project zonder datums:** op de plaat staat alleen de naam, zonder kleine regel eronder. Dit is het advies van de ontwerper.
+
+## Bijstellingen Paul tijdens het testen (23 november 2026)
+Deze gelden voor alle beheertabellen: Domeinen, Vermogens, Bestuursfuncties, Projecten en Samenwerkingen.
+
+19. **Rijen:** elke rij is een witte kaart op het grijze vlak. Alle lijnen zijn 1 px.
+20. **Kolommen:** de kolommen staan van links achter elkaar. Elke kolom is zo breed als zijn langste waarde, met 30 px ertussen (subgrid). De knoppen staan altijd rechts.
+21. **Waarden:** er zijn geen vette waarden, alleen de koprij is vet. In een tabel staan nooit twee waarden onder elkaar. Daarom krijgt Domeinen een eigen kolom Vermogens.
+22. **Omschrijvingen:** een omschrijving staat nooit in een tabel.
+23. **Labels:** de labels van soorten zijn rond, net als de status van projecten.
+24. **Filter:** het woord "Toon" staat niet meer zichtbaar voor de filters. Het blijft wel als verborgen label voor schermlezers.
+25. **Knoppen ↑ en ↓:** dit worden pictogrammen in dezelfde lijnstijl als bewerken en verwijderen. Dit herziet CK-020 besluit 21.
+26. **Kerncijfers:** het Vermogensoverzicht krijgt kerncijfers voor Pijlers, Ondersteunende domeinen, Vermogens, Projecten en Samenwerkingen.
+    - Alle kerncijfers zijn doorklikbaar naar beheer, ook op het Domeinenoverzicht.
+    - Bij Domeinen opent het juiste filter.
+27. **Plaat:** "In voorbereiding" staat niet als tekst op de plaat, de stippellijn laat het zien. Voor schermlezers blijft het als verborgen tekst.

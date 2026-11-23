@@ -964,9 +964,9 @@ function renderDomeinenoverzicht(gebruiker) {
         </div>
 
         <div class="cijfers" aria-label="Kerncijfers">
-          <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
-          <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
-          <div class="cijfer"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen</span></div>
+          <a href="#" class="cijfer cijfer-link" data-nav="domeinen" data-filter="pijler"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers<span aria-hidden="true"> →</span></span></a>
+          <a href="#" class="cijfer cijfer-link" data-nav="domeinen" data-filter="domein"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen<span aria-hidden="true"> →</span></span></a>
+          <a href="#" class="cijfer cijfer-link" data-nav="domeinen" data-filter="overkoepelend"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen<span aria-hidden="true"> →</span></span></a>
           <a href="#" class="cijfer cijfer-link" data-nav="vermogens"><span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span><span class="l">Vermogens<span aria-hidden="true"> →</span></span></a>
         </div>
 
@@ -1011,11 +1011,10 @@ function plaatSectieHTML(kop, toel, klasse, kaarten) {
 function plaatOnderdelenHTML(d, { soort, items }) {
   if (!items.length) return `<p class="plaat-leeg">Er zijn geen ${SOORT_ONDERDEEL[soort].meer}.</p>`
   const kaartje = x => {
-    const sub = soort === 'projecten'
-      ? [x.status === 'in-voorbereiding' ? STATUS_LABEL['in-voorbereiding'] : '', periodeTekst(x.begindatum, x.einddatum)].filter(Boolean).join(' · ')
-      : ''
-    const klasse = soort === 'projecten' && x.status === 'in-voorbereiding' ? ' voorbereiding' : ''
-    return `<li class="plaat-onderdeel${klasse}">${esc(x.naam)}${sub ? `<span class="plaat-onderdeel-sub">${esc(sub)}</span>` : ''}</li>`
+    // "In voorbereiding" toont de plaat alleen met de stippellijn (Paul); voor schermlezers blijft het als verborgen tekst
+    const sub = soort === 'projecten' ? periodeTekst(x.begindatum, x.einddatum) : ''
+    const voorbereiding = soort === 'projecten' && x.status === 'in-voorbereiding'
+    return `<li class="plaat-onderdeel${voorbereiding ? ' voorbereiding' : ''}">${esc(x.naam)}${voorbereiding ? `<span class="sr-only">, ${STATUS_LABEL['in-voorbereiding'].toLowerCase()}</span>` : ''}${sub ? `<span class="plaat-onderdeel-sub">${esc(sub)}</span>` : ''}</li>`
   }
   return `<ul class="plaat-onderdelen" role="list" aria-label="${esc(d.naam)}">${items.map(kaartje).join('')}</ul>`
 }
@@ -1114,7 +1113,24 @@ async function renderPlaat(gebruiker) {
     const voetnoot = aantalWees
       ? `<p class="lijst-voetnoot">${aantalWees === 1 ? '1 vermogen hoort' : `${aantalWees} vermogens horen`} niet bij een pijler of ondersteunend domein en staat${aantalWees === 1 ? '' : 'n'} daarom niet op de plaat.</p>`
       : ''
-    plaatEl.innerHTML = leeg
+    // Kerncijfers bovenaan de plaat, in dezelfde vorm als op het Domeinenoverzicht
+    const aantalOnderdelen = soort => {
+      const lijst = onderdelen[soort]
+      if (!lijst) return '<span aria-hidden="true">–</span><span class="sr-only">niet geladen</span>'
+      return (soort === 'projecten' ? lijst.filter(x => OP_PLAAT.has(x.status)) : lijst).length
+    }
+    // Elk kerncijfer is een link naar de beheerpagina (zoals Vermogens op het Domeinenoverzicht)
+    const cijfer = (n, label, nav, filter = '') =>
+      `<a href="#" class="cijfer cijfer-link" data-nav="${nav}"${filter ? ` data-filter="${filter}"` : ''}><span class="n">${n}</span><span class="l">${label}<span aria-hidden="true"> →</span></span></a>`
+    const cijfers = `
+        <div class="cijfers cijfers-5" aria-label="Kerncijfers">
+          ${cijfer(pijlers.length, 'Pijlers', 'domeinen', 'pijler')}
+          ${cijfer(steun.length, 'Ondersteunende domeinen', 'domeinen', 'domein')}
+          ${cijfer(vermogens.length - aantalWees, 'Vermogens', 'vermogensbeheer')}
+          ${cijfer(aantalOnderdelen('projecten'), 'Projecten', 'projecten')}
+          ${cijfer(aantalOnderdelen('samenwerkingen'), 'Samenwerkingen', 'samenwerkingen')}
+        </div>`
+    plaatEl.innerHTML = cijfers + leeg
       + plaatSectieHTML('Pijlers', telling(pijlers), 'plaat-pijlers', kaarten(pijlers))
       + plaatSectieHTML('Ondersteunende domeinen', telling(steun), 'plaat-steun', kaarten(steun))
       + plaatSectieHTML('Overkoepelende domeinen', 'zonder vermogens', 'plaat-over', kaarten(over))
@@ -1176,6 +1192,9 @@ const MENU_ICOON = {
   menu: '<path d="M8 13 H40"/><path d="M8 24 H40"/><path d="M8 35 H40"/>',
   sluiten: '<path d="M12 12 L36 36"/><path d="M36 12 L12 36"/>',
   puzzel: '<path d="M9 15 H19 A4 4 0 1 1 27 15 H37 V25 A4 4 0 1 1 37 33 V39 H9 Z"/>',
+  // Volgorde-knoppen (CK-046): pijl in dezelfde lijnstijl als potlood en prullenbak
+  'pijl-omhoog': '<path d="M24 38 V10"/><path d="M13 21 L24 10 L35 21"/>',
+  'pijl-omlaag': '<path d="M24 10 V38"/><path d="M13 27 L24 38 L35 27"/>',
   potlood: '<path d="M31 9 L39 17 L18 38 L9 39 L10 30 Z"/><path d="M27 13 L35 21"/>',
   klembord: '<rect x="10" y="10" width="28" height="32" rx="3"/><rect x="18" y="6" width="12" height="8" rx="2"/><path d="M17 22 H31"/><path d="M17 29 H31"/><path d="M17 36 H25"/>',
   schakels: '<g transform="rotate(-45 24 24)"><rect x="4" y="18" width="24" height="12" rx="6"/><rect x="20" y="18" width="24" height="12" rx="6"/></g>',
@@ -1409,7 +1428,7 @@ function bindAppShell(gebruiker) {
   })
 }
 
-async function renderPijlersDomeinenBeheer(gebruiker) {
+async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {}) {
   const functies = await laadBestuursfuncties()
   const functieNaam = new Map(functies.map(f => [f.id, f.naam]))
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'domeinen', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('domeinen')]], inhoud: `
@@ -1420,7 +1439,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
           <div class="sectie-lijf">
             <div class="beheer-balk">
               <div class="filter-keuze">
-                <label class="form-label" for="structuur-filter">Toon</label>
+                <label class="sr-only" for="structuur-filter">Toon</label>
                 <select class="form-input" id="structuur-filter">
                   <option value="alles">Alle soorten</option>
                   <option value="pijler">Pijlers</option>
@@ -1480,7 +1499,8 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   bindMeldblokken()
 
   const clubId = huidigClubId
-  let actiefFilter = 'alles'
+  // Filter kan meekomen vanaf een kerncijfer (Domeinenoverzicht, Vermogensoverzicht)
+  let actiefFilter = ['alles', 'pijler', 'domein', 'overkoepelend'].includes(filter) ? filter : 'alles'
   let huidigeItems = []
 
   async function laadEnRender() {
@@ -1505,6 +1525,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
           <span role="columnheader">Domein</span>
           <span role="columnheader">Soort</span>
           <span role="columnheader">Eindverantwoordelijke</span>
+          <span role="columnheader">Vermogens</span>
           <span role="columnheader"><span class="sr-only">Acties</span></span>
         </div>`
     lijst.setAttribute('role', 'table')
@@ -1520,15 +1541,13 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
         <div class="structuur-rij beheer-rij domein-rij" role="row" data-id="${esc(item.id)}">
           <span class="cel-nr" role="cell">${kanVerplaatsen ? i + 1 : ''}</span>
           <span class="cel-picto" role="cell">${pictogramHTML(item, 'picto-klein')}</span>
-          <span class="cel-domein" role="cell">
-            <strong class="cel-naam">${esc(item.naam)}</strong>
-            ${link}
-          </span>
+          <span class="cel-naam" role="cell">${esc(item.naam)}</span>
           <span role="cell"><span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
           <span class="cel-functie" role="cell">${esc(functieNaam.get(item.bestuursfunctieId) || '—')}</span>
+          <span class="cel-vermogens" role="cell">${link}</span>
           <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="Omhoog: ${esc(item.naam)}"${!kanVerplaatsen || i === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="Omlaag: ${esc(item.naam)}"${!kanVerplaatsen || i === gefilterd.length - 1 ? ' disabled' : ''}>↓</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="Omhoog: ${esc(item.naam)}"${!kanVerplaatsen || i === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="Omlaag: ${esc(item.naam)}"${!kanVerplaatsen || i === gefilterd.length - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>
             ${actieKnopHTML('bewerk', item.id, 'bewerk', item.naam)}
             ${actieKnopHTML('verwijder', item.id, 'verwijder', item.naam)}
           </div>
@@ -1539,6 +1558,7 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   await laadEnRender()
 
   const filterEl = document.getElementById('structuur-filter')
+  filterEl.value = actiefFilter
   const filterStatus = document.getElementById('structuur-filter-status')
   const FILTER_TEKST = {
     alles: n => `${n} ${n === 1 ? 'domein' : 'domeinen'}.`,
@@ -1843,7 +1863,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
           <div class="sectie-lijf">
             <div class="beheer-balk" id="vermogen-balk" hidden>
               <div class="filter-keuze">
-                <label class="form-label" for="vermogen-filter">Toon</label>
+                <label class="sr-only" for="vermogen-filter">Toon</label>
                 <select class="form-input" id="vermogen-filter"></select>
               </div>
               <button class="btn-toevoegen" type="button" id="vermogen-toevoegen-knop">+ Vermogen toevoegen</button>
@@ -1915,8 +1935,8 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
           <span class="cel-nr" role="cell">${k + 1}</span>
           <span class="cel-naam" role="cell">${esc(v.naam)}</span>
           <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(v.id)}" aria-label="Omhoog: ${esc(v.naam)}"${!metVolgorde || k === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(v.id)}" aria-label="Omlaag: ${esc(v.naam)}"${!metVolgorde || k === n - 1 ? ' disabled' : ''}>↓</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(v.id)}" aria-label="Omhoog: ${esc(v.naam)}"${!metVolgorde || k === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(v.id)}" aria-label="Omlaag: ${esc(v.naam)}"${!metVolgorde || k === n - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>
             ${actieKnopHTML('bewerk', v.id, 'bewerk', v.naam)}
             ${actieKnopHTML('verwijder', v.id, 'verwijder', v.naam)}
           </div>
@@ -2302,7 +2322,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
   const cfg = SOORT_ONDERDEEL[soort]
   const filterHTML = cfg.status ? `
               <div class="filter-keuze">
-                <label class="form-label" for="onderdeel-filter">Toon</label>
+                <label class="sr-only" for="onderdeel-filter">Toon</label>
                 <select class="form-input" id="onderdeel-filter">
                   <option value="alle">Alle projecten</option>
                   ${STATUSSEN.map(([k, label]) => `<option value="${k}">${label}</option>`).join('')}
@@ -2427,14 +2447,11 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     return `
         <div class="structuur-rij beheer-rij ${cfg.status ? 'project-rij' : 'samenwerking-rij'}" role="row" data-id="${esc(x.id)}">
           <span class="cel-nr" role="cell">${plaats}</span>
-          <span class="cel-project" role="cell">
-            <span class="cel-naam">${esc(x.naam)}</span>${x.omschrijving ? `
-            <span class="cel-omschrijving">${esc(x.omschrijving)}</span>` : ''}
-          </span>${statusCel}
+          <span class="cel-project cel-naam" role="cell">${esc(x.naam)}</span>${statusCel}
           <span class="cel-eigenaar" role="cell"><span class="cel-label" aria-hidden="true">Eigenaar: </span>${eigenaar ? esc(eigenaar) : leeg('nog niet gekozen')}</span>
           <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omhoog"${k === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omlaag"${k === n - 1 ? ' disabled' : ''}>↓</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omhoog"${k === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omlaag"${k === n - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>
             ${actieKnopHTML('bewerk', x.id, 'bewerk', x.naam)}${actieKnopHTML('verwijder', x.id, 'verwijder', x.naam)}
           </div>
         </div>`
@@ -2785,11 +2802,11 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       return `
         <div class="structuur-rij beheer-rij functie-rij" role="row" data-id="${esc(f.id)}">
           <span class="cel-nr" role="cell">${i + 1}</span>
-          <strong class="cel-naam" role="cell">${esc(f.naam)}</strong>
+          <span class="cel-naam" role="cell">${esc(f.naam)}</span>
           <span class="cel-functie" role="cell">${tekst.length ? tekst.join(', ') : volledig ? 'Niets' : 'Geen domeinen'}</span>
           <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="Omhoog: ${esc(f.naam)}"${i === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="Omlaag: ${esc(f.naam)}"${i === functies.length - 1 ? ' disabled' : ''}>↓</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="Omhoog: ${esc(f.naam)}"${i === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="Omlaag: ${esc(f.naam)}"${i === functies.length - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>
             ${actieKnopHTML('bewerk', f.id, 'bewerk', f.naam)}
             ${actieKnopHTML('verwijder', f.id, 'verwijder', f.naam)}
           </div>
