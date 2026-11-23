@@ -485,7 +485,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-045 — Home als welkomspagina, Domeinenoverzicht apart (Platform-laag P0, app-shell)
-**Status:** 🔨 Gebouwd op branch `test` (23 november 2026), route klein, nog op tst te testen
+**Status:** ✅ Live als v0.9.0 (23 november 2026) · route klein · getest op tst
 
 *Home begroet de ingelogde gebruiker ("Welkom, naam" en "Welkom bij clubKOMPAS van clubnaam"). Het oude Home wordt de pagina Domeinenoverzicht. Zijmenu Overzicht: Home, Domeinenoverzicht, Vermogensoverzicht; onder Beheer heet het item weer Vermogens. Accountregel zonder rol. Plaat: ondersteunende domeinen petrol bovenrand, overkoepelende domeinen over de volle breedte. Paginatitels niet meer half vet. Titelbalk, kruimelpad en footer blijven staan; alleen de inhoud scrolt. Zijmenu op 44px-raster, clublogo hoger, omgevingsbalk in elke omgeving (productie petrol zonder tekst, test grijs, ontwikkel oranje).*
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Ongepubliceerd
+## [0.9.0] – 2026-11-23
 
 ### Gewijzigd
 - Home is een welkomspagina: "Welkom, naam" met "Welkom bij clubKOMPAS van clubnaam" (CK-045).
