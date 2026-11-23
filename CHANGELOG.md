@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.12.1] – 2026-11-23
 
 ### Gewijzigd
 - Productie: de petrol omgevingsbalk zonder tekst onderaan is weg. Test, ontwikkel en productie lokaal houden hun balk.
