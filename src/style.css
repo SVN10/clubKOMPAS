@@ -774,6 +774,7 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 #app:has(> .app-shell) { min-height: 0; }
 .app-shell, .app-lijf { min-height: 0; }
 .app-kolom { overflow-y: auto; }
+.app-kolom > .kruimelpad { flex: none; }          /* niet laten krimpen in de scrollkolom */
 .zijmenu-binnen { position: static; height: 100%; }
 
 /* Home: welkomspagina */
