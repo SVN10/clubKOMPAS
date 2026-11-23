@@ -454,7 +454,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-020 — Vermogens onder een pijler of domein (Model-laag M1)
-**Status:** Getest op tst (23 november 2026: import 58 in test, controle "Alles klopt", testlijst geslaagd behalve twee tabbladen, devtools, offline, consoleschade en VoiceOver — regels daarvan wel in de emulator getest) · live als v0.7.0 na regels:productie en import in productie · Specs: `.claude/specs/CK-020-*.md` (besluiten 1–22) · Eindoordeel: `.claude/reports/CK-020-eindoordeel.md`
+**Status:** ✅ Live als v0.7.0 (23 november 2026) · 58 HCA-vermogens geïmporteerd in productie, controle "Alles klopt" · eerder getest op tst (open: twee tabbladen, devtools, offline, consoleschade, VoiceOver — zie vervolgpunten) · Specs: `.claude/specs/CK-020-*.md` (besluiten 1–22) · Eindoordeel: `.claude/reports/CK-020-eindoordeel.md`
 
 *Beheer → Vermogens, regels met unieke naam (naamdocument) en domein-guard (teller), import van 58 HCA-vermogens, Home met vier kerncijfers, filter en pictogramknoppen op alle beheerpagina's. De plaat volgt in CK-021.*
 
