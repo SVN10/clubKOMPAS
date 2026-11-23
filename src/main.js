@@ -547,12 +547,13 @@ function kompasIconSVG() {
   </svg>`
 }
 
-// "NAAM · ROL" voor de accountregel onderaan het zijmenu; zonder weergavenaam alleen het deel vóór de @
+// Naam van de ingelogde gebruiker; zonder weergavenaam het deel vóór de @
+function gebruikersNaam() {
+  return huidigGebruiker ? huidigGebruiker.displayName || (huidigGebruiker.email || '').split('@')[0] : ''
+}
+// Accountregel onderaan het zijmenu: alleen de naam (rol weggelaten, besluit Paul 23-11-2026)
 function sessieLabel() {
-  const delen = []
-  if (huidigGebruiker) delen.push(huidigGebruiker.displayName || (huidigGebruiker.email || '').split('@')[0])
-  if (huidigeRol) delen.push(huidigeRol)
-  return delen.join(' · ')
+  return gebruikersNaam()
 }
 
 function footerHTML() {
@@ -918,7 +919,7 @@ function toonUitkomst(gebruiker, status) {
   if (status === 'ok') {
     foutPogingen = 0
     setFavicon(huidigProfiel?.logo)
-    renderDashboard(gebruiker)
+    renderHome(gebruiker)
   } else if (status === 'geen-club') {
     foutPogingen = 0
     renderGeenClub(gebruiker)
@@ -928,10 +929,22 @@ function toonUitkomst(gebruiker, status) {
   }
 }
 
-function renderDashboard(gebruiker) {
+// Home: welkomspagina voor de ingelogde gebruiker (later: laatst gewijzigd, taken)
+function renderHome(gebruiker) {
+  const clubNaam = huidigProfiel?.naam
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'home', kruimels: [[navNaam('home')]], inhoud: `
         <div class="pagina-kop">
-          <h1 class="pagina-titel">Domeinen<b>overzicht</b></h1>
+          <h1 class="pagina-titel">Welkom, ${esc(gebruikersNaam())}</h1>
+        </div>
+        <p class="welkom-tekst">Welkom bij clubKOMPAS${clubNaam ? ` van ${esc(clubNaam)}` : ''}.</p>
+` })
+  bindAppShell(gebruiker)
+}
+
+function renderDomeinenoverzicht(gebruiker) {
+  document.querySelector('#app').innerHTML = appShellHTML({ actief: 'domeinenoverzicht', kruimels: [['Home', 'home'], [navNaam('domeinenoverzicht')]], inhoud: `
+        <div class="pagina-kop">
+          <h1 class="pagina-titel">Domeinenoverzicht</h1>
         </div>
 
         <div class="cijfers" aria-label="Kerncijfers">
@@ -1003,7 +1016,7 @@ async function renderPlaat(gebruiker) {
   const clubId = huidigClubId
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogens', kruimels: [['Home', 'home'], [navNaam('vermogens')]], inhoud: `
         <div class="pagina-kop">
-          <h1 class="pagina-titel">Vermogens<b>overzicht</b></h1>
+          <h1 class="pagina-titel">Vermogensoverzicht</h1>
         </div>
         <p class="vermogens-hint" id="plaat-hint" role="status"></p>
         <div id="plaat"><p class="lijst-laden">De plaat wordt geladen...</p></div>
@@ -1050,7 +1063,7 @@ async function renderPlaat(gebruiker) {
       leeg = `
           <div class="leeg-blok">
             <h2>Nog geen vermogens</h2>
-            <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken. Ze worden toegevoegd via Beheer → Vermogens beheren.</p>
+            <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken. Ze worden toegevoegd via Beheer → Vermogens.</p>
           </div>`
     }
     const voetnoot = aantalWees
@@ -1100,6 +1113,7 @@ async function renderPlaat(gebruiker) {
 const MENU_ICOON = {
   huis: '<path d="M7 22 L24 8 L41 22"/><path d="M11 19 V40 H37 V19"/><path d="M20 40 V29 H28 V40"/>',
   tegels: '<rect x="7" y="7" width="9" height="9" rx="1.5"/><rect x="19.5" y="7" width="9" height="9" rx="1.5"/><rect x="32" y="7" width="9" height="9" rx="1.5"/><rect x="7" y="19.5" width="9" height="9" rx="1.5"/><rect x="19.5" y="19.5" width="9" height="9" rx="1.5"/><rect x="32" y="19.5" width="9" height="9" rx="1.5"/><rect x="7" y="32" width="9" height="9" rx="1.5"/><rect x="19.5" y="32" width="9" height="9" rx="1.5"/><rect x="32" y="32" width="9" height="9" rx="1.5"/>',
+  blokken: '<rect x="7" y="7" width="15" height="15" rx="2"/><rect x="26" y="7" width="15" height="15" rx="2"/><rect x="7" y="26" width="15" height="15" rx="2"/><rect x="26" y="26" width="15" height="15" rx="2"/>',
   plaat: '<rect x="6" y="8" width="10" height="32" rx="1.5"/><rect x="19" y="8" width="10" height="14" rx="1.5"/><rect x="19" y="26" width="10" height="14" rx="1.5"/><rect x="32" y="8" width="10" height="32" rx="1.5"/>',
   persoon: '<circle cx="24" cy="16" r="7"/><path d="M10 41 C10 31.5 16 27 24 27 C32 27 38 31.5 38 41"/>',
   vlag: '<path d="M12 42 V6"/><path d="M12 8 H37 L31.5 15.5 L37 23 H12"/>',
@@ -1120,11 +1134,12 @@ function menuIcoon(naam) {
 const ZIJMENU = [
   { id: 'overzicht', kop: 'Overzicht', items: [
     { id: 'home', naam: 'Home', ico: 'huis' },
-    { id: 'vermogens', naam: 'Vermogens', ico: 'tegels' },
+    { id: 'domeinenoverzicht', naam: 'Domeinenoverzicht', ico: 'blokken' },
+    { id: 'vermogens', naam: 'Vermogensoverzicht', ico: 'tegels' },
   ]},
   { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
-    { id: 'vermogensbeheer', naam: 'Vermogens beheren', ico: 'puzzel' },
+    { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
     { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
     { id: 'club', naam: 'Club', ico: 'vlag' },
   ]},
@@ -1134,7 +1149,8 @@ const PAGINA_NAAM = { beheer: 'Domeinen', account: 'Mijn account' }
 const navNaam = id => ZIJMENU.flatMap(g => g.items).find(i => i.id === id)?.naam || PAGINA_NAAM[id] || id
 
 const NAV_DOEL = new Map([
-  ['home', renderDashboard],
+  ['home', renderHome],
+  ['domeinenoverzicht', renderDomeinenoverzicht],
   ['vermogens', renderPlaat],
   ['beheer', renderPijlersDomeinenBeheer],
   ['domeinen', renderPijlersDomeinenBeheer],
@@ -1152,7 +1168,7 @@ async function navigeer(id, gebruiker, opties = {}) {
   sluitPaneel({ focus: false })
   await doel(gebruiker, opties)
   document.title = paginaTitel(navNaam(id))
-  window.scrollTo(0, 0)
+  document.querySelector('.app-kolom')?.scrollTo(0, 0)
   document.getElementById('inhoud')?.focus({ preventScroll: true })
 }
 
@@ -1219,7 +1235,7 @@ function kruimelpadHTML(delen) {
   return `<nav class="kruimelpad" aria-label="Kruimelpad">${html}</nav>`
 }
 
-// actief: 'home' | 'domeinen' | 'vermogensbeheer' | 'functies' | 'club' | 'account'
+// actief: 'home' | 'domeinenoverzicht' | 'vermogens' | 'domeinen' | 'vermogensbeheer' | 'functies' | 'club' | 'account'
 function appShellHTML({ actief, kruimels, inhoud }) {
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   return `
@@ -1763,7 +1779,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogensbeheer', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('vermogensbeheer')]], inhoud: `
         <div class="sectie" data-meldblok>
           <div class="sectie-kop">
-            <h2>Vermogens beheren</h2>
+            <h2>Vermogens</h2>
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk" id="vermogen-balk" hidden>

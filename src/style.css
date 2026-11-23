@@ -602,7 +602,6 @@ select.form-input {
 /* Dashboard: paginatitel met kerncijfers (CK-034) */
 .pagina-kop { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 16px; }
 .pagina-titel { font-size: var(--fs-titel); line-height: 1.1; font-weight: 400; color: var(--petrol); }
-.pagina-titel b { font-weight: 700; }
 @media (max-width: 700px) {
   .pagina-titel { font-size: var(--fs-hoofdstuk); }
   .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -769,6 +768,16 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 .kruimel:hover { text-decoration: underline; }
 .kruimel-sep { color: var(--muted); padding: 0 6px; }
 .kruimel-huidig { color: var(--petrol); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+
+/* Titelbalk en footer blijven staan; alleen de inhoud (en zo nodig het zijmenu) scrolt */
+body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden; }
+#app:has(> .app-shell) { min-height: 0; }
+.app-shell, .app-lijf { min-height: 0; }
+.app-kolom { overflow-y: auto; }
+.zijmenu-binnen { position: static; height: 100%; }
+
+/* Home: welkomspagina */
+.welkom-tekst { font-size: var(--fs-paragraaf); line-height: 26px; color: var(--text); max-width: 65ch; }
 
 /* Mobiel: uitschuifpaneel */
 @media (max-width: 700px) {
@@ -1048,12 +1057,11 @@ a.btn { text-decoration: none; }
 .plaat-rij { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; align-items: stretch; }
 .plaat-pijlers { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .plaat-steun { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
-.plaat-over { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.plaat-over { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }   /* vult de volle breedte */
 .plaat-domein {
   background: var(--card); border: 1px solid var(--border); border-top: 4px solid var(--petrol);
   padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
 }
-.plaat-domein.steun { border-top-color: var(--orange); }
 .plaat-domein.over { border-top-color: var(--muted); }
 .plaat-kop {
   display: flex; align-items: center; gap: 8px; font-size: var(--fs-lopend); line-height: 19px; font-weight: 700;

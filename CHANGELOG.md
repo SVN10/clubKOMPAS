@@ -1,5 +1,15 @@
 # Changelog
 
+## Ongepubliceerd
+
+### Gewijzigd
+- Home is een welkomspagina: "Welkom, naam" met "Welkom bij clubKOMPAS van clubnaam" (CK-045).
+- Het vroegere Home heet nu **Domeinenoverzicht** en is een eigen pagina. Zijmenu Overzicht: Home, Domeinenoverzicht, Vermogensoverzicht; onder Beheer heet het item weer **Vermogens**.
+- De accountregel in het zijmenu toont alleen de naam, zonder rol.
+- Vermogensoverzicht: ondersteunende domeinen hebben dezelfde petrol bovenrand als de pijlers; de overkoepelende domeinen gebruiken de volle breedte.
+- Paginatitels zijn niet meer deels vet.
+- De titelbalk en de footer blijven in beeld; alleen de inhoud scrolt.
+
 ## [0.8.0] – 2026-11-23
 
 ### Toegevoegd

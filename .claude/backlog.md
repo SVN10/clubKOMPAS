@@ -481,3 +481,13 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 **Vervolgpunten na CK-021:**
 - [ ] Afdrukweergave of PDF-export van de plaat.
 - [ ] Leesrechten voor niet-beheerders meenemen bij P0d.
+
+---
+
+### CK-045 — Home als welkomspagina, Domeinenoverzicht apart (Platform-laag P0, app-shell)
+**Status:** 🔨 Gebouwd op branch `test` (23 november 2026), route klein, nog op tst te testen
+
+*Home begroet de ingelogde gebruiker ("Welkom, naam" en "Welkom bij clubKOMPAS van clubnaam"). Het oude Home wordt de pagina Domeinenoverzicht. Zijmenu Overzicht: Home, Domeinenoverzicht, Vermogensoverzicht; onder Beheer heet het item weer Vermogens. Accountregel zonder rol. Plaat: ondersteunende domeinen petrol bovenrand, overkoepelende domeinen over de volle breedte. Paginatitels niet meer half vet. Titelbalk en footer blijven staan; alleen de inhoud scrolt.*
+
+**Vervolgpunten na CK-045:**
+- [ ] Home later uitbreiden: laatst gewijzigd, taken voor de gebruiker.
