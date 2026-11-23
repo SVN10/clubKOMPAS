@@ -1009,7 +1009,7 @@ function plaatOnderdelenHTML(d, { soort, items }) {
     // "In voorbereiding" toont de plaat alleen met de stippellijn (Paul); voor schermlezers blijft het als verborgen tekst
     const sub = soort === 'projecten' ? periodeTekst(x.begindatum, x.einddatum) : ''
     const voorbereiding = soort === 'projecten' && x.status === 'in-voorbereiding'
-    return `<li class="plaat-onderdeel${voorbereiding ? ' voorbereiding' : ''}">${esc(x.naam)}${voorbereiding ? `<span class="sr-only">, ${STATUS_LABEL['in-voorbereiding'].toLowerCase()}</span>` : ''}${sub ? `<span class="plaat-onderdeel-sub">${esc(sub)}</span>` : ''}</li>`
+    return `<li class="plaat-onderdeel${voorbereiding ? ' voorbereiding' : ''}">${esc(x.naam)}${voorbereiding ? `<span class="sr-only">, ${STATUS_LABEL['in-voorbereiding'].toLowerCase()}</span>` : ''}${sub ? `<span class="plaat-onderdeel-sub"><span class="sr-only">, </span>${esc(sub)}</span>` : ''}</li>`
   }
   return `<ul class="plaat-onderdelen" role="list" aria-label="${esc(d.naam)}">${items.map(kaartje).join('')}</ul>`
 }

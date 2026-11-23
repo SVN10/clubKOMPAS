@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Gewijzigd
+- Vermogensoverzicht: de periode van een project staat achter de projectnaam in plaats van eronder.
+
 ## [0.11.2] – 2026-11-23
 
 ### Gewijzigd

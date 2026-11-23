@@ -1181,7 +1181,7 @@ a.btn { text-decoration: none; }
   font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); overflow-wrap: anywhere;
 }
 .plaat-onderdeel.voorbereiding { border-style: dashed; border-color: var(--muted); background: transparent; }
-.plaat-onderdeel-sub { display: block; font-size: var(--fs-label); line-height: 16px; color: var(--muted); }
+.plaat-onderdeel-sub { margin-left: 8px; font-size: var(--fs-label); color: var(--muted); white-space: nowrap; }   /* datums achter de naam (Paul, 23-11-2026) */
 @container (max-width: 520px) {
   .plaat-rij { grid-template-columns: 1fr; }
   .plaat-vermogen { padding: 4px 8px; }
