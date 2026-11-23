@@ -1,19 +1,29 @@
-// Projecten en samenwerkingen (CK-046), modellaag: de inhoud van overkoepelende domeinen.
+// Projecten en samenwerkingen (CK-046) en commissies (CK-041), modellaag.
+// Projecten en samenwerkingen vullen de overkoepelende domeinen op de plaat; commissies staan alleen in Beheer.
 // Pure functies met db en clubId als parameter: gedeeld door de app, het inrichtscript en de regeltests.
 
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { maakNaamregels, normaliseerNaam, naamSleutel } from './vermogens.js'
 
 export const SOORT_ONDERDEEL = {
+  commissies: {
+    enkel: 'commissie', meer: 'commissies', Enkel: 'Commissie', Meer: 'Commissies', status: false, opPlaat: false,
+    dubbelCode: 'dubbele-commissie', wegCode: 'commissie-weg', voorbeeld: 'Bijv. Kascommissie',
+    uitleg: 'Een commissie is een vaste groep vrijwilligers die een taak voor de club uitvoert, zoals de kascommissie of de activiteitencommissie.',
+  },
   projecten: {
-    enkel: 'project', meer: 'projecten', Enkel: 'Project', Meer: 'Projecten', status: true,
+    enkel: 'project', meer: 'projecten', Enkel: 'Project', Meer: 'Projecten', status: true, opPlaat: true,
     dubbelCode: 'dubbel-project', wegCode: 'project-weg', voorbeeld: 'Bijv. LED-scorebord',
+    uitleg: 'Een project is een tijdelijk traject van de club, zoals een verbouwing, een nieuw scorebord of een sponsortraject.',
   },
   samenwerkingen: {
-    enkel: 'samenwerking', meer: 'samenwerkingen', Enkel: 'Samenwerking', Meer: 'Samenwerkingen', status: false,
+    enkel: 'samenwerking', meer: 'samenwerkingen', Enkel: 'Samenwerking', Meer: 'Samenwerkingen', status: false, opPlaat: true,
     dubbelCode: 'dubbele-samenwerking', wegCode: 'samenwerking-weg', voorbeeld: 'Bijv. KNHB',
+    uitleg: 'Een samenwerking is een vaste partner buiten de club, zoals de bond, de gemeente of scholen.',
   },
 }
+// Soorten met kaartjes op het Vermogensoverzicht (commissies niet: CK-041, besluit 7)
+export const PLAAT_SOORTEN = Object.keys(SOORT_ONDERDEEL).filter(s => SOORT_ONDERDEEL[s].opPlaat)
 export const STATUSSEN = [['in-voorbereiding', 'In voorbereiding'], ['lopend', 'Lopend'], ['afgerond', 'Afgerond']]
 export const STATUS_LABEL = Object.fromEntries(STATUSSEN)
 export const OP_PLAAT = new Set(['in-voorbereiding', 'lopend'])

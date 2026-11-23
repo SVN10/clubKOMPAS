@@ -376,7 +376,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ### Na CK-044 — vervolgpunten (nog te nummeren)
 **Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
 
-- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), `commissies` (CK-041), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
 - [ ] **Eén `h1` per pagina** (nu alleen Home)
 - [x] **Domeinenlijst te breed** naast het zijmenu (op tst gezien tot ~1080px): opgelost 23 november 2026 met meegevende kolommen en een container query (domeinen stapelen onder 760px lijstbreedte, functies onder 590px)
 - [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
@@ -511,3 +511,20 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 - [ ] Keuze voor `bevat` in het domeinformulier (nu zet alleen het inrichtscript het veld)
 - [ ] Bestaan van de bestuursfunctie (eigenaar) afdwingen in de regels, samen met de domeinen
 - [ ] Restrisico P0d: elk lid kan projecten en samenwerkingen schrijven en verwijderen, en `bevat` zetten of weghalen
+
+---
+
+### CK-041 — Commissies beheren (Platform-laag P0, masterdata)
+**Status:** 🔨 Gebouwd op test (23 november 2026) · route groot, ingekort (geen intake, ontwerp en prototype: het scherm bestaat al) · besluiten: `.claude/specs/CK-041-besluiten.md` · controles: geen bevindingen open · doc en testlijst: `.claude/docs/CK-041.md`
+
+*Als beheerder wil ik commissies aanmaken, zodat activiteiten een verantwoordelijke hebben. Het is een beheerpagina zoals Samenwerkingen: naam, omschrijving en eigenaar uit de bestuursfuncties. Er is geen koppeling aan domeinen of vermogens en er komen geen personen in. De commissies staan alleen in Beheer, in het zijmenu direct na Bestuursfuncties.*
+
+- [x] Collectie `commissies` met Firestore-regels en regeltests (100 van 100 groen)
+- [x] Beheer → Commissies: toevoegen, bewerken, ↑/↓, verwijderen, lege staat en laadfout
+- [x] Bestuursfuncties: de kolom en de verwijderblokkade tellen ook commissies
+- [ ] Regels op test publiceren (`npm run regels:test`) en de testlijst op tst afwerken
+- [ ] Regels op productie (`npm run regels:productie`) vóór de merge naar main
+
+**Vervolgpunten na CK-041:**
+- [ ] Leden in een commissie: alleen na P0d (`isBeheerder`) en een compliance-controle (AVG)
+- [ ] Restrisico P0d: elk lid kan commissies schrijven en verwijderen

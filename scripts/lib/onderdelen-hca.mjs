@@ -1,7 +1,7 @@
 // Projecten en samenwerkingen van HCA (CK-046): bronlijst en planlogica van het inrichtscript.
 // Zonder Firestore-aanroepen, zodat de regeltests (emulator) dezelfde logica kunnen toetsen.
 
-import { SOORT_ONDERDEEL, STATUS_LABEL, onderdeelnaamFout, normaliseerNaam, naamSleutel, hoogsteVolgorde, onderdeelVelden, geldigOnderdeel } from '../../src/onderdelen.js'
+import { SOORT_ONDERDEEL, PLAAT_SOORTEN, STATUS_LABEL, onderdeelnaamFout, normaliseerNaam, naamSleutel, hoogsteVolgorde, onderdeelVelden, geldigOnderdeel } from '../../src/onderdelen.js'
 
 // Bron: .claude/specs/CK-020-bron-vermogensoverzicht.md, sectie "Overkoepelende domeinen"
 export const HCA_ONDERDELEN = {
@@ -44,7 +44,7 @@ export function maakOnderdelenPlan({ domeinen, functies, projecten, samenwerking
   if (eigenaars.length !== 1) fouten.push(`bestuursfunctie "${HCA_EIGENAAR}" is ${eigenaars.length} keer gevonden; verwacht precies 1.`)
   const bestuursfunctieId = eigenaars.length === 1 ? eigenaars[0].id : ''
 
-  for (const soort of Object.keys(SOORT_ONDERDEEL)) {
+  for (const soort of PLAAT_SOORTEN) {
     const cfg = SOORT_ONDERDEEL[soort]
     const { domein, fout } = zoekBlok(domeinen, soort)
     if (fout) fouten.push(fout)

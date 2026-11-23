@@ -9,7 +9,7 @@ import {
   voegVermogenToe, hernoemVermogen, verplaatsVermogen, verwijderVermogen,
 } from './vermogens.js'
 import {
-  SOORT_ONDERDEEL, STATUSSEN, STATUS_LABEL, OP_PLAAT, normaliseerNaam, onderdeelnaamFout, normaliseerOmschrijving,
+  SOORT_ONDERDEEL, PLAAT_SOORTEN, STATUSSEN, STATUS_LABEL, OP_PLAAT, normaliseerNaam, onderdeelnaamFout, normaliseerOmschrijving,
   omschrijvingFout, periodeTekst, datumFout, sorteerOnderdelen, naamBezet, laadOnderdelen, voegOnderdeelToe,
   bewerkOnderdeel, verwijderOnderdeel,
 } from './onderdelen.js'
@@ -297,7 +297,7 @@ function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
 
 const OPSLAAN_TIJDSLIMIET = 15000
 const INLOG_CODES = new Set(['unauthenticated', 'auth/user-token-expired', 'auth/requires-recent-login'])
-const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg'])
+const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg', 'commissie-weg'])
 const VERBINDING_CODES = new Set(['unavailable', 'deadline-exceeded', 'auth/network-request-failed'])
 const STAART_INVOER = ' Wat je hebt ingevuld, staat er nog.'
 const STAART_LIJST = ' De lijst is niet gewijzigd.'
@@ -328,6 +328,8 @@ const FOUTTEKSTEN = {
   'dubbele-samenwerking': 'Er is al een samenwerking met deze naam.',
   'project-weg': 'Dit project bestaat niet meer.',
   'samenwerking-weg': 'Deze samenwerking bestaat niet meer.',
+  'dubbele-commissie': 'Er is al een commissie met deze naam.',
+  'commissie-weg': 'Deze commissie bestaat niet meer.',
 }
 
 const TIJD_OP_ACCOUNT = {
@@ -1062,7 +1064,7 @@ async function renderPlaat(gebruiker) {
     const functieNaam = functies ? new Map(functies.map(f => [f.id, f.naam])) : null
     const blokVan = new Map()
     let onderdelenMislukt = false
-    for (const soort of Object.keys(SOORT_ONDERDEEL)) {
+    for (const soort of PLAAT_SOORTEN) {
       const blok = domeinen.find(d => d.type === 'overkoepelend' && d.bevat === soort)
       if (!blok) continue
       const lijst = onderdelen[soort]
@@ -1134,7 +1136,7 @@ async function renderPlaat(gebruiker) {
 
   async function laadEnTeken() {
     const functiesBelofte = Promise.allSettled([laadBestuursfuncties()])
-    const onderdelenBelofte = Promise.allSettled(Object.keys(SOORT_ONDERDEEL).map(soort => laadOnderdelen(db, clubId, soort)))
+    const onderdelenBelofte = Promise.allSettled(PLAAT_SOORTEN.map(soort => laadOnderdelen(db, clubId, soort)))
     let domeinen, vermogens
     try {
       [domeinen, vermogens] = await Promise.all([laadStructuurelementen(), laadVermogens(db, clubId)])
@@ -1148,7 +1150,7 @@ async function renderPlaat(gebruiker) {
     if (!plaatEl.isConnected) return false
     if (functieUitkomst.status === 'rejected') console.error('Bestuursfuncties laden mislukt:', functieUitkomst.reason?.code)
     const onderdelen = {}
-    Object.keys(SOORT_ONDERDEEL).forEach((soort, k) => {
+    PLAAT_SOORTEN.forEach((soort, k) => {
       const u = onderdeelUitkomsten[k]
       if (u.status === 'rejected') console.error(`${SOORT_ONDERDEEL[soort].Meer} laden mislukt:`, u.reason?.code)
       onderdelen[soort] = u.status === 'fulfilled' ? u.value : null
@@ -1180,6 +1182,7 @@ const MENU_ICOON = {
   blokken: '<rect x="7" y="7" width="15" height="15" rx="2"/><rect x="26" y="7" width="15" height="15" rx="2"/><rect x="7" y="26" width="15" height="15" rx="2"/><rect x="26" y="26" width="15" height="15" rx="2"/>',
   plaat: '<rect x="6" y="8" width="10" height="32" rx="1.5"/><rect x="19" y="8" width="10" height="14" rx="1.5"/><rect x="19" y="26" width="10" height="14" rx="1.5"/><rect x="32" y="8" width="10" height="32" rx="1.5"/>',
   persoon: '<circle cx="24" cy="16" r="7"/><path d="M10 41 C10 31.5 16 27 24 27 C32 27 38 31.5 38 41"/>',
+  groep: '<circle cx="24" cy="17" r="6"/><path d="M13 40 C13 31.5 18 27.5 24 27.5 C30 27.5 35 31.5 35 40"/><circle cx="11" cy="20" r="4.5"/><path d="M4 36 C4 30.5 7 27.5 11.5 27.5"/><circle cx="37" cy="20" r="4.5"/><path d="M44 36 C44 30.5 41 27.5 36.5 27.5"/>',
   vlag: '<path d="M12 42 V6"/><path d="M12 8 H37 L31.5 15.5 L37 23 H12"/>',
   account: '<circle cx="24" cy="24" r="18"/><circle cx="24" cy="20" r="6"/><path d="M13 36.5 C15.5 31 19.5 29 24 29 C28.5 29 32.5 31 35 36.5"/>',
   uitloggen: '<path d="M20 8 H10 a2 2 0 0 0 -2 2 V38 a2 2 0 0 0 2 2 H20"/><path d="M19 24 H40"/><path d="M32 16 L40 24 L32 32"/>',
@@ -1209,6 +1212,7 @@ const ZIJMENU = [
   { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
     { id: 'club', naam: 'Club', ico: 'vlag' },
     { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
+    { id: 'commissies', naam: 'Commissies', ico: 'groep' },
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
     { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
     { id: 'projecten', naam: 'Projecten', ico: 'klembord' },
@@ -1226,6 +1230,7 @@ const NAV_DOEL = new Map([
   ['beheer', renderPijlersDomeinenBeheer],
   ['domeinen', renderPijlersDomeinenBeheer],
   ['vermogensbeheer', renderVermogensBeheer],
+  ['commissies', g => renderOnderdeelBeheer(g, 'commissies')],
   ['projecten', g => renderOnderdeelBeheer(g, 'projecten')],
   ['samenwerkingen', g => renderOnderdeelBeheer(g, 'samenwerkingen')],
   ['functies', renderBestuursfunctiesBeheer],
@@ -2307,8 +2312,8 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   await laadEnRender()
 }
 
-// ── Projecten en samenwerkingen (CK-046) ──────────────────────────────────────
-// Eén beheerpagina voor beide soorten; id-voorvoegsel onderdeel- (er is er één tegelijk open)
+// ── Projecten en samenwerkingen (CK-046), commissies (CK-041) ─────────────────
+// Eén beheerpagina voor alle soorten; id-voorvoegsel onderdeel- (er is er één tegelijk open)
 
 async function renderOnderdeelBeheer(gebruiker, soort) {
   const cfg = SOORT_ONDERDEEL[soort]
@@ -2458,9 +2463,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
       lijstEl.innerHTML = `
         <div class="leeg-blok">
           <h3>Nog geen ${cfg.meer}</h3>
-          <p>${soort === 'projecten'
-            ? 'Een project is een tijdelijk traject van de club, zoals een verbouwing, een nieuw scorebord of een sponsortraject.'
-            : 'Een samenwerking is een vaste partner buiten de club, zoals de bond, de gemeente of scholen.'}</p>
+          <p>${cfg.uitleg}</p>
         </div>`
       return
     }
@@ -2472,7 +2475,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     }
     const kop = cfg.status
       ? '<span role="columnheader">#</span><span role="columnheader">Project</span><span role="columnheader">Status</span><span role="columnheader">Eigenaar</span>'
-      : '<span role="columnheader">#</span><span role="columnheader">Samenwerking</span><span role="columnheader">Eigenaar</span>'
+      : `<span role="columnheader">#</span><span role="columnheader">${cfg.Enkel}</span><span role="columnheader">Eigenaar</span>`
     lijstEl.innerHTML = `
           <div role="table" aria-label="${cfg.Meer}">
             <div class="beheer-rij beheer-kop ${cfg.status ? 'project-rij' : 'samenwerking-rij'}" role="row">${kop}<span role="columnheader"><span class="sr-only">Acties</span></span></div>
@@ -2486,7 +2489,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     form.hidden = true
     toevoegKnop.hidden = false
     const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
-      ? '<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor projecten en samenwerkingen al gepubliceerd?</p>' : ''
+      ? `<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor ${cfg.meer} al gepubliceerd?</p>` : ''
     lijstEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De ${cfg.meer} konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="onderdeel-herlaad">Opnieuw laden</button></div></div>${testHint}`
   }
 
@@ -2504,7 +2507,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     if (f.status === 'rejected') console.error('Bestuursfuncties laden mislukt:', f.reason?.code)
     functies = f.status === 'fulfilled' ? f.value : null
     functiesHint.textContent = functies ? '' : 'De bestuursfuncties konden niet worden geladen. Herlaad de pagina om een eigenaar te kiezen.'
-    const opPlaat = d.status !== 'fulfilled' || d.value.some(x => x.type === 'overkoepelend' && x.bevat === soort)
+    const opPlaat = !cfg.opPlaat || d.status !== 'fulfilled' || d.value.some(x => x.type === 'overkoepelend' && x.bevat === soort)
     plaatHint.textContent = opPlaat ? '' : `Deze ${cfg.meer} staan nog niet op de plaat: geen overkoepelend domein toont ${cfg.meer}.`
     tekenLijst()
     return true
@@ -2747,8 +2750,8 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 
   const geldigeNaam = naam => naam.length >= 2 && naam.length <= 100
 
-  // Waar een functie eindverantwoordelijke (domeinen) of eigenaar (projecten, samenwerkingen) van is (CK-046)
-  // Domeinen moeten laden; projecten en samenwerkingen fail-soft (null), dan is de telling onvolledig
+  // Waar een functie eindverantwoordelijke (domeinen) of eigenaar (commissies, projecten, samenwerkingen) van is (CK-046, CK-041)
+  // Domeinen moeten laden; commissies, projecten en samenwerkingen fail-soft (null), dan is de telling onvolledig
   const laadVerwijzers = async () => {
     const [domeinen, ...rest] = await Promise.all([
       laadStructuurelementen(),
@@ -2768,7 +2771,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     const volledig = onderdelen.every(Boolean)
     return { domeinen: delen[0][0], overig: delen.slice(1).reduce((a, [n]) => a + n, 0), tekst, volledig }
   }
-  const ONVOLLEDIG = 'De projecten en samenwerkingen konden niet worden geladen. De kolom Eindverantwoordelijk voor telt daarom alleen de domeinen, en een bestuursfunctie verwijderen kan pas als alles geteld kan worden. Herlaad de pagina om het opnieuw te proberen.'
+  const ONVOLLEDIG = 'De commissies, projecten en samenwerkingen konden niet worden geladen. De kolom Eindverantwoordelijk voor telt daarom alleen de domeinen, en een bestuursfunctie verwijderen kan pas als alles geteld kan worden. Herlaad de pagina om het opnieuw te proberen.'
   const enLijst = delen => (delen.length < 2 ? delen.join('') : `${delen.slice(0, -1).join(', ')} en ${delen[delen.length - 1]}`)
 
   async function laadEnRender() {
@@ -2879,7 +2882,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       if (uitkomst === 'ok' && plaats && volgordeStatus.isConnected) volgordeStatus.textContent = plaats
       else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
-      // Masterdata: een functie die nog bij een domein, project of samenwerking hoort, kan niet weg. Vers tellen.
+      // Masterdata: een functie die nog bij een domein, commissie, project of samenwerking hoort, kan niet weg. Vers tellen.
       let t
       try {
         t = telling(await metTijdslimiet(laadVerwijzers()), id)
@@ -2897,7 +2900,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
         return
       }
       if (!t.volledig) {
-        sectieFout.textContent = 'Deze bestuursfunctie kan nu niet worden verwijderd: de projecten en samenwerkingen konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.'
+        sectieFout.textContent = 'Deze bestuursfunctie kan nu niet worden verwijderd: de commissies, projecten en samenwerkingen konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.'
         meldingInBeeld(sectieFout)
         return
       }

@@ -14,7 +14,7 @@ import {
 } from '../src/vermogens.js'
 import { HCA_VERMOGENS, maakImportplan, controleerVermogens } from '../scripts/lib/vermogens-hca.mjs'
 import {
-  SOORT_ONDERDEEL, onderdeelnaamFout, periodeTekst, datumFout, geldigOnderdeel, onderdeelVelden, naamBezet,
+  SOORT_ONDERDEEL, PLAAT_SOORTEN, onderdeelnaamFout, periodeTekst, datumFout, geldigOnderdeel, onderdeelVelden, naamBezet,
   laadOnderdelen, voegOnderdeelToe, bewerkOnderdeel, verwijderOnderdeel,
 } from '../src/onderdelen.js'
 import { HCA_ONDERDELEN, maakOnderdelenPlan } from '../scripts/lib/onderdelen-hca.mjs'
@@ -969,5 +969,64 @@ describe('CK-046 inrichtscript: plan', () => {
     const plan = maakOnderdelenPlan(await leesAlles())
     assert.deepEqual(plan.fouten, [])
     assert.deepEqual(plan.bevat.map(x => x.soort), ['samenwerkingen'])
+  })
+})
+
+// ── Commissies (CK-041) ──
+const COMMISSIE = { naam: 'Kascommissie', omschrijving: '', bestuursfunctieId: 'vz', volgorde: 1 }
+
+describe('CK-041 commissies', () => {
+  const r = (id = 'x') => doc(db, ...pad('commissies', id))
+  test('soort zonder status, niet op de plaat', () => {
+    assert.equal(SOORT_ONDERDEEL.commissies.status, false)
+    assert.deepEqual(PLAAT_SOORTEN, ['projecten', 'samenwerkingen'])
+    assert.ok(geldigOnderdeel('commissies', COMMISSIE))
+    assert.ok(!geldigOnderdeel('commissies', { ...COMMISSIE, status: 'lopend' }))
+    assert.deepEqual(onderdeelVelden('commissies', { naam: 'X y', volgorde: 3 }), { naam: 'X y', omschrijving: '', bestuursfunctieId: '', volgorde: 3 })
+  })
+  test('toevoegen, bewerken, volgorde en verwijderen slagen', async () => {
+    const { id, volgorde } = await assertSucceeds(voegOnderdeelToe(db, CLUB, 'commissies', { naam: 'Kascommissie' }))
+    assert.equal(volgorde, 1)
+    assert.deepEqual(await lees('commissies', id), { naam: 'Kascommissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+    const tweede = await voegOnderdeelToe(db, CLUB, 'commissies', { naam: 'Activiteitencommissie' })
+    assert.equal(tweede.volgorde, 2)
+    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'commissies', id, { naam: 'Kascommissie', omschrijving: 'Controleert de jaarrekening', bestuursfunctieId: 'pm' }))
+    assert.equal((await lees('commissies', id)).volgorde, 1)
+    await assertSucceeds(updateDoc(r(tweede.id), { volgorde: 1 }))
+    await assertSucceeds(verwijderOnderdeel(db, CLUB, 'commissies', id))
+    assert.equal((await fout(verwijderOnderdeel(db, CLUB, 'commissies', id))).code, 'commissie-weg')
+    assert.equal((await fout(bewerkOnderdeel(db, CLUB, 'commissies', id, { naam: 'Weg' }))).code, 'commissie-weg')
+  })
+  test('niet-lid kan niet lezen of schrijven', async () => {
+    await admin(a => setDoc(doc(a, ...pad('commissies', 'c1')), COMMISSIE))
+    await assertFails(getDocs(collection(buiten, ...pad('commissies'))))
+    await assertFails(getDoc(doc(buiten, ...pad('commissies', 'c1'))))
+    await assertFails(setDoc(doc(buiten, ...pad('commissies', 'c2')), COMMISSIE))
+    await assertFails(updateDoc(doc(buiten, ...pad('commissies', 'c1')), { volgorde: 2 }))
+    await assertFails(deleteDoc(doc(buiten, ...pad('commissies', 'c1'))))
+  })
+  test('weigert extra en ontbrekende velden (geen persoonsgegevens)', async () => {
+    for (const extra of [{ leden: ['Jan'] }, { voorzitter: 'Jan' }, { status: 'lopend' }, { domeinId: 'fin' }, { begindatum: '' }]) {
+      await assertFails(setDoc(r(), { ...COMMISSIE, ...extra }), JSON.stringify(extra))
+    }
+    for (const veld of Object.keys(COMMISSIE)) {
+      const { [veld]: _, ...zonder } = COMMISSIE
+      await assertFails(setDoc(r(), zonder), veld)
+    }
+    await assertSucceeds(setDoc(r('c'), COMMISSIE))
+    await assertFails(updateDoc(r('c'), { leden: ['Jan'] }))
+  })
+  test('weigert ongeldige naam, omschrijving, eigenaar en volgorde', async () => {
+    for (const naam of ['x', 'x'.repeat(101), ' Kas', 'Kas ', 'Kas  commissie', 'a_b', 'Feest 🎉', '-Kas', 42]) {
+      await assertFails(setDoc(r(), { ...COMMISSIE, naam }), String(naam))
+    }
+    await assertFails(setDoc(r(), { ...COMMISSIE, omschrijving: 'o'.repeat(501) }))
+    await assertSucceeds(setDoc(r('grens'), { ...COMMISSIE, naam: 'x'.repeat(100), omschrijving: 'o'.repeat(500) }))
+    await assertFails(setDoc(r(), { ...COMMISSIE, bestuursfunctieId: 7 }))
+    await assertFails(setDoc(r(), { ...COMMISSIE, bestuursfunctieId: 'x'.repeat(101) }))
+    for (const volgorde of [0, 1.5, '1', 100001]) await assertFails(setDoc(r(), { ...COMMISSIE, volgorde }), String(volgorde))
+  })
+  test('bevat kan niet op commissies', async () => {
+    await assertFails(addDoc(collection(db, ...pad('structuurelementen')), { type: 'overkoepelend', naam: 'Commissies', bevat: 'commissies' }))
   })
 })

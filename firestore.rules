@@ -157,6 +157,7 @@ service cloud.firestore {
         && geldigeDatum(d.einddatum)
         && geldigePeriode(d);
     }
+    // Ook voor commissies (CK-041): naam, omschrijving, eigenaar, volgorde
     function geldigeSamenwerking(d) {
       return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
         && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
@@ -262,6 +263,12 @@ service cloud.firestore {
 
       // Samenwerkingen (CK-046): externe partners, zonder status of periode
       match /samenwerkingen/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
+      }
+
+      // Commissies (CK-041): zelfde velden als een samenwerking, alleen in Beheer
+      match /commissies/{id} {
         allow read, delete: if isLid(clubId);
         allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
       }
