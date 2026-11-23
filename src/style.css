@@ -656,10 +656,10 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
   background: var(--petrol-vlak); color: var(--on-petrol);
   border-bottom: 4px solid var(--orange);
 }
-.top-bar .app-icon { width: 29px; height: 29px; color: var(--on-petrol); }   /* 20% groter (Paul, 23-11-2026) */
+.top-bar .app-icon { width: 35px; height: 35px; color: var(--on-petrol); }   /* 2× 20% groter (Paul, 23-11-2026) */
 .top-bar .app-title {
   flex: 1 1 auto; min-width: 0;
-  font-size: 26.4px; line-height: 31px;             /* bewuste uitzondering op de tekstschaal (herziet CK-031); 20% groter (Paul, 23-11-2026) */
+  font-size: 31.7px; line-height: 36px;             /* bewuste uitzondering op de tekstschaal (herziet CK-031); 2× 20% groter (Paul, 23-11-2026) */
   color: var(--on-petrol);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -813,8 +813,8 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
     background: transparent; border: 0; color: var(--on-petrol); cursor: pointer;
   }
   .menu-knop svg { width: 24px; height: 24px; stroke-width: 2.25; }   /* gerenderd 1,125px, gelijk aan de 18px-items */
-  .top-bar .app-icon { width: 26px; height: 26px; }
-  .top-bar .app-title { font-size: 21.6px; line-height: 26px; }
+  .top-bar .app-icon { width: 31px; height: 31px; }
+  .top-bar .app-title { font-size: 25.9px; line-height: 30px; }
   .club-logo { top: 6px; height: 36px; max-width: 96px; }   /* binnen de balk: (48 - 36) / 2 */
   .kruimelpad { padding-right: 16px; }
 
@@ -1040,7 +1040,9 @@ a.btn { text-decoration: none; }
 /* Projecten en samenwerkingen (CK-046) */
 #onderdeel-lijst { container-type: inline-size; }
 .filter-keuze[hidden] { display: none; }
-.project-rij      { grid-template-columns: 28px minmax(140px, 1.4fr) 128px 140px minmax(110px, 1fr) 152px; }
+.project-rij      { grid-template-columns: 28px minmax(140px, 1.4fr) 128px minmax(110px, 1fr) 152px; }
+/* Periode staat achter de projectnaam, op dezelfde regel (Paul, 23-11-2026) */
+.cel-project .cel-periode { margin-left: 10px; color: var(--muted); white-space: nowrap; }
 .samenwerking-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 152px; }
 @media (max-width: 700px) { .samenwerking-rij { grid-template-columns: 28px minmax(100px, 1.2fr) minmax(100px, 1fr) 200px; } }
 .cel-label { display: none; color: var(--muted); }
@@ -1064,8 +1066,7 @@ a.btn { text-decoration: none; }
   .project-rij { grid-template-columns: 24px auto 1fr; row-gap: 6px; column-gap: 10px; }
   .project-rij .cel-project  { grid-column: 2 / -1; }
   .project-rij .cel-status   { grid-column: 2; grid-row: 2; }
-  .project-rij .cel-periode  { grid-column: 3; grid-row: 2; font-size: var(--fs-toelichting); }
-  .project-rij .cel-eigenaar { grid-column: 2 / -1; font-size: var(--fs-toelichting); }
+  .project-rij .cel-eigenaar { grid-column: 3; grid-row: 2; font-size: var(--fs-toelichting); }
   .project-rij .cel-acties   { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
   .project-rij .cel-label    { display: inline; }
 }
@@ -1084,9 +1085,9 @@ a.btn { text-decoration: none; }
 #structuur-lijst[role="table"], #functie-lijst[role="table"], #onderdeel-lijst > [role="table"] {
   display: grid; column-gap: 30px; row-gap: 0;
 }
-#structuur-lijst[role="table"]                             { grid-template-columns: 28px 24px auto auto auto auto minmax(0, 1fr) 152px; }
+#structuur-lijst[role="table"]                             { grid-template-columns: 28px auto auto auto auto auto minmax(0, 1fr) 152px; }
 #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
-#onderdeel-lijst > [role="table"]:has(> .project-rij)      { grid-template-columns: 28px auto auto auto auto minmax(0, 1fr) 152px; }
+#onderdeel-lijst > [role="table"]:has(> .project-rij)      { grid-template-columns: 28px auto auto auto minmax(0, 1fr) 152px; }
 #onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
 @media (max-width: 700px) {
   #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
@@ -1189,3 +1190,76 @@ a.btn { text-decoration: none; }
 .cijfer-link:hover { border-color: var(--petrol); }
 .cijfer-link:hover .l { text-decoration: underline; }
 .cijfer-link:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }
+
+/* ── Eigen keuzelijst en datumkiezer (in plaats van die van de browser) ── */
+.eigen-verborgen { display: none !important; }
+.eigen-keuze, .eigen-datum { position: relative; display: block; min-width: 0; }
+.filter-keuze .eigen-keuze { min-width: 220px; }
+.eigen-knop {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; height: 38px; box-sizing: border-box; text-align: left; cursor: pointer; font: inherit; color: var(--text);
+  background: var(--card);
+}
+.eigen-knop:disabled { cursor: default; opacity: .6; }
+.eigen-tekst { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eigen-chevron { flex: none; width: 12px; height: 8px; fill: none; stroke: var(--petrol); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.eigen-keuze.open .eigen-chevron { transform: rotate(180deg); }
+.eigen-knop:focus-visible, .eigen-datum-tekst:focus-visible, .eigen-datum-knop:focus-visible,
+.eigen-kal-nav:focus-visible, .eigen-dag:focus-visible, .eigen-kal-actie:focus-visible {
+  outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text);
+}
+.eigen-lijst, .eigen-kalender {
+  position: absolute; z-index: 50; top: calc(100% + 4px); left: 0;
+  background: var(--card); border: 1px solid var(--petrol); border-radius: 4px;
+  box-shadow: var(--schaduw-tooltip);
+}
+.eigen-keuze.omhoog .eigen-lijst, .eigen-datum.omhoog .eigen-kalender { top: auto; bottom: calc(100% + 4px); }
+.eigen-lijst {
+  min-width: 100%; max-height: 280px; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none;
+}
+.eigen-lijst:focus { outline: none; }
+.eigen-optie { padding: 7px 12px; cursor: pointer; white-space: nowrap; color: var(--text); }
+.eigen-optie.ingesprongen { padding-left: 24px; }
+.eigen-optie.actief { background: var(--surface); outline: 2px solid var(--petrol); outline-offset: -2px; }
+.eigen-optie[aria-selected="true"] { color: var(--petrol); font-weight: 600; }
+.eigen-optie[aria-selected="true"]::after { content: " ✓"; }
+.eigen-optie[aria-disabled="true"] { color: var(--muted); cursor: default; }
+.eigen-groep {
+  padding: 8px 12px 4px; font-size: var(--fs-label); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.eigen-datum { display: flex; align-items: stretch; }
+.eigen-datum-tekst { flex: 1 1 auto; min-width: 0; border-right: 0; }
+.eigen-datum-knop {
+  flex: none; width: 38px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--card); border: 1px solid var(--border); color: var(--petrol); cursor: pointer; padding: 0;
+}
+.eigen-datum-knop svg, .eigen-kal-nav svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.eigen-datum-knop:hover { border-color: var(--petrol); }
+.eigen-kalender { width: 288px; padding: 10px; }
+.eigen-kal-kop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.eigen-kal-titel { font-weight: 700; color: var(--petrol); text-transform: capitalize; }
+.eigen-kal-nav {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--border); color: var(--petrol); cursor: pointer; padding: 0;
+}
+.eigen-kal-raster { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.eigen-kal-raster th { font-size: var(--fs-label); font-weight: 700; color: var(--muted); text-transform: uppercase; padding: 4px 0; }
+.eigen-kal-raster td { padding: 1px; text-align: center; }
+.eigen-dag {
+  width: 100%; height: 34px; font: inherit; color: var(--text); background: transparent;
+  border: 1px solid transparent; border-radius: 999px; cursor: pointer; padding: 0;
+}
+.eigen-dag:hover { border-color: var(--petrol); }
+.eigen-dag.buiten { color: var(--muted); }
+.eigen-dag.vandaag { border-color: var(--border); }
+.eigen-dag.gekozen { background: var(--petrol-vlak); color: var(--on-petrol); border-color: var(--petrol-vlak); }
+.eigen-dag:disabled { color: var(--muted); opacity: .4; cursor: default; text-decoration: line-through; }
+.eigen-dag:disabled:hover { border-color: transparent; }
+.eigen-kal-voet { display: flex; justify-content: space-between; margin-top: 8px; }
+.eigen-kal-actie { font: inherit; font-size: var(--fs-label); font-weight: 600; color: var(--petrol); background: transparent; border: 0; cursor: pointer; padding: 6px 4px; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 700px) {
+  .filter-keuze .eigen-keuze { min-width: 0; width: 100%; }
+  .filter-keuze .eigen-knop { height: 44px; }
+  .eigen-kalender { width: min(288px, calc(100vw - 32px)); }
+}

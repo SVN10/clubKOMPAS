@@ -1,4 +1,5 @@
 import './style.css'
+import { startEigenVelden } from './keuzelijst.js'
 import { auth, db, projectId, configFout, SOORT, OMGEVING_LABEL, VERCEL_ENV } from './firebase.js'
 import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
@@ -952,7 +953,7 @@ function renderHome(gebruiker) {
         <div class="pagina-kop">
           <h1 class="pagina-titel">Welkom, ${esc(gebruikersNaam())}</h1>
         </div>
-        <p class="welkom-tekst">Welkom bij clubKOMPAS${clubNaam ? ` van ${esc(clubNaam)}` : ''}.</p>
+        <p class="welkom-tekst">Bij het clubKOMPAS${clubNaam ? ` van ${esc(clubNaam)}` : ''}.</p>
 ` })
   bindAppShell(gebruiker)
 }
@@ -1208,12 +1209,12 @@ const ZIJMENU = [
     { id: 'vermogens', naam: 'Vermogensoverzicht', ico: 'tegels' },
   ]},
   { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
+    { id: 'club', naam: 'Club', ico: 'vlag' },
+    { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
     { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
     { id: 'projecten', naam: 'Projecten', ico: 'klembord' },
     { id: 'samenwerkingen', naam: 'Samenwerkingen', ico: 'schakels' },
-    { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
-    { id: 'club', naam: 'Club', ico: 'vlag' },
   ]},
 ]
 const zichtbaar = x => x.zichtbaar ? x.zichtbaar() : true
@@ -1517,7 +1518,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
     const kop = `
         <div class="beheer-rij beheer-kop domein-rij" role="row">
           <span role="columnheader">#</span>
-          <span role="columnheader"><span class="sr-only">Pictogram</span></span>
+          <span role="columnheader">Icon</span>
           <span role="columnheader">Domein</span>
           <span role="columnheader">Soort</span>
           <span role="columnheader">Eindverantwoordelijke</span>
@@ -1527,23 +1528,24 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
     lijst.setAttribute('role', 'table')
     lijst.setAttribute('aria-label', 'Domeinen')
     lijst.innerHTML = kop + gefilterd.map((item, i) => {
-      // Verplaatsknoppen alleen bij "Alle soorten"; anders onzichtbaar zodat de kolommen gelijk blijven
-      const verborgen = kanVerplaatsen ? '' : ' onzichtbaar" tabindex="-1" aria-hidden="true'
+      // Nummer = plaats in de hele lijst, ook met een filter; pijlknoppen alleen bij "Alle soorten" (Paul, 23-11-2026)
+      const plaats = huidigeItems.indexOf(item) + 1
+      const pijlen = kanVerplaatsen ? `
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="Omhoog: ${esc(item.naam)}"${i === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="Omlaag: ${esc(item.naam)}"${i === gefilterd.length - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>` : ''
       const aantal = Number.isInteger(item.aantalVermogens) ? item.aantalVermogens : 0
       const link = KAN_VERMOGENS.has(item.type)
         ? `<a href="#" class="tussen-link cel-sub" data-nav="vermogensbeheer" data-filter="${esc(item.id)}" aria-label="${aantal ? `${vermogensTekst(aantal)} van ${esc(item.naam)}` : `Nog geen vermogens bij ${esc(item.naam)}`}">${aantal ? vermogensTekst(aantal) : 'Nog geen vermogens'}</a>`
         : ''
       return `
         <div class="structuur-rij beheer-rij domein-rij" role="row" data-id="${esc(item.id)}">
-          <span class="cel-nr" role="cell">${kanVerplaatsen ? i + 1 : ''}</span>
+          <span class="cel-nr" role="cell">${plaats}</span>
           <span class="cel-picto" role="cell">${pictogramHTML(item, 'picto-klein')}</span>
           <span class="cel-naam" role="cell">${esc(item.naam)}</span>
           <span role="cell"><span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
           <span class="cel-functie" role="cell">${esc(functieNaam.get(item.bestuursfunctieId) || '—')}</span>
           <span class="cel-vermogens" role="cell">${link}</span>
-          <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="Omhoog: ${esc(item.naam)}"${!kanVerplaatsen || i === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="Omlaag: ${esc(item.naam)}"${!kanVerplaatsen || i === gefilterd.length - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>
+          <div class="kaart-acties cel-acties" role="cell">${pijlen}
             ${actieKnopHTML('bewerk', item.id, 'bewerk', item.naam)}
             ${actieKnopHTML('verwijder', item.id, 'verwijder', item.naam)}
           </div>
@@ -2435,16 +2437,17 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     const periode = cfg.status ? periodeTekst(x.begindatum, x.einddatum) : ''
     const eigenaar = functieNaam(x.bestuursfunctieId)
     const statusCel = cfg.status ? `
-          <span class="cel-status" role="cell">${Object.hasOwn(STATUS_LABEL, x.status) ? `<span class="status-label ${x.status}">${STATUS_LABEL[x.status]}</span>` : leeg('geen status')}</span>
-          <span class="cel-periode" role="cell"><span class="cel-label" aria-hidden="true">Periode: </span>${periode ? esc(periode) : leeg('geen periode')}</span>` : ''
+          <span class="cel-status" role="cell">${Object.hasOwn(STATUS_LABEL, x.status) ? `<span class="status-label ${x.status}">${STATUS_LABEL[x.status]}</span>` : leeg('geen status')}</span>` : ''
+    // Pijlknoppen alleen in het volledige overzicht (zonder filter); anders weg (Paul, 23-11-2026)
+    const pijlen = actiefFilter === 'alle' ? `
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omhoog"${k === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omlaag"${k === n - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>` : ''
     return `
         <div class="structuur-rij beheer-rij ${cfg.status ? 'project-rij' : 'samenwerking-rij'}" role="row" data-id="${esc(x.id)}">
           <span class="cel-nr" role="cell">${plaats}</span>
-          <span class="cel-project cel-naam" role="cell">${esc(x.naam)}</span>${statusCel}
+          <span class="cel-project" role="cell"><span class="cel-naam">${esc(x.naam)}</span>${periode ? `<span class="cel-periode"><span class="sr-only">, periode </span>${esc(periode)}</span>` : ''}</span>${statusCel}
           <span class="cel-eigenaar" role="cell"><span class="cel-label" aria-hidden="true">Eigenaar: </span>${eigenaar ? esc(eigenaar) : leeg('nog niet gekozen')}</span>
-          <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omhoog"${k === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omlaag"${k === n - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>
+          <div class="kaart-acties cel-acties" role="cell">${pijlen}
             ${actieKnopHTML('bewerk', x.id, 'bewerk', x.naam)}${actieKnopHTML('verwijder', x.id, 'verwijder', x.naam)}
           </div>
         </div>`
@@ -2471,7 +2474,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
       return
     }
     const kop = cfg.status
-      ? '<span role="columnheader">#</span><span role="columnheader">Project</span><span role="columnheader">Status</span><span role="columnheader">Periode</span><span role="columnheader">Eigenaar</span>'
+      ? '<span role="columnheader">#</span><span role="columnheader">Project</span><span role="columnheader">Status</span><span role="columnheader">Eigenaar</span>'
       : '<span role="columnheader">#</span><span role="columnheader">Samenwerking</span><span role="columnheader">Eigenaar</span>'
     lijstEl.innerHTML = `
           <div role="table" aria-label="${cfg.Meer}">
@@ -3243,6 +3246,7 @@ if (configFout) {
   renderConfigFout(configFout)
 } else {
   toonOmgevingsBalk()
+  startEigenVelden()   // eigen keuzelijst en datumkiezer in plaats van die van de browser
   onAuthStateChanged(auth, async gebruiker => {
     clearTimeout(laadTimer)
     laadTimer = null

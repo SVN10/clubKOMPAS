@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Toegevoegd
+- Eigen keuzelijst en datumkiezer in de stijl van de app, in plaats van de lijst en kalender van de browser (`src/keuzelijst.js`). Het echte veld blijft verborgen de bron van de waarde. Keuzelijst: pijltjes, Home/End, typen om te zoeken, Enter/Spatie, Esc. Datumkiezer: typen als dd-mm-jjjj of kiezen in een kalender (maandag eerst, pijltjes, PageUp/PageDown, Vandaag, Leegmaken), met de bestaande foutmeldingen.
+
+### Gewijzigd
+- Titelbalk: titel en kompas nog eens 20% groter (titel 31,7px, kompas 35px).
+- Home: de zin luidt nu "Bij het clubKOMPAS van <clubnaam>."
+- Beheer → Projecten: de periode staat achter de projectnaam; de kolom Periode is weg.
+- Beheer → Domeinen: kolomkop "Icon" boven de pictogrammen.
+- Alle beheertabellen: de rijnummers zijn altijd zichtbaar (plaats in de hele lijst). Met een filter verdwijnen de pijlknoppen; alleen bij Vermogens blijven ze, want daar schuif je binnen één domein.
+- Zijmenu Beheer in de volgorde Club, Bestuursfuncties, Domeinen, Vermogens, Projecten, Samenwerkingen.
+
 ## [0.10.1] – 2026-11-23
 
 ### Gewijzigd

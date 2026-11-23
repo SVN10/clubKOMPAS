@@ -59,3 +59,12 @@ Deze gelden voor alle beheertabellen: Domeinen, Vermogens, Bestuursfuncties, Pro
     - Alle kerncijfers zijn doorklikbaar naar beheer, ook op het Domeinenoverzicht.
     - Bij Domeinen opent het juiste filter.
 27. **Plaat:** "In voorbereiding" staat niet als tekst op de plaat, de stippellijn laat het zien. Voor schermlezers blijft het als verborgen tekst.
+
+## Bijstellingen Paul na v0.10.1 (23 november 2026)
+28. **Titelbalk:** de titel en het kompas worden nog eens 20% groter. De titel wordt 31,7 px, het kompas 35 px.
+29. **Home:** de zin wordt "Bij het clubKOMPAS van <clubnaam>."
+30. **Projecten:** de periode staat achter de projectnaam, op dezelfde regel. De kolom Periode vervalt.
+31. **Domeinen:** boven de pictogrammen staat de kolomkop "Icon".
+32. **Rijnummers en pijlknoppen:** rijnummers zijn altijd zichtbaar, als plaats in de hele lijst. Met een filter verdwijnen de pijlknoppen helemaal. Bij Vermogens blijven ze, omdat je daar binnen één domein schuift.
+33. **Zijmenu Beheer:** de volgorde wordt Club, Bestuursfuncties, Domeinen, Vermogens, Projecten, Samenwerkingen.
+34. **Keuzelijsten en datums:** alle keuzelijsten en datumvelden krijgen een eigen versie in de stijl van de app, in plaats van de lijst en de kalender van de browser. Paul wil dit binnen deze sessie.
