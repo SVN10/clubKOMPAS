@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.0] – 2026-11-23
 
 ### Toegevoegd
 - Eigen keuzelijst en datumkiezer in de stijl van de app, in plaats van de lijst en kalender van de browser (`src/keuzelijst.js`). Het echte veld blijft verborgen de bron van de waarde. Keuzelijst: pijltjes, Home/End, typen om te zoeken, Enter/Spatie, Esc. Datumkiezer: typen als dd-mm-jjjj of kiezen in een kalender (maandag eerst, pijltjes, PageUp/PageDown, Vandaag, Leegmaken), met de bestaande foutmeldingen.
