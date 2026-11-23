@@ -849,22 +849,20 @@ function paginaTitel(pagina) {
   return [OMGEVINGS_BALK[SOORT]?.titel, pagina, 'clubKOMPAS'].filter(Boolean).join(' · ')
 }
 
-function toonOmgevingsBalk() {
+// De omgevingsbalk staat onderaan, boven de footer (Paul, 23-11-2026). In de app-shell tekent
+// appShellHTML hem zelf; voor inlog- en laadschermen staat er één los onderaan de body.
+function omgevingsBalkHTML() {
   const variant = OMGEVINGS_BALK[SOORT]
-  if (!variant) return
-  if (document.querySelector('.omgeving-balk')) return
-  const balk = document.createElement('div')
-  balk.className = `omgeving-balk omgeving-balk--${variant.klasse}`
-  balk.dataset.soort = SOORT
+  if (!variant) return ''
   const tekst = variant.tekst()
-  if (tekst) {
-    balk.setAttribute('role', 'note')
-    balk.setAttribute('aria-label', 'Omgeving')
-    balk.innerHTML = tekst
-  } else {
-    balk.setAttribute('aria-hidden', 'true')       // alleen een kleurband, niets voor te lezen
-  }
-  document.body.prepend(balk)
+  const aria = tekst ? 'role="note" aria-label="Omgeving"' : 'aria-hidden="true"'   // productie: alleen een kleurband
+  return `<div class="omgeving-balk omgeving-balk--${variant.klasse}" data-soort="${esc(SOORT)}" ${aria}>${tekst}</div>`
+}
+
+function toonOmgevingsBalk() {
+  if (!OMGEVINGS_BALK[SOORT]) return
+  if (document.querySelector('body > .omgeving-balk')) return
+  document.body.insertAdjacentHTML('beforeend', omgevingsBalkHTML())
   document.body.classList.add('met-omgeving-balk')
   document.title = paginaTitel()
 }
@@ -1329,6 +1327,7 @@ ${inhoud}
         </main>
       </div>
     </div>
+    ${omgevingsBalkHTML()}
     ${footerHTML()}
   </div>`
 }
@@ -1339,9 +1338,7 @@ const PANEEL_INERT = ['.overslaan', '.top-bar', '.app-kolom', 'footer', '.omgevi
 function openPaneel() {
   const nav = document.getElementById('zijmenu')
   if (!nav) return
-  const balk = document.querySelector('.omgeving-balk')
-  const top = Math.max(0, balk ? balk.getBoundingClientRect().bottom : 0)
-  document.querySelector('.app-shell').style.setProperty('--paneel-top', `${top}px`)
+  document.querySelector('.app-shell').style.setProperty('--paneel-top', '0px')   // omgevingsbalk staat sinds 23-11-2026 onderaan
   nav.classList.add('open')
   document.querySelector('.zijmenu-achtergrond').hidden = false
   document.querySelector('.menu-knop').setAttribute('aria-expanded', 'true')

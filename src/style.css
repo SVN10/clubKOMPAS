@@ -21,10 +21,10 @@
   --fs-titel: 40px;        /* titel, kernwoord vet */
   --fs-hoofdstuk: 24px;
   --fs-paragraaf: 18px;
-  --fs-bloknaam: 15px;     /* naam in een petrol kopbalk */
-  --fs-lopend: 14px;       /* lopende tekst */
-  --fs-toelichting: 13px;  /* ondertitels en korte toelichtingen */
-  --fs-label: 12px;        /* kleine labels, nooit kleiner */
+  --fs-bloknaam: 16px;     /* naam in een petrol kopbalk */
+  --fs-lopend: 16px;       /* lopende tekst */
+  --fs-toelichting: 14px;  /* ondertitels en korte toelichtingen */
+  --fs-label: 13px;        /* kleine labels, nooit kleiner (13px sinds 23-11-2026: Barlow Semi Condensed is smal) */
   /* Schaduwen en dimlaag: in licht en donker thema gelijk */
   --schaduw-tooltip: 0 2px 6px rgba(0,0,0,.18);
   --schaduw-paneel: 4px 0 16px rgba(0,0,0,.2);
@@ -69,7 +69,7 @@
 body {
   font-family: var(--font);
   font-size: var(--fs-lopend);
-  line-height: 21px;
+  line-height: 24px;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -629,12 +629,11 @@ select.form-input {
 .logo-preview { max-width: 100%; }
 
 /* ── App-shell (CK-044) ── */
-:root { --kop-h: 52px; }                              /* hoogte petrol balk incl. oranje rand */
-body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
+:root { --kop-h: 80px; }                              /* hoogte petrol balk incl. oranje rand (= oude balk 52 + omgevingsbalk 28) */
 
 #app:has(> .app-shell) { flex: 1; display: flex; flex-direction: column; }
 .app-shell { flex: 1; display: flex; flex-direction: column; position: relative; --logo-ruimte: 16px; }
-.app-shell.heeft-logo { --logo-ruimte: 192px; }      /* max-width logo 160 + rechts 16 + lucht 16 */
+.app-shell.heeft-logo { --logo-ruimte: 216px; }      /* max-width logo 184 + rechts 16 + lucht 16 */
 
 /* Overslaglink */
 .overslaan {
@@ -650,7 +649,7 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 /* Petrol balk */
 .top-bar {
   position: relative;
-  height: 52px; box-sizing: border-box;
+  height: 80px; box-sizing: border-box;              /* even hoog als vroeger balk + omgevingsbalk (Paul, 23-11-2026) */
   display: flex; align-items: center; gap: 10px;
   padding: 0 var(--logo-ruimte) 0 16px;
   background: var(--petrol-vlak); color: var(--on-petrol);
@@ -659,16 +658,16 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 .top-bar .app-icon { width: 35px; height: 35px; color: var(--on-petrol); }   /* 2× 20% groter (Paul, 23-11-2026) */
 .top-bar .app-title {
   flex: 1 1 auto; min-width: 0;
-  font-size: 31.7px; line-height: 36px;             /* bewuste uitzondering op de tekstschaal (herziet CK-031); 2× 20% groter (Paul, 23-11-2026) */
+  font-size: 32px; line-height: 36px;             /* bewuste uitzondering op de tekstschaal (herziet CK-031); 2× 20% groter (Paul, 23-11-2026) */
   color: var(--on-petrol);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .menu-knop { display: none; }
 
-/* Clublogo: steekt 15px boven de balk uit en hangt 11px over het kruimelpad (besluit Paul 23-11-2026) */
+/* Clublogo: 90px, 16px van boven en van rechts (Paul, 23-11-2026); hangt daardoor 26px over het kruimelpad */
 .club-logo {
-  position: absolute; top: -15px; right: 16px; z-index: 3;
-  height: 78px; width: auto; max-width: 160px; object-fit: contain;
+  position: absolute; top: 16px; right: 16px; z-index: 3;
+  height: 90px; width: auto; max-width: 184px; object-fit: contain;
 }
 
 /* Lijf */
@@ -677,7 +676,7 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 .app-kolom > main { flex: 1; padding-bottom: 32px; }   /* neemt de margin-top van de footer over */
 
 /* Zijmenu */
-.zijmenu { width: 172px; flex: none; background: var(--surface); border-right: 1px solid var(--border); }
+.zijmenu { width: 192px; flex: none; background: var(--surface); border-right: 1px solid var(--border); }   /* 192px: past "Vermogensoverzicht" op 16px (was 172px bij 14px) */
 .zijmenu-binnen {
   position: sticky; top: 0; z-index: 5;
   height: min(100%, calc(100dvh - var(--kop-h)));
@@ -696,7 +695,7 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
   display: flex; align-items: center; gap: 10px;
   width: 100%; min-height: 44px; padding: 0 12px;
   border: 0; border-left: 4px solid transparent; background: transparent;
-  color: var(--petrol); font-family: var(--font); font-size: var(--fs-lopend); line-height: 18px;
+  color: var(--petrol); font-family: var(--font); font-size: var(--fs-lopend); line-height: 20px;
   text-align: left; text-decoration: none; cursor: pointer;
 }
 .zijmenu-item svg { width: 18px; height: 18px; flex: none; }
@@ -710,7 +709,7 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 .naam-voor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .naam-sessie {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  overflow-wrap: anywhere; font-size: var(--fs-lopend); line-height: 18px;
+  overflow-wrap: anywhere; font-size: var(--fs-lopend); line-height: 20px;
 }
 .zijmenu-knop { border-top: 1px solid var(--border); color: var(--muted); }
 .zijmenu-knop svg { width: 16px; height: 16px; }
@@ -805,7 +804,7 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 
 /* Mobiel: uitschuifpaneel */
 @media (max-width: 700px) {
-  .app-shell.heeft-logo { --logo-ruimte: 124px; }    /* logo 96 + 16 + 12 */
+  .app-shell.heeft-logo { --logo-ruimte: 138px; }    /* logo 110 + 16 + 12 */
   .top-bar { padding-left: 8px; gap: 8px; }
   .menu-knop {
     display: inline-flex; align-items: center; justify-content: center;
@@ -814,8 +813,8 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
   }
   .menu-knop svg { width: 24px; height: 24px; stroke-width: 2.25; }   /* gerenderd 1,125px, gelijk aan de 18px-items */
   .top-bar .app-icon { width: 31px; height: 31px; }
-  .top-bar .app-title { font-size: 25.9px; line-height: 30px; }
-  .club-logo { top: 6px; height: 36px; max-width: 96px; }   /* binnen de balk: (48 - 36) / 2 */
+  .top-bar .app-title { font-size: 26px; line-height: 30px; }
+  .club-logo { top: 16px; height: 41px; max-width: 110px; }  /* 15% groter; 16px van boven en van rechts */
   .kruimelpad { padding-right: 16px; }
 
   .zijmenu {
@@ -860,6 +859,8 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 .omgeving-balk--test { background: #C9CDCD; color: #111212; }               /* grijs, zwarte letters */
 .omgeving-balk--ontwikkel { background: #FF9E16; color: #111212; }          /* oranje, zwarte letters */
 .omgeving-balk--productie-lokaal { background: #46797B; color: #FFFFFF; }   /* echte clubdata: petrol met waarschuwingstekst */
+/* In de app-shell staat de balk boven de footer; de losse balk onderaan de body is dan overbodig */
+body:has(> #app > .app-shell) > .omgeving-balk { display: none; }
 body.met-omgeving-balk #app:has(> .inlog-wrap) {
   flex: 1;
   display: flex;

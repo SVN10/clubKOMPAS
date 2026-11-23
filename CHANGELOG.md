@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Gewijzigd
+- Omgevingsbalk staat nu onderaan, direct boven de footer (ook op inlog- en laadschermen). De titelbalk is 80px hoog (vroeger balk 52 + omgevingsbalk 28); titel en kompas staan er verticaal gecentreerd in. Het clublogo hangt nog steeds 11px over het kruimelpad; het mobiele paneel begint bovenaan.
+- Clublogo 15% groter: 90px (telefoon 41px), 16px van boven en van rechts.
+- Tekstschaal een stap groter (Barlow Semi Condensed is smal): lopende tekst 16px (was 14), bloknaam 16 (15), toelichting 14 (13), label 13 (12); regelhoogte lopende tekst 24px. Titelbalk afgerond op 32px (telefoon 26px). Zijmenu 192px breed (was 172), zodat "Vermogensoverzicht" past.
+
 ## [0.11.0] – 2026-11-23
 
 ### Toegevoegd

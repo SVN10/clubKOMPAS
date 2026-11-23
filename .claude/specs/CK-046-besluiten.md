@@ -68,3 +68,20 @@ Deze gelden voor alle beheertabellen: Domeinen, Vermogens, Bestuursfuncties, Pro
 32. **Rijnummers en pijlknoppen:** rijnummers zijn altijd zichtbaar, als plaats in de hele lijst. Met een filter verdwijnen de pijlknoppen helemaal. Bij Vermogens blijven ze, omdat je daar binnen één domein schuift.
 33. **Zijmenu Beheer:** de volgorde wordt Club, Bestuursfuncties, Domeinen, Vermogens, Projecten, Samenwerkingen.
 34. **Keuzelijsten en datums:** alle keuzelijsten en datumvelden krijgen een eigen versie in de stijl van de app, in plaats van de lijst en de kalender van de browser. Paul wil dit binnen deze sessie.
+
+## Bijstelling Paul (23 november 2026)
+35. **Omgevingsbalk:** de omgevingsbalk staat onderaan, direct boven de footer.
+36. **Titelbalk:** de titelbalk is 80 px hoog, net zo hoog als vroeger de balk en de omgevingsbalk samen. De titel en het kompas staan er verticaal gecentreerd in.
+37. **Clublogo:** het clublogo wordt 15% groter, 90 px hoog. Het staat 16 px van boven en 16 px van rechts.
+38. **Tekstschaal:** de tekst wordt een stap groter. Paul nam het advies over, omdat Barlow Semi Condensed een smalle letter is. Dit herziet CK-031.
+
+    | Rol | Was | Wordt |
+    |---|---|---|
+    | Lopende tekst | 14 px | 16 px |
+    | Bloknaam | 15 px | 16 px |
+    | Toelichting | 13 px | 14 px |
+    | Label | 12 px | 13 px |
+
+    - Paragraaf, hoofdstuk en titel blijven 18, 24 en 40 px.
+    - De titelbalk wordt 32 px, op de telefoon 26 px.
+    - Het zijmenu wordt 192 px breed.
