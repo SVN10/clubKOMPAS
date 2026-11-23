@@ -2,6 +2,8 @@
 
 ## Ongepubliceerd
 
+## [0.6.0] – 2026-11-23
+
 ### Gewijzigd
 - Eén navigatie op elke ingelogde pagina (CK-044): Home, Domeinen, Bestuursfuncties, Club en Mijn account delen één app-shell met dezelfde petrol balk, hetzelfde zijmenu, kruimelpad en footer. Draait "Home zonder zijmenu" (CK-037) terug.
   - Zijmenu met de groepen **Overzicht** (Home) en **Beheer** (Domeinen, Bestuursfuncties, Club), onderaan "naam · rol" (naar Mijn account) en **Uitloggen** (zonder bevestiging), daaronder de knop Menu inklappen/uitklappen. Inklapbaar tot 44px; de stand blijft bewaard (`zijmenu-ingeklapt`), standaard uitgeklapt. Het zijmenu blijft in beeld bij scrollen. Actief item wit met oranje linkerrand, vet en `aria-current="page"`; ingeklapt verschijnt de naam als tooltip bij aanwijzen én bij toetsenbordfocus.
