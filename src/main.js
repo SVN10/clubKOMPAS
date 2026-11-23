@@ -978,15 +978,11 @@ function renderDomeinenoverzicht(gebruiker) {
             <p class="vermogens-hint" id="vermogens-hint" role="status"></p>
             <div class="grid" id="structuur-grid">
             </div>
-            <div class="sectie-voet">
-              <button class="btn" id="naar-structuur-beheer">Beheer →</button>
-            </div>
           </div>
         </div>
 ` })
 
   bindAppShell(gebruiker)
-  document.getElementById('naar-structuur-beheer').addEventListener('click', () => navigeer('beheer', gebruiker))
 
   renderStructuurGrid()
 }
@@ -1946,7 +1942,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   function tabelHTML(lijst, label, opties) {
     return `
           <div role="table" aria-label="${esc(label)}">
-            <div class="sr-only" role="row"><span role="columnheader">Nr.</span><span role="columnheader">Vermogen</span><span role="columnheader">Acties</span></div>
+            <div class="beheer-rij beheer-kop vermogen-rij" role="row"><span role="columnheader">#</span><span role="columnheader">Vermogen</span><span role="columnheader"><span class="sr-only">Acties</span></span></div>
             ${lijst.map((v, k) => rijHTML(v, k, lijst.length, opties)).join('')}
           </div>`
   }
@@ -1957,9 +1953,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
         <section class="vermogen-groep" aria-labelledby="vg-kop-${esc(d.id)}">
           <h3 class="groep-kop" id="vg-kop-${esc(d.id)}">
             <span class="groep-picto">${pictogramHTML(d, 'picto-klein')}</span>
-            <span class="groep-naam">${esc(d.naam)}</span><span class="sr-only">, </span>
-            <span class="pill"><span class="stip" style="${SOORT_KLEUR[d.type] || ''}"></span>${SOORT_LABEL[d.type] || ''}</span><span class="sr-only">, </span>
-            <span class="groep-aantal">${vermogensTekst(lijst.length)}</span>
+            <span class="groep-naam">${esc(d.naam)}</span>
           </h3>
           ${lijst.length ? tabelHTML(lijst, `Vermogens bij ${d.naam}`) : '<p class="groep-leeg">Nog geen vermogens.</p>'}
         </section>`
@@ -1969,8 +1963,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     return `
         <section class="vermogen-groep" aria-labelledby="vg-kop-zonder">
           <h3 class="groep-kop" id="vg-kop-zonder">
-            <span class="groep-naam">Zonder geldig domein</span><span class="sr-only">, </span>
-            <span class="groep-aantal">${vermogensTekst(lijst.length)}</span>
+            <span class="groep-naam">Zonder geldig domein</span>
           </h3>
           <p class="groep-uitleg">Deze vermogens horen bij een domein dat niet meer bestaat of overkoepelend is. Kies via Bewerken een ander domein, of verwijder ze.</p>
           ${tabelHTML(lijst, 'Vermogens zonder geldig domein', { metVolgorde: false })}

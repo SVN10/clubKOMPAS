@@ -656,10 +656,10 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
   background: var(--petrol-vlak); color: var(--on-petrol);
   border-bottom: 4px solid var(--orange);
 }
-.top-bar .app-icon { width: 24px; height: 24px; color: var(--on-petrol); }
+.top-bar .app-icon { width: 29px; height: 29px; color: var(--on-petrol); }   /* 20% groter (Paul, 23-11-2026) */
 .top-bar .app-title {
   flex: 1 1 auto; min-width: 0;
-  font-size: 22px; line-height: 26px;               /* bewuste uitzondering op de tekstschaal (herziet CK-031) */
+  font-size: 26.4px; line-height: 31px;             /* bewuste uitzondering op de tekstschaal (herziet CK-031); 20% groter (Paul, 23-11-2026) */
   color: var(--on-petrol);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -813,8 +813,8 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
     background: transparent; border: 0; color: var(--on-petrol); cursor: pointer;
   }
   .menu-knop svg { width: 24px; height: 24px; stroke-width: 2.25; }   /* gerenderd 1,125px, gelijk aan de 18px-items */
-  .top-bar .app-icon { width: 22px; height: 22px; }
-  .top-bar .app-title { font-size: var(--fs-paragraaf); line-height: 22px; }
+  .top-bar .app-icon { width: 26px; height: 26px; }
+  .top-bar .app-title { font-size: 21.6px; line-height: 26px; }
   .club-logo { top: 6px; height: 36px; max-width: 96px; }   /* binnen de balk: (48 - 36) / 2 */
   .kruimelpad { padding-right: 16px; }
 
@@ -1008,15 +1008,13 @@ a.btn { text-decoration: none; }
 .vermogen-groep { display: flex; flex-direction: column; }
 .groep-kop {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
-  padding: 0 0 6px; border-bottom: 1px solid var(--border);
+  padding: 0 0 10px;   /* geen lijn: de tabelkop eronder heeft er al een */
   font-size: var(--fs-lopend); line-height: 19px; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase; color: var(--petrol);
 }
 .groep-naam { min-width: 0; overflow-wrap: anywhere; }
 .groep-picto { display: flex; }
 .groep-picto:empty { display: none; }
-.groep-kop .pill { margin-top: 0; font-weight: 400; text-transform: none; color: var(--text); }
-.groep-aantal { margin-left: auto; font-size: var(--fs-toelichting); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
 .vermogen-rij { grid-template-columns: 28px minmax(0, 1fr) 152px; }
 @media (max-width: 700px) { .vermogen-rij { grid-template-columns: 28px minmax(0, 1fr) 200px; } }
 .groep-leeg { padding: 8px 0 0 40px; font-size: var(--fs-toelichting); font-style: italic; color: var(--muted); }
@@ -1030,13 +1028,12 @@ a.btn { text-decoration: none; }
 .leeg-blok p { font-size: var(--fs-lopend); line-height: 21px; max-width: 60ch; }
 .leeg-blok .btn-toevoegen { margin-top: 0; padding: 0 16px; min-height: 38px; }
 @container (max-width: 400px) {
+  .beheer-rij.beheer-kop.vermogen-rij { display: none; }
   .vermogen-rij { grid-template-columns: 24px minmax(0, 1fr); row-gap: 4px; }
   .vermogen-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
   .groep-kop { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
   .groep-kop .groep-picto  { grid-row: 1; grid-column: 1; }
   .groep-kop .groep-naam   { grid-row: 1; grid-column: 2; }
-  .groep-kop .groep-aantal { grid-row: 1; grid-column: 3; }
-  .groep-kop .pill         { grid-row: 2; grid-column: 2; justify-self: start; }
   .groep-leeg { padding-left: 36px; }
 }
 

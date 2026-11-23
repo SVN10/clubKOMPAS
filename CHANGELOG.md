@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Gewijzigd
+- Titelbalk: de titel (clubKOMPAS · clubnaam) en het kompas zijn 20% groter (titel 26,4px, kompas 29px; op de telefoon 21,6px en 26px).
+- Domeinenoverzicht: de knop "Beheer →" onder de domeinen is weg; beheer gaat via het zijmenu of de kerncijfers.
+- Beheer → Vermogens: per domein geen soortlabel en geen aantal meer in de kop; elke tabel heeft zichtbare kolomkoppen (#, Vermogen).
+
 ## [0.10.0] – 2026-11-23
 
 ### Toegevoegd
