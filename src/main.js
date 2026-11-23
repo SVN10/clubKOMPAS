@@ -826,10 +826,12 @@ function renderConfigFout(fout) {
   console.error(`${titel}. ${tekst(alinea)}`)
 }
 
+// Omgevingsbalk staat altijd bovenaan: productie petrol zonder tekst, test grijs, ontwikkel oranje (besluit Paul 23-11-2026)
 const OMGEVINGS_BALK = {
-  ontwikkel: { klasse: 'test', titel: 'ONTWIKKEL', tekst: () => `<strong>Ontwikkelomgeving</strong> · op deze computer · project ${esc(projectId)} · fictieve data` },
+  productie: { klasse: 'productie', titel: '', tekst: () => '' },
+  ontwikkel: { klasse: 'ontwikkel', titel: 'ONTWIKKEL', tekst: () => `<strong>Ontwikkelomgeving</strong> · op deze computer · project ${esc(projectId)} · fictieve data` },
   test: { klasse: 'test', titel: 'TEST', tekst: () => `<strong>Testomgeving</strong> · online · project ${esc(projectId)} · fictieve data` },
-  'productie-lokaal': { klasse: 'productie', titel: 'PRODUCTIE LOKAAL', tekst: () => `<strong>Let op: echte clubdata</strong> · lokaal tegen ${esc(projectId)}` },
+  'productie-lokaal': { klasse: 'productie-lokaal', titel: 'PRODUCTIE LOKAAL', tekst: () => `<strong>Let op: echte clubdata</strong> · lokaal tegen ${esc(projectId)}` },
 }
 
 // "<pagina> · clubKOMPAS", met het omgevingsvoorvoegsel (P0e/P0f) als dat er is
@@ -844,9 +846,14 @@ function toonOmgevingsBalk() {
   const balk = document.createElement('div')
   balk.className = `omgeving-balk omgeving-balk--${variant.klasse}`
   balk.dataset.soort = SOORT
-  balk.setAttribute('role', 'note')
-  balk.setAttribute('aria-label', 'Omgeving')
-  balk.innerHTML = variant.tekst()
+  const tekst = variant.tekst()
+  if (tekst) {
+    balk.setAttribute('role', 'note')
+    balk.setAttribute('aria-label', 'Omgeving')
+    balk.innerHTML = tekst
+  } else {
+    balk.setAttribute('aria-hidden', 'true')       // alleen een kleurband, niets voor te lezen
+  }
   document.body.prepend(balk)
   document.body.classList.add('met-omgeving-balk')
   document.title = paginaTitel()

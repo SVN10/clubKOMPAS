@@ -9,6 +9,9 @@
 - Vermogensoverzicht: ondersteunende domeinen hebben dezelfde petrol bovenrand als de pijlers; de overkoepelende domeinen gebruiken de volle breedte.
 - Paginatitels zijn niet meer deels vet.
 - De titelbalk en de footer blijven in beeld; alleen de inhoud scrolt.
+- Het kruimelpad blijft ook staan bij scrollen. Zijmenu op een raster van 44px (kopjes en items even hoog als het kruimelpad); naam en "Menu inklappen" 14px.
+- Het clublogo staat hoger en steekt boven de titelbalk uit.
+- De omgevingsbalk staat in elke omgeving: productie petrol zonder tekst, test grijs en ontwikkel oranje (beide met zwarte letters); lokaal tegen productie petrol met waarschuwing.
 
 ## [0.8.0] – 2026-11-23
 

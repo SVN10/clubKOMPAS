@@ -655,9 +655,9 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 }
 .menu-knop { display: none; }
 
-/* Clublogo: verticaal gecentreerd op de onderrand van de balk (13 + 39 = 52) */
+/* Clublogo: steekt 15px boven de balk uit en hangt 11px over het kruimelpad (besluit Paul 23-11-2026) */
 .club-logo {
-  position: absolute; top: 13px; right: 16px; z-index: 3;
+  position: absolute; top: -15px; right: 16px; z-index: 3;
   height: 78px; width: auto; max-width: 160px; object-fit: contain;
 }
 
@@ -700,9 +700,9 @@ body.met-omgeving-balk { --kop-h: 80px; }             /* + omgevingsbalk 28px */
 .naam-voor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .naam-sessie {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  overflow-wrap: anywhere; font-size: var(--fs-toelichting); line-height: 17px;
+  overflow-wrap: anywhere; font-size: var(--fs-lopend); line-height: 18px;
 }
-.zijmenu-knop { border-top: 1px solid var(--border); color: var(--muted); font-size: var(--fs-toelichting); }
+.zijmenu-knop { border-top: 1px solid var(--border); color: var(--muted); }
 .zijmenu-knop svg { width: 16px; height: 16px; }
 
 /* Focusringen in de shell: oranje 2px + 1px donkere binnenlijn (contrast ≥3:1 op wit/surface) */
@@ -774,8 +774,21 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 #app:has(> .app-shell) { min-height: 0; }
 .app-shell, .app-lijf { min-height: 0; }
 .app-kolom { overflow-y: auto; }
-.app-kolom > .kruimelpad { flex: none; }          /* niet laten krimpen in de scrollkolom */
-.zijmenu-binnen { position: static; height: 100%; }
+.app-kolom > .kruimelpad { flex: none; position: sticky; top: 0; z-index: 2; }   /* blijft staan bij scrollen; z-index onder het clublogo (3) */
+.zijmenu-binnen { position: static; height: 100%; padding-top: 0; }
+
+/* Zijmenu op een raster van 44px, gelijk aan het kruimelpad: elk kopje en elk item is één rij */
+.zijmenu-kop { display: flex; align-items: center; height: 44px; padding: 0 12px 0 16px; }
+.zijmenu-item { height: 44px; }
+.zijmenu-onder { padding-top: 0; }
+.zijmenu-account { padding-block: 0; }
+.naam-sessie { -webkit-line-clamp: 1; }
+@media (min-width: 701px) {
+  .zijmenu.ingeklapt .zijmenu-groep + .zijmenu-groep::before {
+    height: 44px; margin: 0 10px;
+    background: linear-gradient(var(--border), var(--border)) center / 100% 1px no-repeat;
+  }
+}
 
 /* Home: welkomspagina */
 .welkom-tekst { font-size: var(--fs-paragraaf); line-height: 26px; color: var(--text); max-width: 65ch; }
@@ -832,15 +845,11 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
   text-transform: uppercase;
 }
 .omgeving-balk strong { font-weight: 700; }
-.omgeving-balk--test {
-  background: var(--petrol-dark);
-  color: var(--on-petrol);
-}
-.omgeving-balk--productie {
-  background: var(--orange);
-  color: var(--on-orange);
-  border-bottom: 1px solid var(--on-orange);
-}
+/* Vaste kleuren, ook in donkere modus, zodat de omgeving altijd herkenbaar is */
+.omgeving-balk--productie { background: #46797B; color: #FFFFFF; }          /* petrol, zonder tekst */
+.omgeving-balk--test { background: #C9CDCD; color: #111212; }               /* grijs, zwarte letters */
+.omgeving-balk--ontwikkel { background: #FF9E16; color: #111212; }          /* oranje, zwarte letters */
+.omgeving-balk--productie-lokaal { background: #46797B; color: #FFFFFF; }   /* echte clubdata: petrol met waarschuwingstekst */
 body.met-omgeving-balk #app:has(> .inlog-wrap) {
   flex: 1;
   display: flex;
