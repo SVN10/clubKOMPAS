@@ -1,6 +1,6 @@
 # Changelog
 
-## Ongepubliceerd
+## [0.8.0] – 2026-11-23
 
 ### Toegevoegd
 - De plaat (CK-021): nieuwe alleen-lezen pagina **Vermogens** (zijmenu, groep Overzicht, onder Home, pictogram tegels, kruimelpad Home › Vermogens). Pijlers als kolommen, daaronder de ondersteunende domeinen en de overkoepelende domeinen met omschrijving; per domein de eindverantwoordelijke en de vermogens in de vaste volgorde. Lege toestanden, laadfout met **Opnieuw laden**, en een voetnoot voor vermogens die niet bij een pijler of ondersteunend domein horen.

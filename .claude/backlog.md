@@ -474,7 +474,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-021 — De plaat: vermogensoverzicht (Model-laag M1/M2-weergave)
-**Status:** 🔨 Gebouwd en gecontroleerd op branch `test` (23 november 2026), nog op tst te testen · Spec: `.claude/specs/CK-021-de-plaat.md` · Doc: `.claude/docs/CK-021.md` · Controle: `.claude/reports/CK-021-controle.md`
+**Status:** ✅ Live als v0.8.0 (23 november 2026) · getest op tst, testlijst geslaagd · Spec: `.claude/specs/CK-021-de-plaat.md` · Doc: `.claude/docs/CK-021.md` · Controle: `.claude/reports/CK-021-controle.md`
 
 *Alleen-lezen pagina Vermogens (pijlers, ondersteunende en overkoepelende domeinen met eindverantwoordelijke en vermogens), Home-kerncijfer als link, beheeritem heet Vermogens beheren.*
 
