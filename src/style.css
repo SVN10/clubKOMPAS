@@ -1040,3 +1040,41 @@ a.btn { text-decoration: none; }
   .cel-acties .btn-volgorde, .cel-acties .btn-icoon { width: 44px; height: 44px; }
   .cel-acties .btn-icoon.gevaar { margin-left: auto; }
 }
+
+/* ── De plaat (CK-021) ── */
+#plaat { container-type: inline-size; display: flex; flex-direction: column; gap: 0; }
+#plaat > .leeg-blok { margin-bottom: 20px; }
+#plaat .leeg-blok h2 { font-size: var(--fs-paragraaf); line-height: 22px; font-weight: 700; color: var(--petrol); }
+.plaat-rij { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; align-items: stretch; }
+.plaat-pijlers { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.plaat-steun { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.plaat-over { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.plaat-domein {
+  background: var(--card); border: 1px solid var(--border); border-top: 4px solid var(--petrol);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.plaat-domein.steun { border-top-color: var(--orange); }
+.plaat-domein.over { border-top-color: var(--muted); }
+.plaat-kop {
+  display: flex; align-items: center; gap: 8px; font-size: var(--fs-lopend); line-height: 19px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--petrol); overflow-wrap: anywhere;
+}
+.plaat-kop span { min-width: 0; }
+.plaat-sub { font-size: var(--fs-toelichting); font-style: italic; color: var(--muted); }
+.plaat-verantw { font-size: var(--fs-label); line-height: 16px; letter-spacing: .04em; color: var(--muted); }
+.plaat-verantw strong { color: var(--text); font-weight: 600; }
+.plaat-vermogens { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.plaat-vermogen {
+  background: var(--surface); border: 1px solid var(--border); padding: 5px 8px;
+  font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); overflow-wrap: anywhere;
+}
+.plaat-leeg { font-size: var(--fs-toelichting); font-style: italic; color: var(--muted); }
+.plaat-omschrijving { font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); }
+@container (max-width: 520px) {
+  .plaat-rij { grid-template-columns: 1fr; }
+  .plaat-vermogen { padding: 4px 8px; }
+}
+.cijfer-link { text-decoration: none; color: inherit; }
+.cijfer-link:hover { border-color: var(--petrol); }
+.cijfer-link:hover .l { text-decoration: underline; }
+.cijfer-link:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }

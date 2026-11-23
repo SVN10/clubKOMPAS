@@ -938,7 +938,7 @@ function renderDashboard(gebruiker) {
           <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
           <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
           <div class="cijfer"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen</span></div>
-          <div class="cijfer"><span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span><span class="l">Vermogens</span></div>
+          <a href="#" class="cijfer cijfer-link" data-nav="vermogens"><span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span><span class="l">Vermogens<span aria-hidden="true"> →</span></span></a>
         </div>
 
         <div class="sectie">
@@ -962,11 +962,144 @@ function renderDashboard(gebruiker) {
   renderStructuurGrid()
 }
 
+// ── Vermogens: de plaat (CK-021) ──────────────────────────────────────────────
+
+function plaatSectieHTML(kop, toel, klasse, kaarten) {
+  if (!kaarten.length) return ''
+  return `
+          <div class="sectie plaat-sectie">
+            <div class="sectie-kop">
+              <h2>${kop}</h2>
+              <span class="toel">${toel}</span>
+            </div>
+            <div class="sectie-lijf">
+              <ul class="plaat-rij ${klasse}" role="list">${kaarten.join('')}</ul>
+            </div>
+          </div>`
+}
+
+function plaatKaartHTML(d, lijst, functieNaam) {
+  const soort = d.type === 'pijler' ? 'pijler' : d.type === 'domein' ? 'steun' : 'over'
+  const sub = d.type !== 'overkoepelend' && d.hashtag ? `<p class="plaat-sub">${esc(d.hashtag)}</p>` : ''
+  const verantw = functieNaam
+    ? `<p class="plaat-verantw">Eindverantwoordelijke: <strong>${esc(functieNaam.get(d.bestuursfunctieId) || 'nog niet gekozen')}</strong></p>`
+    : ''
+  let rest
+  if (d.type === 'overkoepelend') {
+    rest = d.omschrijving ? `<p class="plaat-omschrijving">${esc(d.omschrijving)}</p>` : ''
+  } else if (lijst.length) {
+    rest = `<ul class="plaat-vermogens" role="list">${lijst.map(v => `<li class="plaat-vermogen">${esc(v.naam)}</li>`).join('')}</ul>`
+  } else {
+    rest = '<p class="plaat-leeg">Nog geen vermogens</p>'
+  }
+  return `
+                <li class="plaat-domein ${soort}">
+                  <h3 class="plaat-kop">${pictogramHTML(d, 'picto-klein')}<span>${esc(d.naam)}</span></h3>
+                  ${sub}${verantw}${rest}
+                </li>`
+}
+
+async function renderPlaat(gebruiker) {
+  const clubId = huidigClubId
+  document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogens', kruimels: [['Home', 'home'], [navNaam('vermogens')]], inhoud: `
+        <div class="pagina-kop">
+          <h1 class="pagina-titel">Vermogens<b>overzicht</b></h1>
+        </div>
+        <p class="vermogens-hint" id="plaat-hint" role="status"></p>
+        <div id="plaat"><p class="lijst-laden">De plaat wordt geladen...</p></div>
+` })
+  bindAppShell(gebruiker)
+  const plaatEl = document.getElementById('plaat')
+  const hintEl = document.getElementById('plaat-hint')
+
+  function toonLaadfout(e) {
+    if (!plaatEl.isConnected) return
+    const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
+      ? '<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor vermogens al gepubliceerd?</p>' : ''
+    plaatEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De plaat kon niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="plaat-herlaad">Opnieuw laden</button></div></div>${testHint}`
+  }
+
+  function teken(domeinen, vermogens, functies) {
+    const functieNaam = functies ? new Map(functies.map(f => [f.id, f.naam])) : null
+    hintEl.textContent = functies ? '' : 'De eindverantwoordelijken konden niet worden geladen. Herlaad de pagina om het opnieuw te proberen.'
+    const geldig = new Set(domeinen.filter(d => KAN_VERMOGENS.has(d.type)).map(d => d.id))
+    const perDomein = new Map()
+    vermogens.filter(v => geldig.has(v.domeinId)).forEach(v => {
+      if (!perDomein.has(v.domeinId)) perDomein.set(v.domeinId, [])
+      perDomein.get(v.domeinId).push(v)
+    })
+    perDomein.forEach(lijst => sorteerDomeinen(lijst))
+    const aantalWees = vermogens.length - [...perDomein.values()].reduce((a, l) => a + l.length, 0)
+    const vanType = type => domeinen.filter(d => d.type === type)
+    const telling = lijst => {
+      const n = lijst.reduce((a, d) => a + (perDomein.get(d.id)?.length || 0), 0)
+      return n ? vermogensTekst(n) : 'nog geen vermogens'
+    }
+    const kaarten = lijst => lijst.map(d => plaatKaartHTML(d, perDomein.get(d.id) || [], functieNaam))
+    const pijlers = vanType('pijler')
+    const steun = vanType('domein')
+    const over = vanType('overkoepelend')
+    let leeg = ''
+    if (!pijlers.length && !steun.length) {
+      leeg = `
+          <div class="leeg-blok">
+            <h2>Nog geen domeinen</h2>
+            <p>De plaat toont de pijlers en ondersteunende domeinen van de club met hun vermogens. Die zijn er nog niet; ze worden toegevoegd via Beheer.</p>
+          </div>`
+    } else if (!perDomein.size) {
+      leeg = `
+          <div class="leeg-blok">
+            <h2>Nog geen vermogens</h2>
+            <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken. Ze worden toegevoegd via Beheer → Vermogens beheren.</p>
+          </div>`
+    }
+    const voetnoot = aantalWees
+      ? `<p class="lijst-voetnoot">${aantalWees === 1 ? '1 vermogen hoort' : `${aantalWees} vermogens horen`} niet bij een pijler of ondersteunend domein en staat${aantalWees === 1 ? '' : 'n'} daarom niet op de plaat.</p>`
+      : ''
+    plaatEl.innerHTML = leeg
+      + plaatSectieHTML('Pijlers', telling(pijlers), 'plaat-pijlers', kaarten(pijlers))
+      + plaatSectieHTML('Ondersteunende domeinen', telling(steun), 'plaat-steun', kaarten(steun))
+      + plaatSectieHTML('Overkoepelende domeinen', 'zonder vermogens', 'plaat-over', kaarten(over))
+      + voetnoot
+  }
+
+  async function laadEnTeken() {
+    const functiesBelofte = Promise.allSettled([laadBestuursfuncties()])
+    let domeinen, vermogens
+    try {
+      [domeinen, vermogens] = await Promise.all([laadStructuurelementen(), laadVermogens(db, clubId)])
+    } catch (e) {
+      console.error('Plaat laden mislukt:', e?.code)
+      toonLaadfout(e)
+      return false
+    }
+    const [functieUitkomst] = await functiesBelofte
+    if (!plaatEl.isConnected) return false
+    if (functieUitkomst.status === 'rejected') console.error('Bestuursfuncties laden mislukt:', functieUitkomst.reason?.code)
+    teken(domeinen, vermogens, functieUitkomst.status === 'fulfilled' ? functieUitkomst.value : null)
+    return true
+  }
+
+  plaatEl.addEventListener('click', async e => {
+    const knop = e.target.closest('#plaat-herlaad')
+    if (!knop || knop.getAttribute('aria-disabled') === 'true') return
+    knop.textContent = 'Bezig...'
+    knop.setAttribute('aria-disabled', 'true')
+    const gelukt = await laadEnTeken()
+    if (!plaatEl.isConnected) return
+    if (gelukt) document.getElementById('inhoud')?.focus({ preventScroll: true })
+    else document.getElementById('plaat-herlaad')?.focus()
+  })
+
+  await laadEnTeken()
+}
+
 // ── App-shell: petrol balk, zijmenu, kruimelpad en footer (CK-044) ─────────────
 
 // Lijnpictogrammen voor het zijmenu (48×48, lijndikte 3), uit de clubKOMPAS-mockup
 const MENU_ICOON = {
   huis: '<path d="M7 22 L24 8 L41 22"/><path d="M11 19 V40 H37 V19"/><path d="M20 40 V29 H28 V40"/>',
+  tegels: '<rect x="7" y="7" width="9" height="9" rx="1.5"/><rect x="19.5" y="7" width="9" height="9" rx="1.5"/><rect x="32" y="7" width="9" height="9" rx="1.5"/><rect x="7" y="19.5" width="9" height="9" rx="1.5"/><rect x="19.5" y="19.5" width="9" height="9" rx="1.5"/><rect x="32" y="19.5" width="9" height="9" rx="1.5"/><rect x="7" y="32" width="9" height="9" rx="1.5"/><rect x="19.5" y="32" width="9" height="9" rx="1.5"/><rect x="32" y="32" width="9" height="9" rx="1.5"/>',
   plaat: '<rect x="6" y="8" width="10" height="32" rx="1.5"/><rect x="19" y="8" width="10" height="14" rx="1.5"/><rect x="19" y="26" width="10" height="14" rx="1.5"/><rect x="32" y="8" width="10" height="32" rx="1.5"/>',
   persoon: '<circle cx="24" cy="16" r="7"/><path d="M10 41 C10 31.5 16 27 24 27 C32 27 38 31.5 38 41"/>',
   vlag: '<path d="M12 42 V6"/><path d="M12 8 H37 L31.5 15.5 L37 23 H12"/>',
@@ -987,10 +1120,11 @@ function menuIcoon(naam) {
 const ZIJMENU = [
   { id: 'overzicht', kop: 'Overzicht', items: [
     { id: 'home', naam: 'Home', ico: 'huis' },
+    { id: 'vermogens', naam: 'Vermogens', ico: 'tegels' },
   ]},
   { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
-    { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
+    { id: 'vermogensbeheer', naam: 'Vermogens beheren', ico: 'puzzel' },
     { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
     { id: 'club', naam: 'Club', ico: 'vlag' },
   ]},
@@ -1001,6 +1135,7 @@ const navNaam = id => ZIJMENU.flatMap(g => g.items).find(i => i.id === id)?.naam
 
 const NAV_DOEL = new Map([
   ['home', renderDashboard],
+  ['vermogens', renderPlaat],
   ['beheer', renderPijlersDomeinenBeheer],
   ['domeinen', renderPijlersDomeinenBeheer],
   ['vermogensbeheer', renderVermogensBeheer],
@@ -1628,7 +1763,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogensbeheer', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('vermogensbeheer')]], inhoud: `
         <div class="sectie" data-meldblok>
           <div class="sectie-kop">
-            <h2>Vermogens</h2>
+            <h2>Vermogens beheren</h2>
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk" id="vermogen-balk" hidden>

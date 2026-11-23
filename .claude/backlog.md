@@ -471,3 +471,13 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 - [ ] 13 `section`-landmarks in de vermogenslijst → `div`; één `h1` per pagina.
 - [ ] ↑/↓ via een transactie in plaats van writeBatch.
 
+---
+
+### CK-021 — De plaat: vermogensoverzicht (Model-laag M1/M2-weergave)
+**Status:** 🔨 Gebouwd en gecontroleerd op branch `test` (23 november 2026), nog op tst te testen · Spec: `.claude/specs/CK-021-de-plaat.md` · Doc: `.claude/docs/CK-021.md` · Controle: `.claude/reports/CK-021-controle.md`
+
+*Alleen-lezen pagina Vermogens (pijlers, ondersteunende en overkoepelende domeinen met eindverantwoordelijke en vermogens), Home-kerncijfer als link, beheeritem heet Vermogens beheren.*
+
+**Vervolgpunten na CK-021:**
+- [ ] Afdrukweergave of PDF-export van de plaat.
+- [ ] Leesrechten voor niet-beheerders meenemen bij P0d.

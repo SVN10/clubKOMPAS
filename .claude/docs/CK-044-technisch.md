@@ -17,15 +17,15 @@ Elke render zet `#app.innerHTML` en roept daarna **`bindAppShell(gebruiker)`** a
 
 ## Een menu-item of pagina toevoegen
 
-Voorbeeld: Vermogens, onder Overzicht.
+Voorbeeld: Vermogens (de plaat, CK-021), onder Overzicht. Zo is het ook echt gebouwd: `renderPlaat` in `src/main.js`.
 
 ```js
 // 1. Een render-functie die de shell gebruikt
-async function renderVermogens(gebruiker) {
+async function renderPlaat(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({
     actief: 'vermogens',
     kruimels: [['Home', 'home'], [navNaam('vermogens')]],   // laatste deel = huidige pagina, zonder doel
-    inhoud: `<h1>Vermogens</h1> ...`,
+    inhoud: `<div class="pagina-kop"><h1 class="pagina-titel">Vermogens<b>overzicht</b></h1></div> ...`,
   })
   bindAppShell(gebruiker)                                    // altijd, ná het zetten van innerHTML
 }
@@ -33,11 +33,11 @@ async function renderVermogens(gebruiker) {
 // 2. Eén regel in ZIJMENU (bestaande groep, of een nieuwe groep met id en kop)
 { id: 'overzicht', kop: 'Overzicht', items: [
   { id: 'home', naam: 'Home', ico: 'huis' },
-  { id: 'vermogens', naam: 'Vermogens', ico: 'munt' },     // ico: sleutel in MENU_ICOON
+  { id: 'vermogens', naam: 'Vermogens', ico: 'tegels' },   // ico: sleutel in MENU_ICOON
 ]},
 
 // 3. Eén regel in NAV_DOEL
-['vermogens', renderVermogens],
+['vermogens', renderPlaat],
 ```
 
 Daarnaast:

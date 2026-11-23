@@ -67,7 +67,7 @@ De web-SDK probeert een transactie opnieuw bij `aborted`, `failed-precondition` 
 
 ## UI in `src/main.js`
 
-**Beheer → Vermogens** (`renderVermogensBeheer(gebruiker, { filter })`, menu-id `vermogensbeheer`, pictogram `puzzel`; het id `vermogens` blijft vrij voor CK-021).
+**Beheer → Vermogens beheren** (`renderVermogensBeheer(gebruiker, { filter })`, menu-id `vermogensbeheer`, pictogram `puzzel`; het id `vermogens` is sinds CK-021 de plaat, `renderPlaat`).
 - Groepen per pijler en ondersteunend domein in domeinvolgorde: `h3.groep-kop` + eigen `role="table"` per groep; vermogens zonder geldig domein staan in "Zonder geldig domein" (bewerken en verwijderen kunnen, ↑/↓ niet).
 - Balk met keuzelijst **Toon** en **+ Vermogen toevoegen**; formulier en sectiemelding boven de lijst.
 - Bewerken gebeurt in de rij (naam en/of domein). Een fout die de lijst ververst (`VERVERS_CODES`: dubbele naam, domein weg of overkoepelend, `aborted`) laadt de lijst opnieuw en opent het formulier weer met de invoer en de fout.
