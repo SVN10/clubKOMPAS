@@ -838,7 +838,7 @@ function renderConfigFout(fout) {
   console.error(`${titel}. ${tekst(alinea)}`)
 }
 
-// Omgevingsbalk staat altijd bovenaan: productie petrol zonder tekst, test grijs, ontwikkel oranje (besluit Paul 23-11-2026)
+// Omgevingsbalk: test grijs, ontwikkel oranje, productie lokaal met waarschuwing. In productie geen balk (Paul, 23-11-2026: overbodig)
 const OMGEVINGS_BALK = {
   productie: { klasse: 'productie', titel: '', tekst: () => '' },
   ontwikkel: { klasse: 'ontwikkel', titel: 'ONTWIKKEL', tekst: () => `<strong>Ontwikkelomgeving</strong> · op deze computer · project ${esc(projectId)} · fictieve data` },
@@ -857,8 +857,8 @@ function omgevingsBalkHTML() {
   const variant = OMGEVINGS_BALK[SOORT]
   if (!variant) return ''
   const tekst = variant.tekst()
-  const aria = tekst ? 'role="note" aria-label="Omgeving"' : 'aria-hidden="true"'   // productie: alleen een kleurband
-  return `<div class="omgeving-balk omgeving-balk--${variant.klasse}" data-soort="${esc(SOORT)}" ${aria}>${tekst}</div>`
+  if (!tekst) return ''   // productie: geen balk
+  return `<div class="omgeving-balk omgeving-balk--${variant.klasse}" data-soort="${esc(SOORT)}" role="note" aria-label="Omgeving">${tekst}</div>`
 }
 
 function toonOmgevingsBalk() {

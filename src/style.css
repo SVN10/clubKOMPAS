@@ -855,7 +855,6 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 }
 .omgeving-balk strong { font-weight: 700; }
 /* Vaste kleuren, ook in donkere modus, zodat de omgeving altijd herkenbaar is */
-.omgeving-balk--productie { background: #46797B; color: #FFFFFF; }          /* petrol, zonder tekst */
 .omgeving-balk--test { background: #C9CDCD; color: #111212; }               /* grijs, zwarte letters */
 .omgeving-balk--ontwikkel { background: #FF9E16; color: #111212; }          /* oranje, zwarte letters */
 .omgeving-balk--productie-lokaal { background: #46797B; color: #FFFFFF; }   /* echte clubdata: petrol met waarschuwingstekst */
