@@ -1,8 +1,8 @@
 # Changelog
 
-## [Ongepubliceerd]
+## [0.12.2] – 2026-11-23
 
-### Gewijzigd (CK-047, fixpakket v0.12.2)
+### Gewijzigd (CK-047)
 - Invoervelden hebben een duidelijkere rand (eigen token `--rand-invoer`, 3,4:1 op wit en 3,7:1 in het donkere thema). Kaart- en tabelranden blijven licht (`--border`).
 - Opslaan is in elk formulier de primaire knop (petrol vlak, besluit 40). Annuleren blijft secundair.
 - Het logo verwijderen vraagt eerst om bevestiging: "Clublogo verwijderen? Dit kan niet ongedaan worden gemaakt." (besluit 41).
