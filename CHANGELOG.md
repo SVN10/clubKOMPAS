@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.12.0] – 2026-11-23
 
 ### Toegevoegd
 - Beheer → Commissies (CK-041): commissies aanmaken, bewerken, ↑/↓ en verwijderen, met naam, omschrijving en eigenaar (een bestuursfunctie). De pagina staat in het zijmenu direct na Bestuursfuncties. Commissies staan alleen in Beheer, niet op de overzichten. Nieuwe collectie `commissies` met Firestore-regels en regeltests (100 van 100 groen).

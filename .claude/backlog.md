@@ -515,14 +515,14 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-041 — Commissies beheren (Platform-laag P0, masterdata)
-**Status:** 🔨 Gebouwd op test (23 november 2026) · route groot, ingekort (geen intake, ontwerp en prototype: het scherm bestaat al) · besluiten: `.claude/specs/CK-041-besluiten.md` · controles: geen bevindingen open · doc en testlijst: `.claude/docs/CK-041.md`
+**Status:** ✅ Live als v0.12.0 (23 november 2026) · getest op tst · route groot, ingekort (geen intake, ontwerp en prototype: het scherm bestaat al) · besluiten: `.claude/specs/CK-041-besluiten.md` · controles: geen bevindingen open · doc en testlijst: `.claude/docs/CK-041.md`
 
 *Als beheerder wil ik commissies aanmaken, zodat activiteiten een verantwoordelijke hebben. Het is een beheerpagina zoals Samenwerkingen: naam, omschrijving en eigenaar uit de bestuursfuncties. Er is geen koppeling aan domeinen of vermogens en er komen geen personen in. De commissies staan alleen in Beheer, in het zijmenu direct na Bestuursfuncties.*
 
 - [x] Collectie `commissies` met Firestore-regels en regeltests (100 van 100 groen)
 - [x] Beheer → Commissies: toevoegen, bewerken, ↑/↓, verwijderen, lege staat en laadfout
 - [x] Bestuursfuncties: de kolom en de verwijderblokkade tellen ook commissies
-- [ ] Regels op test publiceren (`npm run regels:test`) en de testlijst op tst afwerken
+- [x] Regels op test gepubliceerd en de testlijst op tst afgewerkt
 - [ ] Regels op productie (`npm run regels:productie`) vóór de merge naar main
 
 **Vervolgpunten na CK-041:**
