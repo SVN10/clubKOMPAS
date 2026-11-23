@@ -354,7 +354,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ---
 
 ### CK-044 — Eén navigatie: zijmenu op elke pagina (Platform-laag)
-**Status:** Gebouwd, kwaliteitscontroles en beoordelaar GO voor `test` (23 november 2026) · op tst gevonden en opgelost: domeinenlijst te breed naast het zijmenu · nog: testen op tst (13 stappen, `.claude/reports/CK-044-eindoordeel.md`), dan live · Bouwverslag: `.claude/reports/CK-044-bouwverslag.md` · **MoSCoW:** Should · **Laag:** Platform (app-shell, generiek voor elke club) · Besluiten: `.claude/specs/CK-044-besluiten.md` (Paul, 22 november 2026) · Draait CK-037 "Home zonder zijmenu" terug en herziet de 30px-uitzondering uit CK-031
+**Status:** ✅ Live als v0.6.0 (23 november 2026) · op tst gevonden en opgelost: domeinenlijst te breed naast het zijmenu · eindoordeel en testlijst: `.claude/reports/CK-044-eindoordeel.md` · Bouwverslag: `.claude/reports/CK-044-bouwverslag.md` · **MoSCoW:** Should · **Laag:** Platform (app-shell, generiek voor elke club) · Besluiten: `.claude/specs/CK-044-besluiten.md` (Paul, 22 november 2026) · Draait CK-037 "Home zonder zijmenu" terug en herziet de 30px-uitzondering uit CK-031
 
 *Als bestuurder wil ik op elke pagina hetzelfde zijmenu met overzicht, beheer en mijn account, zodat ik altijd op één plek navigeer en weet waar ik ben.*
 
