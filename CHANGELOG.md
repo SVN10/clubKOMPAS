@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.2] – 2026-11-23
 
 ### Gewijzigd
 - Vermogensoverzicht: het woord "Eindverantwoordelijke:" staat niet meer zichtbaar bij een domein; alleen de bestuursfunctie (voor schermlezers blijft het label).
