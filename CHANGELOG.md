@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.1] – 2026-11-23
 
 ### Gewijzigd
 - Omgevingsbalk staat nu onderaan, direct boven de footer (ook op inlog- en laadschermen). De titelbalk is 80px hoog (vroeger balk 52 + omgevingsbalk 28); titel en kompas staan er verticaal gecentreerd in. Het clublogo hangt nog steeds 11px over het kruimelpad; het mobiele paneel begint bovenaan.
