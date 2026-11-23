@@ -85,3 +85,7 @@ Deze gelden voor alle beheertabellen: Domeinen, Vermogens, Bestuursfuncties, Pro
     - Paragraaf, hoofdstuk en titel blijven 18, 24 en 40 px.
     - De titelbalk wordt 32 px, op de telefoon 26 px.
     - Het zijmenu wordt 192 px breed.
+
+39. **Kaarten en knoppen blijven vierkant** (23 november 2026, CK-051): afronding 0–6 px, geen schaduw, een lichte rand. Dit gaat vóór de algemene huisstijlregel (12 px met schaduw). Een huisstijlcontrole meldt dit niet meer als afwijking.
+40. **Opslaan is een primaire knop** (petrol vlak), in elk formulier. Annuleren blijft secundair. Dit wordt gebouwd in CK-047.
+41. **Verwijderen bevestigen met `confirm()`**, met één vaste tekst: "<Soort> <naam> verwijderen? Dit kan niet ongedaan worden gemaakt." Er komt geen eigen dialoog. De teksten worden gelijkgetrokken in CK-050. Het logo krijgt de bevestiging al in CK-047.

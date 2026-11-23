@@ -550,6 +550,7 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [ ] `.cel-nr` niet vet (besluit 21, `src/style.css:564`); Eindverantwoordelijke en Eigenaar even groot
 - [ ] Lettertype Barlow Semi Condensed lokaal in `public/` in plaats van via Google Fonts (`src/style.css:1`). Gewicht 500 laden of niet meer gebruiken
 - [ ] Bevestiging bij het verwijderen van het logo (`src/main.js:3056`)
+- [ ] Opslaan als primaire knop in elk formulier (besluit 40)
 - [ ] `vercel.json` met beveiligingsheaders: CSP, `frame-ancestors`, `nosniff` en `Referrer-Policy`. De CSP eerst op tst testen, ná het lokaal zetten van het lettertype
 
 ### CK-048 — Laadfouten en toegankelijke formulieren
@@ -583,9 +584,9 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [ ] Dode code weg: `src/counter.js`, `src/assets/*`, `public/icons.svg`, de ongebruikte import, `huidigeRol`/`laadRol`, en dode of dubbele CSS
 - [ ] Oudere scripts tonen namen via `veilig()`. `scripts/firestore.rules.migratie` verwijderen of er een waarschuwing in zetten
 
-### CK-051 — Huisstijlbesluiten (Paul)
-**Status:** Open · alleen een besluit, daarna eventueel mee in CK-047 of CK-050
+### ✅ CK-051 — Huisstijlbesluiten (Paul)
+**Status:** ✅ Besloten op 23 november 2026 · vastgelegd als besluiten 39–41 in `.claude/specs/CK-046-besluiten.md`
 
-- [ ] Kaarten en knoppen: vierkant houden (0–6 px, geen schaduw, lichte rand) of 12 px afronding met schaduw? Voorstel: vierkant houden en de huisstijlregel aanpassen
-- [ ] Opslaan als primaire knop (petrol vlak)? Voorstel: ja
-- [ ] Verwijderen: `confirm()` houden met één vaste tekst, of een eigen dialoog? Voorstel: `confirm()` houden
+- [x] Kaarten en knoppen blijven vierkant (0–6 px, geen schaduw, lichte rand). De huisstijlregel volgt het ontwerp
+- [x] Opslaan wordt een primaire knop (petrol vlak). Dit wordt gebouwd in CK-047
+- [x] Verwijderen blijft `confirm()` met één vaste tekst. De teksten worden gelijkgetrokken in CK-050
