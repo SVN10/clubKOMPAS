@@ -5,7 +5,7 @@ description: >
   voldoet aan wet- en regelgeving: AVG/GDPR, sectorspecifieke regels voor
   sportverenigingen en eventuele contractuele verplichtingen. Roep hem aan na
   de bouwer-medewerker, parallel met de andere kwaliteitscontroles.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 tools:
   - Read
   - Write
