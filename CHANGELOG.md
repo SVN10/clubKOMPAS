@@ -2,6 +2,8 @@
 
 ## Ongepubliceerd
 
+## [0.7.0] – 2026-11-23
+
 ### Toegevoegd
 - Vermogens beheren (CK-020): nieuwe pagina **Beheer → Vermogens** (zijmenu tussen Domeinen en Bestuursfuncties, puzzelpictogram, kruimelpad Home › Beheer › Vermogens). Vermogens staan gegroepeerd per pijler en ondersteunend domein, in de domeinvolgorde; met **Toon** kies je één domein. Toevoegen, hernoemen, naar een ander domein verplaatsen, ↑/↓ binnen het domein en verwijderen (met bevestiging), met de CK-023-meldingen. Lege staat met uitleg, groep "Zonder geldig domein" voor vermogens bij een verdwenen of overkoepelend domein, en een nette melding als laden mislukt.
 - Een vermogensnaam is uniek in de club (hoofdletters en spaties maken geen verschil) en heeft 2–100 tekens: letters (ook met accent), cijfers, spaties en `& ' - . , ( ) +`. De veldfout noemt het teken dat niet kan.

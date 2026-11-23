@@ -454,7 +454,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-020 — Vermogens onder een pijler of domein (Model-laag M1)
-**Status:** Gebouwd en door de vijf kwaliteitscontroles (23 november 2026: tester ✅, huisstijl 🟡, beveiliging ✅, compliance ✅, toegankelijkheid 🟡) · herstelronde gedaan, docs geschreven, beoordelaar GO voor `test` · nog: regels in test, import en testlijst op tst (22 punten, `.claude/reports/CK-020-eindoordeel.md`), dan live (niet op 26 november 2026) · Specs: `.claude/specs/CK-020-*.md` (besluiten 1–22) · Bouwverslag: `.claude/reports/CK-020-bouwverslag.md`
+**Status:** Getest op tst (23 november 2026: import 58 in test, controle "Alles klopt", testlijst geslaagd behalve twee tabbladen, devtools, offline, consoleschade en VoiceOver — regels daarvan wel in de emulator getest) · live als v0.7.0 na regels:productie en import in productie · Specs: `.claude/specs/CK-020-*.md` (besluiten 1–22) · Eindoordeel: `.claude/reports/CK-020-eindoordeel.md`
 
 *Beheer → Vermogens, regels met unieke naam (naamdocument) en domein-guard (teller), import van 58 HCA-vermogens, Home met vier kerncijfers, filter en pictogramknoppen op alle beheerpagina's. De plaat volgt in CK-021.*
 
@@ -465,6 +465,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 - [ ] Huisstijl: oranje hoofdactie per pagina (nu gestippelde "+ … toevoegen")? Besluit Paul.
 - [ ] Huisstijl: puzzelstuk-pictogram herkenbaarder maken (inkeping).
 - [ ] Vermogen later naar een bestuursfunctie laten verwijzen, niet naar een persoon (compliance).
+- [ ] Nog op tst te testen: twee tabbladen tegelijk, devtools-scenario's, offline, consoleschade en VoiceOver (eindoordeel punten 4, 11, 12, 15, 16, 20).
 - [ ] Bevestigingsvraag "Item verwijderen?" bij een domein zonder vermogens vervangen door een duidelijke tekst.
 - [ ] `permission-denied` door de teller-guard ook in Vermogens met een eigen melding afhandelen.
 - [ ] 13 `section`-landmarks in de vermogenslijst → `div`; één `h1` per pagina.
