@@ -453,12 +453,6 @@ footer {
 /* ── Versie-info ── */
 
 /* ── Structuur beheer ── */
-.filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.filter-knop.active {
-  background: var(--petrol);
-  color: var(--on-petrol);
-  border-color: var(--petrol);
-}
 .structuur-rij {
   display: flex;
   align-items: center;
@@ -541,13 +535,9 @@ footer {
   padding: 8px 0;
 }
 .structuur-rij.beheer-rij.bewerken { display: block; }
-/* Vaste breedte voor de actiekolom, zodat de kop (zonder knoppen) gelijk loopt met de rijen */
 /* CK-044: de kolommen geven mee met de breedte van de lijst (zijmenu in- of uitgeklapt).
-   De actiekolom is vast (past ↑ ↓ Bewerken Verwijderen), zodat de kop gelijk loopt met de rijen.
-   Is de lijst te smal, dan stapelen de rijen (container query hieronder). */
-#structuur-lijst, #functie-lijst { container-type: inline-size; }
-.domein-rij { grid-template-columns: 28px 24px minmax(120px, 1.2fr) 140px minmax(120px, 1fr) 240px; }
-.functie-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 240px; }
+   De actiekolom is vast, zodat de kop gelijk loopt met de rijen. Rasters en container queries:
+   zie "Beheer en vermogens (CK-020)" onderaan. */
 .beheer-rij.beheer-kop {
   display: grid;
   align-items: center;
@@ -567,19 +557,6 @@ footer {
 .cel-functie { font-size: var(--fs-toelichting); color: var(--text); }
 .cel-acties { justify-content: flex-end; margin-top: 0; }
 .onzichtbaar { visibility: hidden; }
-/* Gestapeld als de lijst zelf te smal is (domeinen < 760px, functies < 590px breed) */
-@container (max-width: 760px) {
-  .beheer-rij.beheer-kop.domein-rij { display: none; }
-  .domein-rij { grid-template-columns: 24px 24px 1fr; row-gap: 4px; }
-  .domein-rij > :nth-child(4), .domein-rij > :nth-child(5) { grid-column: 3; }
-  .domein-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
-}
-@container (max-width: 590px) {
-  .beheer-rij.beheer-kop.functie-rij { display: none; }
-  .functie-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
-  .functie-rij > :nth-child(3) { grid-column: 2; }
-  .functie-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
-}
 
 /* Keuzelijsten even hoog als tekstvelden */
 input.form-input, select.form-input {
@@ -596,10 +573,20 @@ select.form-input {
   background-position: right 12px center;
   cursor: pointer;
 }
+/* Donker: chevron in de lichte petrol (#7DB1B3), anders te weinig contrast */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) select.form-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%237DB1B3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+  }
+}
+:root[data-theme="dark"] select.form-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%237DB1B3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+}
 
 /* Soort-keuze: titel erboven, rondjes op één lijn met de velden */
 .soort-keuze { gap: 20px; flex-wrap: wrap; align-items: center; min-height: 38px; }
 .soort-keuze label { margin: 0; }
+.soort-optie { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-lopend); }
 
 /* Hashtag op de domeinkaart (CK-032): rechts naast het soortlabel, vet in petrol */
 .kaart-voet { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
@@ -623,9 +610,6 @@ select.form-input {
 
 /* Kopbalken alleen met de titel links (geen toelichting rechts) */
 .sectie-kop { min-height: 40px; }
-
-/* Domeinenoverzicht: drie kerncijfers */
-.cijfers.cijfers-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* Knoppen overal even hoog: vaste regelhoogte */
 .btn { line-height: 1.2; display: inline-flex; align-items: center; justify-content: center; }
@@ -928,10 +912,131 @@ body.met-omgeving-balk .inlog-wrap {
 
 /* Focusring op knoppen; een bezige knop met focus dimt niet mee, zodat de ring goed zichtbaar blijft */
 .btn:focus-visible,
-.btn-kaart-actie:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.btn-kaart-actie:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }
 .btn[aria-disabled="true"]:focus-visible,
 .btn-kaart-actie[aria-disabled="true"]:focus-visible { opacity: 1; }
 
 .logo-upload-wrap .form-rij { margin-top: 12px; }
 
 .meld-blok { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Beheer en vermogens (CK-020) ── */
+
+/* Beheerbalk: filter links, + Toevoegen rechts (besluiten 13 en 18) */
+.beheer-balk { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.beheer-balk[hidden] { display: none; }
+.beheer-balk .btn-toevoegen { margin: 0 0 0 auto; padding: 0 16px; min-height: 38px; }
+.beheer-balk .btn-toevoegen:hover { background: var(--card); }
+.btn-toevoegen:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }
+.filter-keuze { display: flex; align-items: center; gap: 8px; }
+.filter-keuze select { min-width: 220px; }
+.sectie-uitleg { font-size: var(--fs-toelichting); line-height: 19px; color: var(--text); }
+a.btn { text-decoration: none; }
+.form-fout .melding-actie { display: flex; width: fit-content; margin-top: 8px; }
+
+/* Rijknoppen: ↑/↓ en pictogramknoppen even hoog; tooltip als in het ingeklapte zijmenu (besluit 19) */
+.cel-acties .btn-volgorde { height: 28px; padding: 0; }
+.btn-icoon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0; }
+.btn-icoon svg { width: 18px; height: 18px; }
+.cel-acties .btn-icoon.gevaar { margin-left: 6px; }
+.btn-icoon.gevaar:focus-visible { color: var(--fout); border-color: var(--fout); }
+.btn-icoon .tip {
+  display: none; position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 40;
+  padding: 4px 8px; white-space: nowrap;
+  background: var(--petrol-dark); color: var(--on-petrol);
+  font-size: var(--fs-label); line-height: 16px; font-weight: 600; letter-spacing: 0; text-transform: none;
+  border-radius: 4px; box-shadow: var(--schaduw-tooltip);
+}
+.btn-icoon .tip::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 6px; }
+.btn-icoon:is(:hover, :focus-visible) .tip { display: block; }
+.tip-uit .btn-icoon .tip { display: none; }
+
+/* Rasters met de smallere actiekolom (152px) */
+#structuur-lijst, #functie-lijst { container-type: inline-size; }
+.domein-rij  { grid-template-columns: 28px 24px minmax(120px, 1.2fr) 140px minmax(120px, 1fr) 152px; }
+.functie-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 152px; }
+@media (max-width: 700px) {
+  /* 44px-knoppen: 4 × 44 + tussenruimte past niet in 152px; vóór de container queries, zodat stapelen wint */
+  .functie-rij { grid-template-columns: 28px minmax(100px, 1.2fr) minmax(100px, 1fr) 200px; }
+}
+@container (max-width: 660px) {
+  .beheer-rij.beheer-kop.domein-rij { display: none; }
+  .domein-rij { grid-template-columns: 24px 24px 1fr; row-gap: 4px; }
+  .domein-rij > :nth-child(4), .domein-rij > :nth-child(5) { grid-column: 3; }
+  .domein-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+}
+@container (max-width: 500px) {
+  .beheer-rij.beheer-kop.functie-rij { display: none; }
+  .functie-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
+  .functie-rij > :nth-child(3) { grid-column: 2; }
+  .functie-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+}
+
+/* Vermogenslijst: groepen per domein */
+#vermogen-lijst { container-type: inline-size; display: flex; flex-direction: column; gap: 24px; }
+/* Eén breedte voor de velden in alle beheerformulieren, gelijk aan het clubprofiel */
+.pijler-form .form-groep, .pijler-bewerk-form .form-groep { max-width: 480px; }
+.vermogen-groep { display: flex; flex-direction: column; }
+.groep-kop {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+  padding: 0 0 6px; border-bottom: 2px solid var(--border);
+  font-size: var(--fs-lopend); line-height: 19px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--petrol);
+}
+.groep-naam { min-width: 0; overflow-wrap: anywhere; }
+.groep-picto { display: flex; }
+.groep-picto:empty { display: none; }
+.groep-kop .pill { margin-top: 0; font-weight: 400; text-transform: none; color: var(--text); }
+.groep-aantal { margin-left: auto; font-size: var(--fs-toelichting); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
+.vermogen-rij { grid-template-columns: 28px minmax(0, 1fr) 152px; }
+@media (max-width: 700px) { .vermogen-rij { grid-template-columns: 28px minmax(0, 1fr) 200px; } }
+.groep-leeg { padding: 8px 0 0 40px; font-size: var(--fs-toelichting); font-style: italic; color: var(--muted); }
+.groep-uitleg { padding-top: 6px; font-size: var(--fs-toelichting); line-height: 19px; color: var(--text); }
+.lijst-voetnoot, .lijst-laden { font-size: var(--fs-toelichting); line-height: 19px; color: var(--muted); }
+.leeg-blok {
+  background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--petrol); border-radius: 4px;
+  padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+}
+.leeg-blok h3 { font-size: var(--fs-paragraaf); line-height: 22px; font-weight: 700; color: var(--petrol); }
+.leeg-blok p { font-size: var(--fs-lopend); line-height: 21px; max-width: 60ch; }
+.leeg-blok .btn-toevoegen { margin-top: 0; padding: 0 16px; min-height: 38px; }
+@container (max-width: 400px) {
+  .vermogen-rij { grid-template-columns: 24px minmax(0, 1fr); row-gap: 4px; }
+  .vermogen-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+  .groep-kop { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .groep-kop .groep-picto  { grid-row: 1; grid-column: 1; }
+  .groep-kop .groep-naam   { grid-row: 1; grid-column: 2; }
+  .groep-kop .groep-aantal { grid-row: 1; grid-column: 3; }
+  .groep-kop .pill         { grid-row: 2; grid-column: 2; justify-self: start; }
+  .groep-leeg { padding-left: 36px; }
+}
+
+/* Domeinen: aantal vermogens onder de naam (besluit 16) */
+.cel-domein { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cel-sub { font-size: var(--fs-toelichting); line-height: 18px; font-weight: 600; width: fit-content; }
+
+/* Home */
+.card .kaart-vermogens { margin-top: 8px; font-size: var(--fs-toelichting); line-height: 18px; font-weight: 600; color: var(--petrol); }
+.card .kaart-vermogens.leeg { font-weight: 400; font-style: italic; color: var(--muted); }
+.vermogens-hint { font-size: var(--fs-toelichting); line-height: 19px; color: var(--muted); }
+.vermogens-hint:empty { display: none; }
+
+/* Opgeruimde inline stijlen (huisstijl CK-020) */
+.domein-rij .pill { margin-top: 0; }
+.lijst-leeg { color: var(--muted); font-style: italic; font-size: var(--fs-toelichting); }
+.sectie-voet { text-align: right; margin-top: 8px; }
+.grid-leeg { color: var(--muted); }
+
+/* Kerncijfers: onder 900px is de inhoud naast het zijmenu te smal voor vier op een rij */
+@media (max-width: 900px) {
+  .cijfers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .beheer-balk { flex-direction: column; align-items: stretch; }
+  .beheer-balk .btn-toevoegen, .leeg-blok .btn-toevoegen { margin-left: 0; min-height: 44px; }
+  .filter-keuze { flex-direction: column; align-items: stretch; gap: 4px; }
+  .filter-keuze select { min-width: 0; width: 100%; height: 44px; }
+  .cel-acties .btn-volgorde, .cel-acties .btn-icoon { width: 44px; height: 44px; }
+  .cel-acties .btn-icoon.gevaar { margin-left: auto; }
+}

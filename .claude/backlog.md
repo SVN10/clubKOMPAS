@@ -376,7 +376,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ### Na CK-044 — vervolgpunten (nog te nummeren)
 **Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
 
-- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens` en `vermogensnamen` (CK-020); controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
 - [ ] **Eén `h1` per pagina** (nu alleen Home)
 - [x] **Domeinenlijst te breed** naast het zijmenu (op tst gezien tot ~1080px): opgelost 23 november 2026 met meegevende kolommen en een container query (domeinen stapelen onder 760px lijstbreedte, functies onder 590px)
 - [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
@@ -454,7 +454,19 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-020 — Vermogens onder een pijler of domein (Model-laag M1)
-**Status:** Open
+**Status:** Gebouwd en door de vijf kwaliteitscontroles (23 november 2026: tester ✅, huisstijl 🟡, beveiliging ✅, compliance ✅, toegankelijkheid 🟡) · herstelronde gedaan, docs geschreven, beoordelaar GO voor `test` · nog: regels in test, import en testlijst op tst (22 punten, `.claude/reports/CK-020-eindoordeel.md`), dan live (niet op 26 november 2026) · Specs: `.claude/specs/CK-020-*.md` (besluiten 1–22) · Bouwverslag: `.claude/reports/CK-020-bouwverslag.md`
 
-*Volgende stap in de structuur Club → Pijlers/Domeinen → Vermogens. Uitwerken na P0c.*
+*Beheer → Vermogens, regels met unieke naam (naamdocument) en domein-guard (teller), import van 58 HCA-vermogens, Home met vier kerncijfers, filter en pictogramknoppen op alle beheerpagina's. De plaat volgt in CK-021.*
+
+**Vervolgpunten na CK-020:**
+- [ ] **Gevoelige vermogens** (Lief & Leed, Sociale veiligheid, Tuchtzaken, Jongerenparticipatie, G-hockey): zodra M2/P1 personen of notities koppelt eerst P0d, geen vrije notities zonder besluit, verwerkingsregister bijwerken, DPIA beoordelen (compliance).
+- [ ] **Back-up/export** van Firestore (Spark-plan heeft geen back-up), als herstelmogelijkheid.
+- [ ] **npm audit:** 19 meldingen (5 high) uit bestaande pakketten (`firebase-tools`, `@grpc/grpc-js`); niet `npm audit fix --force`, apart bijwerken.
+- [ ] Huisstijl: oranje hoofdactie per pagina (nu gestippelde "+ … toevoegen")? Besluit Paul.
+- [ ] Huisstijl: puzzelstuk-pictogram herkenbaarder maken (inkeping).
+- [ ] Vermogen later naar een bestuursfunctie laten verwijzen, niet naar een persoon (compliance).
+- [ ] Bevestigingsvraag "Item verwijderen?" bij een domein zonder vermogens vervangen door een duidelijke tekst.
+- [ ] `permission-denied` door de teller-guard ook in Vermogens met een eigen melding afhandelen.
+- [ ] 13 `section`-landmarks in de vermogenslijst → `div`; één `h1` per pagina.
+- [ ] ↑/↓ via een transactie in plaats van writeBatch.
 

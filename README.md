@@ -31,6 +31,9 @@ Vercel publiceert automatisch vanaf GitHub: `main` naar live (Production), elke 
 | Een script draaien | `node scripts/<naam>.mjs` | **Test** (standaard) |
 | Een script tegen de echte data | `node scripts/<naam>.mjs --omgeving=productie` | **Productie**, pas nadat je `svn10-clubkompas` hebt ingetypt |
 | Regels publiceren | `npm run regels:test`, daarna `npm run regels:productie` | eerst test, dan productie (zie "Firestore-regels") |
+| Regels lokaal testen (emulator, geen login) | `npm run test:regels` | niets online: Firestore-emulator met project `demo-clubkompas` (Java nodig) |
+| Vermogens van HCA inrichten (CK-020) | `npm run vermogens:import -- --droog`, daarna zonder `--droog` | **Test** (standaard); `-- --omgeving=productie` vraagt de projectnaam (met `--droog` niet) |
+| Vermogens, naamdocumenten en tellers controleren | `npm run vermogens:controle -- --droog`, daarna zonder `--droog` om naamdocumenten te herstellen | **Test** (standaard) |
 
 Elk script toont als eerste regel waar het naartoe schrijft, bijvoorbeeld `DOEL: TEST — project svn10-clubkompas-test`. Met `--droog` laat een script alleen zien wat het zou doen. Het seed-script `scripts/seed-testclub.mjs` draait nooit tegen productie. `scripts/migrate.mjs` is verouderd en weigert altijd.
 
@@ -214,7 +217,9 @@ De beveiligingsregels staan in `firestore.rules` in de root van deze repo. De re
 
 Terugval als de CLI niet werkt: plak de volledige inhoud van `firestore.rules` in de console (Firestore → Regels → Publiceren), eerst in test, dan in productie.
 
-De regels staan per collectie expliciet toe (`instellingen`, `structuurelementen`). Elke nieuwe collectie (bijv. `vermogens`, CK-020) moet bewust aan `firestore.rules` worden toegevoegd; zonder regel is ze dicht.
+De regels staan per collectie expliciet toe (`instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen`). Elke nieuwe collectie moet bewust aan `firestore.rules` worden toegevoegd; zonder regel is ze dicht.
+
+Vermogens (CK-020): een naam is uniek per club via een naamdocument `vermogensnamen/{sleutel}`, en elk domein houdt een teller `aantalVermogens` bij. Alles loopt via transacties (`src/vermogens.js`); de regels weigeren een vermogen zonder naamdocument of tellerstap, een tweede vermogen met dezelfde naam, en het verwijderen of overkoepelend maken van een domein met vermogens. `npm run test:regels` toetst dat in de emulator (`tests/regels.test.mjs`) vóór je publiceert.
 
 Test wijzigingen vóór publicatie naar productie in de **Rules Playground** van de **testconsole** (met de testclub in plaats van HCA). Minimaal:
 

@@ -30,10 +30,17 @@ function kleur(stream, code, tekst) {
   return kleurAan(stream) ? `${code}${tekst}${KLEUR.reset}` : tekst
 }
 
+// Stuurtekens (terminal-escapes, regeleinden) en onzichtbare richtingstekens uit clubdata zichtbaar
+// maken als \u{..}, zodat een naam in de database de terminaluitvoer niet kan opmaken of verbergen.
+const STUURTEKENS = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF]/g
+export function veilig(tekst) {
+  return String(tekst).replace(STUURTEKENS, t => `\\u{${t.codePointAt(0).toString(16).toUpperCase()}}`)
+}
+
 function blok(stream, label, code, wat, regels) {
   const inspring = ' '.repeat(Math.max(label.length + 2, 9))
-  const kop = kleur(stream, code, label) + ' '.repeat(inspring.length - label.length) + wat
-  stream.write(`\n${[kop, ...regels.map(r => inspring + r)].join('\n')}\n\n`)
+  const kop = kleur(stream, code, label) + ' '.repeat(inspring.length - label.length) + veilig(wat)
+  stream.write(`\n${[kop, ...regels.map(r => inspring + veilig(r))].join('\n')}\n\n`)
 }
 
 export function stop(wat, regels = [], niets = 'geschreven', label = 'GESTOPT') {

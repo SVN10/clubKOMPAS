@@ -3,6 +3,10 @@ import { auth, db, projectId, configFout, SOORT, OMGEVING_LABEL, VERCEL_ENV } fr
 import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, writeBatch, deleteField } from 'firebase/firestore'
+import {
+  KAN_VERMOGENS, normaliseerVermogensnaam, vermogensnaamFout, laadVermogens, leesAantalVermogens, controleerNaamVrij,
+  voegVermogenToe, hernoemVermogen, verplaatsVermogen, verwijderVermogen,
+} from './vermogens.js'
 
 let huidigClubId = null
 let huidigProfiel = null
@@ -85,7 +89,7 @@ function hashtagFout(waarde) {
 
 function soortKeuzeHTML(naam, huidig) {
   return SOORTEN.map(([k, label]) => `
-    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--fs-lopend)">
+    <label class="soort-optie">
       <input type="radio" name="${esc(naam)}" value="${k}"${k === huidig ? ' checked' : ''}> ${label}
     </label>`).join('')
 }
@@ -163,13 +167,29 @@ async function verwijderBestuursfunctie(id) {
 }
 
 // Hernummer 1 t/m n in één batch: alles of niets, nooit een half geschreven volgorde
-async function schrijfVolgorde(subcollectie, items) {
+async function schrijfVolgorde(subcollectie, items, clubId = huidigClubId) {
   const batch = writeBatch(db)
   items.forEach((x, k) => {
-    if (x.volgorde !== k + 1) batch.update(doc(db, 'clubs', huidigClubId, subcollectie, x.id), { volgorde: k + 1 })
+    if (x.volgorde !== k + 1) batch.update(doc(db, 'clubs', clubId, subcollectie, x.id), { volgorde: k + 1 })
   })
   await batch.commit()
 }
+
+// Keuzelijst met pijlers en ondersteunende domeinen (CK-020); overkoepelende domeinen staan er nooit in
+function domeinOptiesHTML(domeinen, gekozen, { alle = false } = {}) {
+  const groep = (type, label) => {
+    const lijst = domeinen.filter(d => d.type === type)
+    if (!lijst.length) return ''
+    const opties = lijst.map(d => `<option value="${esc(d.id)}"${d.id === gekozen ? ' selected' : ''}>${esc(d.naam)}</option>`).join('')
+    return `<optgroup label="${label}">${opties}</optgroup>`
+  }
+  const eerste = alle
+    ? `<option value="alle"${gekozen === 'alle' ? ' selected' : ''}>Alle domeinen</option>`
+    : `<option value=""${gekozen ? '' : ' selected'}>Kies een domein</option>`
+  return eerste + groep('pijler', 'Pijlers') + groep('domein', 'Ondersteunende domeinen')
+}
+
+const vermogensTekst = n => (n === 1 ? '1 vermogen' : `${n} vermogens`)
 
 function bestuursfunctieKeuzeHTML(id, huidig, functies) {
   const opties = functies.map(f =>
@@ -271,7 +291,7 @@ function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
 
 const OPSLAAN_TIJDSLIMIET = 15000
 const INLOG_CODES = new Set(['unauthenticated', 'auth/user-token-expired', 'auth/requires-recent-login'])
-const WEG_CODES = new Set(['not-found', 'failed-precondition'])
+const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg'])
 const VERBINDING_CODES = new Set(['unavailable', 'deadline-exceeded', 'auth/network-request-failed'])
 const STAART_INVOER = ' Wat je hebt ingevuld, staat er nog.'
 const STAART_LIJST = ' De lijst is niet gewijzigd.'
@@ -296,6 +316,8 @@ const FOUTTEKSTEN = {
   'auth/invalid-credential': WW_KLOPT_NIET,
   'auth/operation-not-allowed': 'E-mailwijziging niet toegestaan in dit project.',
   'dubbele-naam': 'Deze bestuursfunctie bestaat al',
+  aborted: 'Iemand anders wijzigde dit tegelijk. De lijst is bijgewerkt. Kijk of je wijziging nodig is en probeer het zo nodig opnieuw.',
+  'vermogen-weg': 'Dit vermogen bestaat niet meer, misschien is het net door iemand anders verwijderd. De lijst is bijgewerkt.',
 }
 
 const TIJD_OP_ACCOUNT = {
@@ -452,7 +474,7 @@ async function metOpslaan(knop, actie, {
     const veld = veldFouten[e?.code]
     if (veld) {
       const [foutId, inputId, tekst] = veld
-      zetVeldFout(inputId, foutId, tekst || foutTekst(e, soort))
+      zetVeldFout(inputId, foutId, tekst || e?.tekst || foutTekst(e, soort))
       return 'fout'
     }
     if (WEG_CODES.has(e?.code)) { toonFout(weg, e, soort); return 'weg' }
@@ -469,6 +491,39 @@ function focusInLijst(lijstEl, actie, id, terugval) {
   const knop = zoek(actie)
   const doel = knop && !knop.disabled && !knop.classList.contains('onzichtbaar') ? knop : (zoek('bewerk') || terugval)
   doel?.focus()
+}
+
+// Sectiemelding staat boven de lijst: na een rijactie verder op de pagina in beeld scrollen (ná het focussen)
+function meldingInBeeld(el) {
+  if (!el?.isConnected || !el.textContent) return
+  const r = el.getBoundingClientRect()
+  if (r.bottom < 0 || r.top > innerHeight) el.scrollIntoView({ block: 'nearest' })
+}
+
+// Pictogramknop in een beheerrij (besluit 19): naam per rij voor de schermlezer, tooltip = het zichtbare label
+const ACTIEKNOP = { bewerk: ['Bewerken', 'potlood', ''], verwijder: ['Verwijderen', 'prullenbak', ' gevaar'] }
+function actieKnopHTML(actie, id, soort, naam, extra = '') {
+  const [label, ico, klasse] = ACTIEKNOP[soort]
+  return `<button class="btn-kaart-actie btn-icoon${klasse}" type="button" data-actie="${esc(actie)}" data-id="${esc(id)}" aria-label="${label}: ${esc(naam)}"${extra}>${menuIcoon(ico)}<span class="tip" aria-hidden="true">${label}</span></button>`
+}
+
+// Statusregel voor de schermlezer: eerst leeg, na 100 ms gevuld
+function zetStatus(el, tekst) {
+  if (!el) return
+  el.textContent = ''
+  setTimeout(() => { if (el.isConnected) el.textContent = tekst }, 100)
+}
+
+// Melding bij een domein met vermogens (CK-020): tekst + knop naar Beheer → Vermogens met het filter op dat domein
+function toonVermogensBlokkade(el, domein, tekst) {
+  if (!el) return
+  const link = document.createElement('a')
+  link.href = '#'
+  link.className = 'btn melding-actie'
+  link.dataset.nav = 'vermogensbeheer'
+  link.dataset.filter = domein.id
+  link.textContent = `Naar de vermogens van ${domein.naam}`
+  el.replaceChildren(tekst, link)
 }
 
 // Live regions staan er vanaf het tekenen, leeg en zonder witruimte (anders werkt :empty niet)
@@ -520,16 +575,37 @@ async function renderStructuurGrid() {
   const grid = document.getElementById('structuur-grid')
   if (!grid) return
   grid.querySelectorAll('.structuur-dyn').forEach(el => el.remove())
-  const items = await laadStructuurelementen()
+  // Vermogens mogen Home niet blokkeren: mislukt dat laden, dan de domeinen zoals altijd (CK-020)
+  const [domeinUitkomst, vermogenUitkomst] = await Promise.allSettled([laadStructuurelementen(), laadVermogens(db, huidigClubId)])
+  if (domeinUitkomst.status === 'rejected') throw domeinUitkomst.reason
+  const items = domeinUitkomst.value
+  const vermogens = vermogenUitkomst.status === 'fulfilled' ? vermogenUitkomst.value : null
   if (!grid.isConnected) return
   const zet = (id, waarde) => { const el = document.getElementById(id); if (el) el.textContent = waarde }
   zet('cijfer-pijlers', items.filter(i => i.type === 'pijler').length)
   zet('cijfer-domeinen', items.filter(i => i.type === 'domein').length)
   zet('cijfer-overkoepelend', items.filter(i => i.type === 'overkoepelend').length)
+  const perDomein = new Map()
+  if (vermogens) {
+    const geldig = new Set(items.filter(i => KAN_VERMOGENS.has(i.type)).map(i => i.id))
+    vermogens.filter(v => geldig.has(v.domeinId)).forEach(v => perDomein.set(v.domeinId, (perDomein.get(v.domeinId) || 0) + 1))
+    zet('cijfer-vermogens', [...perDomein.values()].reduce((a, b) => a + b, 0))
+  } else {
+    if (vermogenUitkomst.reason) console.error('Vermogens laden mislukt:', vermogenUitkomst.reason?.code)
+    const streep = document.createElement('span')
+    streep.setAttribute('aria-hidden', 'true')
+    streep.textContent = '–'
+    const uitleg = document.createElement('span')
+    uitleg.className = 'sr-only'
+    uitleg.textContent = 'niet geladen'
+    document.getElementById('cijfer-vermogens')?.replaceChildren(streep, uitleg)
+    const hint = document.getElementById('vermogens-hint')
+    if (hint) hint.textContent = 'Het aantal vermogens kon niet worden geladen. Herlaad de pagina om het opnieuw te proberen.'
+
+  }
   if (items.length === 0) {
     const leeg = document.createElement('p')
-    leeg.className = 'structuur-dyn'
-    leeg.style.color = 'var(--muted)'
+    leeg.className = 'structuur-dyn grid-leeg'
     leeg.textContent = 'Nog geen domeinen. Voeg ze toe via Beheer.'
     grid.appendChild(leeg)
     return
@@ -542,6 +618,9 @@ async function renderStructuurGrid() {
         <h3 class="card-titel">${pictogramHTML(item, 'picto-kaart')}<span>${esc(item.naam)}</span></h3>
         <div class="sub">${SOORT_SUB[item.type] || ''}</div>
         <p class="kaart-omschrijving">${esc(item.omschrijving || '')}</p>
+        ${vermogens && KAN_VERMOGENS.has(item.type) ? (perDomein.get(item.id)
+          ? `<p class="kaart-vermogens">${vermogensTekst(perDomein.get(item.id))}</p>`
+          : '<p class="kaart-vermogens leeg">Nog geen vermogens</p>') : ''}
         <div class="kaart-voet">
           <span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
           ${item.hashtag ? `<span class="kaart-hashtag">${esc(item.hashtag)}</span>` : ''}
@@ -855,10 +934,11 @@ function renderDashboard(gebruiker) {
           <h1 class="pagina-titel">Domeinen<b>overzicht</b></h1>
         </div>
 
-        <div class="cijfers cijfers-3" aria-label="Kerncijfers">
+        <div class="cijfers" aria-label="Kerncijfers">
           <div class="cijfer"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers</span></div>
           <div class="cijfer"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen</span></div>
           <div class="cijfer"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen</span></div>
+          <div class="cijfer"><span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span><span class="l">Vermogens</span></div>
         </div>
 
         <div class="sectie">
@@ -866,9 +946,10 @@ function renderDashboard(gebruiker) {
             <h2>Domeinen</h2>
           </div>
           <div class="sectie-lijf">
+            <p class="vermogens-hint" id="vermogens-hint" role="status"></p>
             <div class="grid" id="structuur-grid">
             </div>
-            <div style="text-align:right;margin-top:8px">
+            <div class="sectie-voet">
               <button class="btn" id="naar-structuur-beheer">Beheer →</button>
             </div>
           </div>
@@ -894,6 +975,9 @@ const MENU_ICOON = {
   inklappen: '<path d="M24 12 L12 24 L24 36"/><path d="M36 12 L24 24 L36 36"/>',
   menu: '<path d="M8 13 H40"/><path d="M8 24 H40"/><path d="M8 35 H40"/>',
   sluiten: '<path d="M12 12 L36 36"/><path d="M36 12 L12 36"/>',
+  puzzel: '<path d="M9 15 H19 A4 4 0 1 1 27 15 H37 V25 A4 4 0 1 1 37 33 V39 H9 Z"/>',
+  potlood: '<path d="M31 9 L39 17 L18 38 L9 39 L10 30 Z"/><path d="M27 13 L35 21"/>',
+  prullenbak: '<path d="M8 13 H40"/><path d="M19 13 V8 H29 V13"/><path d="M12 13 L14.5 40 H33.5 L36 13"/><path d="M20 20 V33"/><path d="M28 20 V33"/>',
 }
 function menuIcoon(naam) {
   return `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MENU_ICOON[naam] || ''}</svg>`
@@ -906,6 +990,7 @@ const ZIJMENU = [
   ]},
   { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
+    { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
     { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
     { id: 'club', naam: 'Club', ico: 'vlag' },
   ]},
@@ -918,17 +1003,19 @@ const NAV_DOEL = new Map([
   ['home', renderDashboard],
   ['beheer', renderPijlersDomeinenBeheer],
   ['domeinen', renderPijlersDomeinenBeheer],
+  ['vermogensbeheer', renderVermogensBeheer],
   ['functies', renderBestuursfunctiesBeheer],
   ['club', renderClubBeheer],
   ['account', renderMijnAccount],
 ])
 
-// Paginawissel door de gebruiker: titel bijwerken en focus naar de nieuwe inhoud (niet bij de eerste render)
-async function navigeer(id, gebruiker) {
+// Paginawissel door de gebruiker: titel bijwerken en focus naar de nieuwe inhoud (niet bij de eerste render).
+// opties gaan naar de render-functie, bijv. { filter: domeinId } voor Beheer → Vermogens.
+async function navigeer(id, gebruiker, opties = {}) {
   const doel = NAV_DOEL.get(id)
   if (!doel) return
   sluitPaneel({ focus: false })
-  await doel(gebruiker)
+  await doel(gebruiker, opties)
   document.title = paginaTitel(navNaam(id))
   window.scrollTo(0, 0)
   document.getElementById('inhoud')?.focus({ preventScroll: true })
@@ -997,7 +1084,7 @@ function kruimelpadHTML(delen) {
   return `<nav class="kruimelpad" aria-label="Kruimelpad">${html}</nav>`
 }
 
-// actief: 'home' | 'domeinen' | 'functies' | 'club' | 'account'
+// actief: 'home' | 'domeinen' | 'vermogensbeheer' | 'functies' | 'club' | 'account'
 function appShellHTML({ actief, kruimels, inhoud }) {
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   return `
@@ -1049,16 +1136,25 @@ function sluitPaneel({ focus = true } = {}) {
   if (focus) knop.focus()
 }
 
-// Tooltip in het ingeklapte menu: Esc verbergt hem tot de volgende hover of focus op een ander item (WCAG 1.4.13)
+// Tooltip in het ingeklapte menu en bij pictogramknoppen: Esc verbergt hem tot de volgende hover of
+// focus op een ander item of een andere knop (WCAG 1.4.13)
 let tipItem = null
+let tipKnop = null
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return
   if (document.querySelector('.zijmenu.open')) { sluitPaneel(); return }
   const nav = document.querySelector('.zijmenu.ingeklapt')
-  if (!nav) return
-  tipItem = document.activeElement?.closest?.('.zijmenu-item') || nav.querySelector('.zijmenu-item:hover')
-  nav.classList.add('tip-uit')
+  if (nav) {
+    tipItem = document.activeElement?.closest?.('.zijmenu-item') || nav.querySelector('.zijmenu-item:hover')
+    nav.classList.add('tip-uit')
+  }
+  const inhoud = document.getElementById('inhoud')
+  const knop = document.activeElement?.closest?.('.btn-icoon') || inhoud?.querySelector('.btn-icoon:hover')
+  if (inhoud && knop) {
+    tipKnop = knop
+    inhoud.classList.add('tip-uit')
+  }
 })
 window.matchMedia?.('(min-width: 701px)').addEventListener('change', e => {
   if (e.matches) sluitPaneel({ focus: false })
@@ -1074,6 +1170,13 @@ function bindAppShell(gebruiker) {
   }
   nav.addEventListener('pointerover', tipWeerToe)
   nav.addEventListener('focusin', tipWeerToe)
+  const inhoud = shell.querySelector('#inhoud')
+  const knopTipWeerToe = e => {
+    const knop = e.target.closest?.('.btn-icoon')
+    if (knop && knop !== tipKnop && inhoud.classList.contains('tip-uit')) inhoud.classList.remove('tip-uit')
+  }
+  inhoud.addEventListener('pointerover', knopTipWeerToe)
+  inhoud.addEventListener('focusin', knopTipWeerToe)
   shell.addEventListener('click', e => {
     const t = e.target
     if (t.closest('.overslaan')) { e.preventDefault(); document.getElementById('inhoud').focus(); return }
@@ -1091,7 +1194,7 @@ function bindAppShell(gebruiker) {
     const link = t.closest('[data-nav]')
     if (link && NAV_DOEL.has(link.dataset.nav)) {
       e.preventDefault()
-      navigeer(link.dataset.nav, gebruiker)
+      navigeer(link.dataset.nav, gebruiker, link.dataset.filter ? { filter: link.dataset.filter } : {})
     }
   })
 }
@@ -1100,21 +1203,23 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   const functies = await laadBestuursfuncties()
   const functieNaam = new Map(functies.map(f => [f.id, f.naam]))
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'domeinen', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('domeinen')]], inhoud: `
-        <div class="sectie" style="margin-top:0" data-meldblok>
+        <div class="sectie" data-meldblok>
           <div class="sectie-kop">
             <h2>Domeinen</h2>
           </div>
           <div class="sectie-lijf">
-            <div class="filter-tabs" role="group" aria-label="Filter">
-              <button class="btn filter-knop active" data-filter="alles">Alles</button>
-              <button class="btn filter-knop" data-filter="pijler">Pijlers</button>
-              <button class="btn filter-knop" data-filter="domein">Ondersteunend</button>
-              <button class="btn filter-knop" data-filter="overkoepelend">Overkoepelend</button>
+            <div class="beheer-balk">
+              <div class="filter-keuze">
+                <label class="form-label" for="structuur-filter">Toon</label>
+                <select class="form-input" id="structuur-filter">
+                  <option value="alles">Alle soorten</option>
+                  <option value="pijler">Pijlers</option>
+                  <option value="domein">Ondersteunende domeinen</option>
+                  <option value="overkoepelend">Overkoepelende domeinen</option>
+                </select>
+              </div>
+              <button class="btn-toevoegen" type="button" id="structuur-toevoegen-knop">+ Domein toevoegen</button>
             </div>
-            <div id="structuur-lijst"></div>
-            ${meldingenHTML('structuur-ok', 'structuur-fout')}
-            <div class="sr-only" id="structuur-volgorde" role="status"></div>
-            <button class="btn-toevoegen" id="structuur-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
             <div class="pijler-form" id="structuur-form" hidden>
               <div class="form-groep" role="radiogroup" aria-labelledby="structuur-soort-label">
                 <span class="form-label" id="structuur-soort-label">Soort</span>
@@ -1152,6 +1257,11 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
               </div>
               ${meldingenHTML(null, 'structuur-form-fout')}
             </div>
+            ${meldingenHTML('structuur-ok', 'structuur-fout')}
+            <div class="sr-only" id="structuur-volgorde" role="status"></div>
+            <div class="sr-only" id="structuur-filter-status" role="status"></div>
+            <p class="lijst-voetnoot" id="structuur-volgorde-hint" hidden>De volgorde wijzig je bij Toon: Alle soorten.</p>
+            <div id="structuur-lijst"></div>
           </div>
         </div>
 ` })
@@ -1159,16 +1269,22 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   bindAppShell(gebruiker)
   bindMeldblokken()
 
+  const clubId = huidigClubId
   let actiefFilter = 'alles'
+  let huidigeItems = []
 
   async function laadEnRender() {
     const lijst = document.getElementById('structuur-lijst')
     if (!lijst) return
     const items = await laadStructuurelementen()
     if (!lijst.isConnected) return
+    huidigeItems = items
     const gefilterd = actiefFilter === 'alles' ? items : items.filter(i => i.type === actiefFilter)
+    const hint = document.getElementById('structuur-volgorde-hint')
+    if (hint) hint.hidden = actiefFilter === 'alles' || gefilterd.length === 0
     if (gefilterd.length === 0) {
-      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:var(--fs-toelichting)">Geen items gevonden.</p>`
+      lijst.removeAttribute('role')
+      lijst.innerHTML = `<p class="lijst-leeg">Geen domeinen van deze soort.</p>`
       return
     }
     const kanVerplaatsen = actiefFilter === 'alles'
@@ -1184,20 +1300,27 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     lijst.setAttribute('role', 'table')
     lijst.setAttribute('aria-label', 'Domeinen')
     lijst.innerHTML = kop + gefilterd.map((item, i) => {
-      // Verplaatsknoppen alleen bij "Alles"; anders onzichtbaar zodat de kolommen gelijk blijven
+      // Verplaatsknoppen alleen bij "Alle soorten"; anders onzichtbaar zodat de kolommen gelijk blijven
       const verborgen = kanVerplaatsen ? '' : ' onzichtbaar" tabindex="-1" aria-hidden="true'
+      const aantal = Number.isInteger(item.aantalVermogens) ? item.aantalVermogens : 0
+      const link = KAN_VERMOGENS.has(item.type)
+        ? `<a href="#" class="tussen-link cel-sub" data-nav="vermogensbeheer" data-filter="${esc(item.id)}" aria-label="${aantal ? `${vermogensTekst(aantal)} van ${esc(item.naam)}` : `Nog geen vermogens bij ${esc(item.naam)}`}">${aantal ? vermogensTekst(aantal) : 'Nog geen vermogens'}</a>`
+        : ''
       return `
         <div class="structuur-rij beheer-rij domein-rij" role="row" data-id="${esc(item.id)}">
           <span class="cel-nr" role="cell">${kanVerplaatsen ? i + 1 : ''}</span>
           <span class="cel-picto" role="cell">${pictogramHTML(item, 'picto-klein')}</span>
-          <strong class="cel-naam" role="cell">${esc(item.naam)}</strong>
-          <span role="cell"><span class="pill" style="margin-top:0"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
+          <span class="cel-domein" role="cell">
+            <strong class="cel-naam">${esc(item.naam)}</strong>
+            ${link}
+          </span>
+          <span role="cell"><span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
           <span class="cel-functie" role="cell">${esc(functieNaam.get(item.bestuursfunctieId) || '—')}</span>
           <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omhoog"${!kanVerplaatsen || i === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde${verborgen}" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="${esc(item.naam)} omlaag"${!kanVerplaatsen || i === gefilterd.length - 1 ? ' disabled' : ''}>↓</button>
-            <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(item.id)}">Bewerken</button>
-            <button class="btn-kaart-actie gevaar" data-actie="verwijder" data-id="${esc(item.id)}">Verwijderen</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="Omhoog: ${esc(item.naam)}"${!kanVerplaatsen || i === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(item.id)}" aria-label="Omlaag: ${esc(item.naam)}"${!kanVerplaatsen || i === gefilterd.length - 1 ? ' disabled' : ''}>↓</button>
+            ${actieKnopHTML('bewerk', item.id, 'bewerk', item.naam)}
+            ${actieKnopHTML('verwijder', item.id, 'verwijder', item.naam)}
           </div>
         </div>`
     }).join('')
@@ -1205,13 +1328,19 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
 
   await laadEnRender()
 
-  document.querySelector('.filter-tabs').addEventListener('click', async e => {
-    const knop = e.target.closest('.filter-knop')
-    if (!knop) return
-    knop.closest('.filter-tabs').querySelectorAll('.filter-knop').forEach(k => k.classList.remove('active'))
-    knop.classList.add('active')
-    actiefFilter = knop.dataset.filter
-    await laadEnRender()
+  const filterEl = document.getElementById('structuur-filter')
+  const filterStatus = document.getElementById('structuur-filter-status')
+  const FILTER_TEKST = {
+    alles: n => `${n} ${n === 1 ? 'domein' : 'domeinen'}.`,
+    pijler: n => `${n} ${n === 1 ? 'pijler' : 'pijlers'}.`,
+    domein: n => `${n} ${n === 1 ? 'ondersteunend domein' : 'ondersteunende domeinen'}.`,
+    overkoepelend: n => `${n} ${n === 1 ? 'overkoepelend domein' : 'overkoepelende domeinen'}.`,
+  }
+  filterEl.addEventListener('change', async () => {
+    actiefFilter = filterEl.value
+    await laadEnRender().catch(e => console.error(e))
+    const n = actiefFilter === 'alles' ? huidigeItems.length : huidigeItems.filter(i => i.type === actiefFilter).length
+    zetStatus(filterStatus, FILTER_TEKST[actiefFilter](n) + (actiefFilter === 'alles' ? '' : ' Volgorde wijzigen kan bij Alle soorten.'))
   })
 
   document.getElementById('structuur-toevoegen-knop').addEventListener('click', () => {
@@ -1242,6 +1371,35 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
   const sectieFout = document.getElementById('structuur-fout')
   const opslaanKnop = document.getElementById('structuur-opslaan')
   const annuleerKnop = document.getElementById('structuur-annuleer')
+
+  // Aantal vermogens vers lezen; lukt dat niet, dan 0 (de regels beschermen toch)
+  const aantalVermogens = id => leesAantalVermogens(db, clubId, id).catch(() => 0)
+
+  function wisSoortBlokkade(id) {
+    const fout = document.getElementById(`bs-fout-${id}`)
+    if (fout) fout.replaceChildren()
+    document.getElementById(`bs-${id}`)?.closest('[role="radiogroup"]')?.removeAttribute('aria-invalid')
+    document.querySelector(`[name="bewerk-type-${CSS.escape(id)}"][value="overkoepelend"]`)?.removeAttribute('aria-describedby')
+  }
+
+  function toonSoortBlokkade(id, domein, aantal) {
+    const fout = document.getElementById(`bs-fout-${id}`)
+    if (!fout) return
+    const formFout = document.getElementById(`bm-fout-${id}`)
+    if (formFout) formFout.textContent = ''
+    toonVermogensBlokkade(fout, domein, `Een overkoepelend domein heeft geen vermogens, en ${domein.naam} heeft er nog ${aantal}. Verplaats of verwijder die eerst, of kies Pijler of Ondersteunend domein.`)
+    document.getElementById(`bs-${id}`)?.closest('[role="radiogroup"]')?.setAttribute('aria-invalid', 'true')
+    const rondje = document.querySelector(`[name="bewerk-type-${CSS.escape(id)}"][value="overkoepelend"]`)
+    rondje?.setAttribute('aria-describedby', `bs-fout-${id}`)
+    rondje?.focus()
+  }
+
+  function toonVerwijderBlokkade(knop, domein, aantal) {
+    toonVermogensBlokkade(sectieFout, domein, `${domein.naam} heeft nog ${vermogensTekst(aantal)}. Een domein met vermogens kan niet weg. Verplaats of verwijder die vermogens eerst.`)
+    // De link in de melding is de volgende stap; de focus gaat erheen (bijstelling op besluit 15, toegankelijkheid)
+    ;(sectieFout.querySelector('a') || knop).focus()
+    meldingInBeeld(sectieFout)
+  }
 
   annuleerKnop.addEventListener('click', () => {
     if (annuleerKnop.getAttribute('aria-disabled') === 'true') return
@@ -1278,6 +1436,11 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
     toonOk(sectieOk, `Domein ${item.naam} toegevoegd.`)
   })
 
+  lijstEl.addEventListener('change', e => {
+    const naam = e.target?.name || ''
+    if (naam.startsWith('bewerk-type-')) wisSoortBlokkade(naam.slice('bewerk-type-'.length))
+  })
+
   lijstEl.addEventListener('click', async e => {
     const knop = e.target.closest('[data-actie]')
     if (!knop) return
@@ -1301,29 +1464,48 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
       await laadEnRender().catch(e => console.error(e))
       focusInLijst(lijstEl, actie, id, terugval())
       if (uitkomst === 'ok' && plaats && volgordeStatus.isConnected) volgordeStatus.textContent = plaats
+      else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
+      const domein = huidigeItems.find(x => x.id === id) || { id, naam: rij?.querySelector('.cel-naam')?.textContent || '' }
+      wisMeldingen(knop.closest('[data-meldblok]'))
+      // Domein met vermogens: geen bevestigingsvraag, meteen de melding (besluit 15)
+      const vooraf = await aantalVermogens(id)
+      if (!knop.isConnected) return
+      if (vooraf > 0) { toonVerwijderBlokkade(knop, domein, vooraf); return }
       if (!confirm('Item verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
-      const naam = rij?.querySelector('.cel-naam')?.textContent || ''
-      const uitkomst = await metOpslaan(knop, () => verwijderStructuurelement(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout })
+      let blokkade = 0
+      const uitkomst = await metOpslaan(knop, async () => {
+        try {
+          await verwijderStructuurelement(id)
+        } catch (fout) {
+          if (fout?.code === 'permission-denied') blokkade = await aantalVermogens(id)
+          throw fout
+        }
+      }, { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null })
       await laadEnRender().catch(e => console.error(e))
       if (uitkomst === 'ok') {
         terugval()?.focus()
-        toonOk(sectieOk, `Domein ${naam} verwijderd.`)
-      } else if (uitkomst === 'weg') terugval()?.focus()
-      else focusInLijst(lijstEl, 'verwijder', id, terugval())
+        toonOk(sectieOk, `Domein ${domein.naam} verwijderd.`)
+      } else if (uitkomst === 'weg') {
+        terugval()?.focus()
+      } else {
+        const nieuweKnop = lijstEl.querySelector(`[data-actie="verwijder"][data-id="${CSS.escape(id)}"]`)
+        if (blokkade > 0 && nieuweKnop) toonVerwijderBlokkade(nieuweKnop, domein, blokkade)
+        else { focusInLijst(lijstEl, 'verwijder', id, terugval()); meldingInBeeld(sectieFout) }
+      }
     } else if (actie === 'bewerk') {
       const items = await laadStructuurelementen()
       const item = items.find(x => x.id === id)
       if (!item) return
-      const isPijler = item.type === 'pijler'
       rij.classList.add('bewerken')
       rij.innerHTML = `
-        <div class="pijler-bewerk-form" style="width:100%">
+        <div class="pijler-bewerk-form">
           <div class="form-groep" role="radiogroup" aria-labelledby="bs-${esc(id)}">
             <span class="form-label" id="bs-${esc(id)}">Soort</span>
             <div class="form-rij soort-keuze">
               ${soortKeuzeHTML(`bewerk-type-${id}`, item.type)}
             </div>
+            <div class="form-fout" id="bs-fout-${esc(id)}"></div>
           </div>
           <div class="form-groep">
             <label class="form-label" for="bn-${esc(id)}">Naam</label>
@@ -1355,46 +1537,564 @@ async function renderPijlersDomeinenBeheer(gebruiker) {
           </div>
           ${meldingenHTML(null, `bm-fout-${id}`)}
         </div>`
+      rij.dataset.type = item.type
+      rij.dataset.naam = item.naam
       document.getElementById(`bn-${id}`)?.focus()
     } else if (actie === 'bewerk-opslaan') {
-      const type = rij.querySelector(`[name="bewerk-type-${id}"]:checked`)?.value
+      const type = rij.querySelector(`[name="bewerk-type-${CSS.escape(id)}"]:checked`)?.value
       const naam = document.getElementById(`bn-${id}`)?.value.trim()
       const omschr = document.getElementById(`bo-${id}`)?.value.trim()
       const verantw = document.getElementById(`bv-${id}`)?.value.trim()
       const hashtag = document.getElementById(`bh-${id}`)?.value.trim() || ''
+      wisSoortBlokkade(id)
       if (!valideerVelden([
         [`bn-${id}`, `bn-fout-${id}`, minFout(naam, 2)],
         [`bh-${id}`, `bh-fout-${id}`, hashtagFout(hashtag)],
         [`bo-${id}`, `bo-fout-${id}`, minFout(omschr, 2)],
         [`bv-${id}`, `bv-fout-${id}`, minFout(verantw, 1, 'Kies een bestuursfunctie')],
       ])) return
+      const domein = { id, naam: rij.dataset.naam || naam }
+      // Naar overkoepelend kan alleen zonder vermogens: eerst vers tellen, dan pas opslaan
+      const naarOverkoepelend = type === 'overkoepelend' && rij.dataset.type !== 'overkoepelend'
+      if (naarOverkoepelend) {
+        wisMeldingen(knop.closest('[data-meldblok]'))
+        const vooraf = await aantalVermogens(id)
+        if (!knop.isConnected) return
+        if (vooraf > 0) { toonSoortBlokkade(id, domein, vooraf); return }
+      }
       const icoon = document.getElementById(`bi-${id}`)?.value || ''
       const data = { type, naam, hashtag, omschrijving: omschr, bestuursfunctieId: verantw, icoon }
-      const uitkomst = await metOpslaan(knop, () => bewerkStructuurelement(id, data), {
+      let blokkade = 0
+      const uitkomst = await metOpslaan(knop, async () => {
+        try {
+          await bewerkStructuurelement(id, data)
+        } catch (fout) {
+          if (naarOverkoepelend && fout?.code === 'permission-denied') blokkade = await aantalVermogens(id)
+          throw fout
+        }
+      }, {
         soort: 'formulier-lijst', fout: document.getElementById(`bm-fout-${id}`), weg: sectieFout,
       })
-      if (uitkomst === 'fout') return
+      if (uitkomst === 'fout') {
+        if (blokkade > 0) toonSoortBlokkade(id, domein, blokkade)
+        return
+      }
       await laadEnRender().catch(e => console.error(e))
       if (uitkomst === 'weg') { terugval()?.focus(); return }
       focusInLijst(lijstEl, 'bewerk', id, terugval())
       toonOk(sectieOk, `Domein ${naam} opgeslagen.`)
+      meldingInBeeld(sectieOk)
     } else if (actie === 'bewerk-annuleer') {
       await laadEnRender()
+      focusInLijst(lijstEl, 'bewerk', id, terugval())
     }
   })
 }
 
+// ── Beheer → Vermogens (CK-020) ───────────────────────────────────────────────
+
+const NAAM_VELD_ATTR = 'autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false"'
+
+// Veldtekst bij een fout uit de vermogenstransacties; '' = de algemene CK-023-tekst
+function vermogenFoutTekst(e, domeinNaam = '') {
+  const bij = e?.domeinNaam ? ` bij ${e.domeinNaam}` : ''
+  switch (e?.code) {
+    case 'dubbel-vermogen':
+      return e.zelfdeDomein
+        ? `Dit vermogen staat al${bij}. Misschien is een eerdere poging toch gelukt: kijk in de lijst.`
+        : `Dit vermogen bestaat al${bij}. Kies een andere naam, of verplaats het bestaande vermogen via Bewerken.`
+    case 'naam-bezet':
+      return `Deze naam is al in gebruik, maar het vermogen is niet te vinden. Kies voorlopig een andere naam en meld het aan SVN10${SUPPORT_EMAIL ? `: ${SUPPORT_EMAIL}` : ''}.`
+    case 'domein-weg':
+      return `Het domein ${domeinNaam} bestaat niet meer. Kies een ander domein.`
+    case 'domein-overkoepelend':
+      return `${e.domeinNaam || domeinNaam} is nu een overkoepelend domein en kan geen vermogens hebben. Kies een ander domein.`
+    default:
+      return ''
+  }
+}
+
+const NAAM_CODES = new Set(['dubbel-vermogen', 'naam-bezet'])
+const DOMEIN_CODES = new Set(['domein-weg', 'domein-overkoepelend'])
+const VERVERS_CODES = new Set([...NAAM_CODES, ...DOMEIN_CODES, 'aborted'])
+
+function vermogenVeldFouten(naamId, domeinId) {
+  const naam = [`${naamId}-fout`, naamId]
+  const domein = [`${domeinId}-fout`, domeinId]
+  return { 'dubbel-vermogen': naam, 'naam-bezet': naam, 'domein-weg': domein, 'domein-overkoepelend': domein }
+}
+
+async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
+  document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogensbeheer', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('vermogensbeheer')]], inhoud: `
+        <div class="sectie" data-meldblok>
+          <div class="sectie-kop">
+            <h2>Vermogens</h2>
+          </div>
+          <div class="sectie-lijf">
+            <div class="beheer-balk" id="vermogen-balk" hidden>
+              <div class="filter-keuze">
+                <label class="form-label" for="vermogen-filter">Toon</label>
+                <select class="form-input" id="vermogen-filter"></select>
+              </div>
+              <button class="btn-toevoegen" type="button" id="vermogen-toevoegen-knop">+ Vermogen toevoegen</button>
+            </div>
+            <div class="pijler-form vermogen-form" id="vermogen-form" hidden>
+              <div class="form-groep">
+                <label class="form-label" for="vermogen-naam">Naam</label>
+                <input class="form-input" id="vermogen-naam" type="text" placeholder="Bijv. Ledenwerving" ${NAAM_VELD_ATTR} aria-describedby="vermogen-naam-fout">
+                <span class="form-fout" id="vermogen-naam-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="vermogen-domein">Domein</label>
+                <select class="form-input" id="vermogen-domein" aria-describedby="vermogen-domein-fout"></select>
+                <span class="form-fout" id="vermogen-domein-fout"></span>
+              </div>
+              <div class="form-rij">
+                <button class="btn" type="button" id="vermogen-opslaan">Opslaan</button>
+                <button class="btn" type="button" id="vermogen-annuleer">Annuleren</button>
+              </div>
+              ${meldingenHTML(null, 'vermogen-form-fout')}
+            </div>
+            ${meldingenHTML('vermogen-ok', 'vermogen-fout')}
+            <div class="sr-only" id="vermogen-volgorde" role="status"></div>
+            <div class="sr-only" id="vermogen-filter-status" role="status"></div>
+            <div id="vermogen-lijst"><p class="lijst-laden">Vermogens worden geladen...</p></div>
+          </div>
+        </div>
+` })
+
+  bindAppShell(gebruiker)
+  bindMeldblokken()
+
+  const clubId = huidigClubId
+  const el = id => document.getElementById(id)
+  const balk = el('vermogen-balk')
+  const filterEl = el('vermogen-filter')
+  const form = el('vermogen-form')
+  const naamEl = el('vermogen-naam')
+  const domeinEl = el('vermogen-domein')
+  const opslaanKnop = el('vermogen-opslaan')
+  const annuleerKnop = el('vermogen-annuleer')
+  const lijstEl = el('vermogen-lijst')
+  const sectieOk = el('vermogen-ok')
+  const sectieFout = el('vermogen-fout')
+  const volgordeStatus = el('vermogen-volgorde')
+  const filterStatus = el('vermogen-filter-status')
+  const toevoegKnop = el('vermogen-toevoegen-knop')
+
+  let domeinen = []
+  let vermogens = []
+  let actiefFilter = filter
+
+  const geldigeDomeinen = () => domeinen.filter(d => KAN_VERMOGENS.has(d.type))
+  const geldigDomein = id => geldigeDomeinen().find(d => d.id === id) || null
+  const vanDomein = id => sorteerDomeinen(vermogens.filter(v => v.domeinId === id))
+  const zonderDomein = () => sorteerDomeinen(vermogens.filter(v => !geldigDomein(v.domeinId)))
+  const groepVan = v => (geldigDomein(v.domeinId) ? vanDomein(v.domeinId) : zonderDomein())
+  const terugval = () => zichtbareTerugval(toevoegKnop, form)
+  const potlood = id => lijstEl.querySelector(`[data-actie="bewerk"][data-id="${CSS.escape(id)}"]`)
+
+  function vulFormDomeinen(gekozen) {
+    domeinEl.innerHTML = domeinOptiesHTML(geldigeDomeinen(), geldigDomein(gekozen) ? gekozen : '')
+  }
+
+  function rijHTML(v, k, n, { metVolgorde = true } = {}) {
+    const verborgen = metVolgorde ? '' : ' onzichtbaar" tabindex="-1" aria-hidden="true'
+    return `
+        <div class="structuur-rij beheer-rij vermogen-rij" role="row" data-id="${esc(v.id)}">
+          <span class="cel-nr" role="cell">${k + 1}</span>
+          <span class="cel-naam" role="cell">${esc(v.naam)}</span>
+          <div class="kaart-acties cel-acties" role="cell">
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omhoog" data-id="${esc(v.id)}" aria-label="Omhoog: ${esc(v.naam)}"${!metVolgorde || k === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde${verborgen}" type="button" data-actie="omlaag" data-id="${esc(v.id)}" aria-label="Omlaag: ${esc(v.naam)}"${!metVolgorde || k === n - 1 ? ' disabled' : ''}>↓</button>
+            ${actieKnopHTML('bewerk', v.id, 'bewerk', v.naam)}
+            ${actieKnopHTML('verwijder', v.id, 'verwijder', v.naam)}
+          </div>
+        </div>`
+  }
+
+  function tabelHTML(lijst, label, opties) {
+    return `
+          <div role="table" aria-label="${esc(label)}">
+            <div class="sr-only" role="row"><span role="columnheader">Nr.</span><span role="columnheader">Vermogen</span><span role="columnheader">Acties</span></div>
+            ${lijst.map((v, k) => rijHTML(v, k, lijst.length, opties)).join('')}
+          </div>`
+  }
+
+  function groepHTML(d) {
+    const lijst = vanDomein(d.id)
+    return `
+        <section class="vermogen-groep" aria-labelledby="vg-kop-${esc(d.id)}">
+          <h3 class="groep-kop" id="vg-kop-${esc(d.id)}">
+            <span class="groep-picto">${pictogramHTML(d, 'picto-klein')}</span>
+            <span class="groep-naam">${esc(d.naam)}</span><span class="sr-only">, </span>
+            <span class="pill"><span class="stip" style="${SOORT_KLEUR[d.type] || ''}"></span>${SOORT_LABEL[d.type] || ''}</span><span class="sr-only">, </span>
+            <span class="groep-aantal">${vermogensTekst(lijst.length)}</span>
+          </h3>
+          ${lijst.length ? tabelHTML(lijst, `Vermogens bij ${d.naam}`) : '<p class="groep-leeg">Nog geen vermogens.</p>'}
+        </section>`
+  }
+
+  function zonderDomeinHTML(lijst) {
+    return `
+        <section class="vermogen-groep" aria-labelledby="vg-kop-zonder">
+          <h3 class="groep-kop" id="vg-kop-zonder">
+            <span class="groep-naam">Zonder geldig domein</span><span class="sr-only">, </span>
+            <span class="groep-aantal">${vermogensTekst(lijst.length)}</span>
+          </h3>
+          <p class="groep-uitleg">Deze vermogens horen bij een domein dat niet meer bestaat of overkoepelend is. Kies via Bewerken een ander domein, of verwijder ze.</p>
+          ${tabelHTML(lijst, 'Vermogens zonder geldig domein', { metVolgorde: false })}
+        </section>`
+  }
+
+  function voetnootHTML() {
+    const namen = domeinen.filter(d => d.type === 'overkoepelend').map(d => d.naam)
+    if (!namen.length) return ''
+    const lijst = namen.length === 1 ? namen[0] : `${namen.slice(0, -1).join(', ')} en ${namen[namen.length - 1]}`
+    const zin = namen.length === 1
+      ? `${lijst} is een overkoepelend domein. Dat heeft geen vermogens.`
+      : `${lijst} zijn overkoepelende domeinen. Die hebben geen vermogens.`
+    return `<p class="lijst-voetnoot">${esc(zin)}</p>`
+  }
+
+  // Tekent de lijst uit de geladen gegevens; de toevoegknop staat in de balk of in de lege staat
+  function tekenLijst() {
+    if (!lijstEl.isConnected) return
+    const geldig = geldigeDomeinen()
+    if (actiefFilter !== 'alle' && !geldigDomein(actiefFilter)) actiefFilter = 'alle'
+    const wezen = zonderDomein()
+    if (!geldig.length) {
+      balk.hidden = true
+      balk.append(toevoegKnop)
+      lijstEl.innerHTML = `<p class="sectie-uitleg">Er zijn nog geen pijlers of ondersteunende domeinen. Een vermogen hoort altijd bij zo'n domein. <a href="#" class="tussen-link" data-nav="domeinen">Ga naar Domeinen</a> om er een toe te voegen.</p>${wezen.length ? zonderDomeinHTML(wezen) : ''}`
+      return
+    }
+    if (!vermogens.length) {
+      balk.hidden = true
+      lijstEl.innerHTML = `
+        <div class="leeg-blok">
+          <h3>Nog geen vermogens</h3>
+          <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken, bijvoorbeeld <em>Ledenwerving</em> bij Leden of <em>Kascontrole</em> bij Financiën. Voeg het eerste vermogen toe.</p>
+        </div>`
+      lijstEl.querySelector('.leeg-blok').append(toevoegKnop)
+      return
+    }
+    filterEl.innerHTML = domeinOptiesHTML(geldig, actiefFilter, { alle: true })
+    balk.hidden = false
+    balk.append(toevoegKnop)
+    if (actiefFilter === 'alle') {
+      lijstEl.innerHTML = geldig.map(groepHTML).join('') + (wezen.length ? zonderDomeinHTML(wezen) : '') + voetnootHTML()
+    } else {
+      lijstEl.innerHTML = groepHTML(geldigDomein(actiefFilter))
+    }
+  }
+
+  function toonLaadfout(e) {
+    if (!lijstEl.isConnected) return
+    balk.hidden = true
+    balk.append(toevoegKnop)
+    form.hidden = true
+    const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
+      ? '<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor vermogens al gepubliceerd?</p>' : ''
+    lijstEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De vermogens konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="vermogen-herlaad">Opnieuw laden</button></div></div>${testHint}`
+  }
+
+  async function laadEnRender() {
+    try {
+      const [d, v] = await Promise.all([laadStructuurelementen(), laadVermogens(db, clubId)])
+      domeinen = d
+      vermogens = v
+    } catch (e) {
+      console.error('Vermogens laden mislukt:', e?.code)
+      toonLaadfout(e)
+      return false
+    }
+    tekenLijst()
+    return true
+  }
+
+  function sluitForm() {
+    form.hidden = true
+    toevoegKnop.hidden = false
+    naamEl.value = ''
+    wisVeldFout('vermogen-naam', 'vermogen-naam-fout')
+    wisVeldFout('vermogen-domein', 'vermogen-domein-fout')
+    el('vermogen-form-fout').textContent = ''
+  }
+
+  function meldFilter() {
+    if (actiefFilter === 'alle') {
+      const n = vermogens.filter(v => geldigDomein(v.domeinId)).length
+      const m = geldigeDomeinen().length
+      zetStatus(filterStatus, `${vermogensTekst(n)} bij ${m} ${m === 1 ? 'domein' : 'domeinen'}.`)
+    } else {
+      const d = geldigDomein(actiefFilter)
+      const n = vanDomein(actiefFilter).length
+      zetStatus(filterStatus, n ? `${vermogensTekst(n)} bij ${d.naam}.` : `Nog geen vermogens bij ${d.naam}.`)
+    }
+  }
+
+  // Bewerkformulier in de rij; waarden = { naam, domeinId } (bijv. de invoer na een fout)
+  function openBewerk(id, waarden) {
+    const rij = lijstEl.querySelector(`.vermogen-rij[data-id="${CSS.escape(id)}"]`)
+    const v = vermogens.find(x => x.id === id)
+    if (!rij || !v) return null
+    const naam = waarden?.naam ?? v.naam
+    const domeinId = waarden?.domeinId ?? v.domeinId
+    rij.classList.add('bewerken')
+    rij.innerHTML = `
+        <div class="pijler-bewerk-form vermogen-bewerk" role="cell">
+          <div class="form-groep">
+            <label class="form-label" for="vn-${esc(id)}">Naam</label>
+            <input class="form-input" id="vn-${esc(id)}" type="text" value="${esc(naam)}" ${NAAM_VELD_ATTR} aria-describedby="vn-${esc(id)}-fout">
+            <span class="form-fout" id="vn-${esc(id)}-fout"></span>
+          </div>
+          <div class="form-groep">
+            <label class="form-label" for="vd-${esc(id)}">Domein</label>
+            <select class="form-input" id="vd-${esc(id)}" aria-describedby="vd-${esc(id)}-fout">${domeinOptiesHTML(geldigeDomeinen(), geldigDomein(domeinId) ? domeinId : '')}</select>
+            <span class="form-fout" id="vd-${esc(id)}-fout"></span>
+          </div>
+          <div class="form-rij">
+            <button class="btn" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn" type="button" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
+          </div>
+          ${meldingenHTML(null, `vm-fout-${id}`)}
+        </div>`
+    return rij
+  }
+
+  // ── Toevoegen ──
+  toevoegKnop.addEventListener('click', () => {
+    form.hidden = false
+    toevoegKnop.hidden = true
+    vulFormDomeinen(actiefFilter === 'alle' ? '' : actiefFilter)
+    naamEl.focus()
+  })
+  naamEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); opslaanKnop.click() } })
+  annuleerKnop.addEventListener('click', () => {
+    if (annuleerKnop.getAttribute('aria-disabled') === 'true') return
+    sluitForm()
+    toevoegKnop.focus()
+  })
+  opslaanKnop.addEventListener('click', async () => {
+    if (opslaanKnop.getAttribute('aria-disabled') === 'true') return
+    const naam = normaliseerVermogensnaam(naamEl.value)
+    const domeinId = domeinEl.value
+    if (!valideerVelden([
+      ['vermogen-naam', 'vermogen-naam-fout', vermogensnaamFout(naam)],
+      ['vermogen-domein', 'vermogen-domein-fout', domeinId ? '' : 'Kies een domein.'],
+    ])) return
+    const domeinNaam = geldigDomein(domeinId)?.naam || ''
+    let foutCode = null
+    const uitkomst = await metOpslaan(opslaanKnop, async () => {
+      try {
+        await voegVermogenToe(db, clubId, { naam, domeinId })
+      } catch (e) {
+        foutCode = e?.code
+        throw Object.assign(e, { tekst: vermogenFoutTekst(e, domeinNaam) })
+      }
+    }, { soort: 'formulier-lijst', fout: el('vermogen-form-fout'), veldFouten: vermogenVeldFouten('vermogen-naam', 'vermogen-domein') })
+    if (!opslaanKnop.isConnected) return
+    if (uitkomst !== 'ok') {
+      if (VERVERS_CODES.has(foutCode)) {
+        await laadEnRender()
+        if (DOMEIN_CODES.has(foutCode)) vulFormDomeinen('')
+      }
+      return
+    }
+    sluitForm()
+    if (actiefFilter !== 'alle' && actiefFilter !== domeinId) actiefFilter = domeinId
+    await laadEnRender()
+    toevoegKnop.focus()
+    toonOk(sectieOk, `Vermogen ${naam} toegevoegd aan ${domeinNaam}.`)
+  })
+
+  // ── Filter ──
+  filterEl.addEventListener('change', () => {
+    actiefFilter = filterEl.value
+    tekenLijst()
+    meldFilter()
+  })
+
+  // ── Opnieuw laden na een laadfout ──
+  lijstEl.addEventListener('click', async e => {
+    const knop = e.target.closest('#vermogen-herlaad')
+    if (!knop || knop.getAttribute('aria-disabled') === 'true') return
+    knop.textContent = 'Bezig...'
+    knop.setAttribute('aria-disabled', 'true')
+    const gelukt = await laadEnRender()
+    if (gelukt) (balk.hidden ? toevoegKnop : filterEl).focus()
+    else el('vermogen-herlaad')?.focus()
+  })
+
+  // ── Rijacties ──
+  lijstEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches?.('.vermogen-bewerk input')) {
+      e.preventDefault()
+      e.target.closest('.vermogen-bewerk').querySelector('[data-actie="bewerk-opslaan"]')?.click()
+    }
+  })
+
+  lijstEl.addEventListener('click', async e => {
+    const knop = e.target.closest('[data-actie]')
+    if (!knop) return
+    if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true') return
+    const { actie, id } = knop.dataset
+    const v = vermogens.find(x => x.id === id)
+
+    if (actie === 'omhoog' || actie === 'omlaag') {
+      if (!v) return
+      const domeinId = v.domeinId
+      const domeinNaam = geldigDomein(domeinId)?.naam || ''
+      let plaats = ''
+      volgordeStatus.textContent = ''
+      const uitkomst = await metOpslaan(knop, async () => {
+        const vers = sorteerDomeinen((await laadVermogens(db, clubId)).filter(x => x.domeinId === domeinId))
+        const i = vers.findIndex(x => x.id === id)
+        if (i < 0) throw { code: 'vermogen-weg' }
+        const j = actie === 'omhoog' ? i - 1 : i + 1
+        if (j < 0 || j >= vers.length) return
+        ;[vers[i], vers[j]] = [vers[j], vers[i]]
+        await schrijfVolgorde('vermogens', vers, clubId)
+        plaats = `Vermogen ${vers[j].naam} staat nu op plaats ${j + 1} van ${vers.length} in ${domeinNaam}.`
+      }, { soort: 'lijstactie', lijst: lijstEl, bezig: null, fout: sectieFout })
+      await laadEnRender()
+      if (uitkomst === 'weg') terugval()?.focus()
+      else focusInLijst(lijstEl, actie, id, terugval())
+      if (uitkomst === 'ok' && plaats) zetStatus(volgordeStatus, plaats)
+      else meldingInBeeld(sectieFout)
+    } else if (actie === 'verwijder') {
+      if (!v) return
+      if (!confirm(`Vermogen ${v.naam} verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return
+      const groep = groepVan(v)
+      const k = groep.findIndex(x => x.id === id)
+      const uitkomst = await metOpslaan(knop, () => verwijderVermogen(db, clubId, id), {
+        soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null,
+      })
+      await laadEnRender()
+      if (uitkomst === 'ok') {
+        const buur = potlood(groep[k + 1]?.id || '') || potlood(groep[k - 1]?.id || '')
+        ;(buur || terugval())?.focus()
+        toonOk(sectieOk, `Vermogen ${v.naam} verwijderd.`)
+        meldingInBeeld(sectieOk)
+      } else if (uitkomst === 'weg') {
+        terugval()?.focus()
+        meldingInBeeld(sectieFout)
+      } else {
+        focusInLijst(lijstEl, 'verwijder', id, terugval())
+        meldingInBeeld(sectieFout)
+      }
+    } else if (actie === 'bewerk') {
+      if (!v) return
+      openBewerk(id)
+      el(`vn-${id}`)?.focus()
+    } else if (actie === 'bewerk-annuleer') {
+      tekenLijst()
+      ;(potlood(id) || terugval())?.focus()
+    } else if (actie === 'bewerk-opslaan') {
+      if (!v) return
+      const naamId = `vn-${id}`
+      const domeinVeldId = `vd-${id}`
+      const naam = normaliseerVermogensnaam(el(naamId)?.value)
+      const domeinId = el(domeinVeldId)?.value || ''
+      if (!valideerVelden([
+        [naamId, `${naamId}-fout`, vermogensnaamFout(naam)],
+        [domeinVeldId, `${domeinVeldId}-fout`, domeinId ? '' : 'Kies een domein.'],
+      ])) return
+      const naamAnders = naam !== v.naam
+      const domeinAnders = domeinId !== v.domeinId
+      if (!naamAnders && !domeinAnders) {
+        tekenLijst()
+        potlood(id)?.focus()
+        return
+      }
+      const doelNaam = geldigDomein(domeinId)?.naam || ''
+      const oudeGroep = groepVan(v)
+      const k = oudeGroep.findIndex(x => x.id === id)
+      let verplaatst = false
+      let laatsteFout = null
+      const uitkomst = await metOpslaan(knop, async () => {
+        try {
+          if (naamAnders && domeinAnders) await controleerNaamVrij(db, clubId, naam, id, domeinId)
+          if (domeinAnders) { await verplaatsVermogen(db, clubId, id, domeinId); verplaatst = true }
+          if (naamAnders) await hernoemVermogen(db, clubId, id, naam)
+        } catch (fout) {
+          laatsteFout = fout
+          throw Object.assign(fout, { tekst: vermogenFoutTekst(fout, doelNaam) })
+        }
+      }, { soort: 'formulier-lijst', fout: el(`vm-fout-${id}`), weg: sectieFout, veldFouten: vermogenVeldFouten(naamId, domeinVeldId) })
+      if (!lijstEl.isConnected) return
+
+      if (uitkomst === 'weg') {
+        await laadEnRender()
+        terugval()?.focus()
+        meldingInBeeld(sectieFout)
+        return
+      }
+
+      if (uitkomst === 'fout') {
+        const code = laatsteFout?.code
+        // Halve uitkomst: wel verplaatst, naam niet. Formulier opnieuw open op de nieuwe plek.
+        if (verplaatst) {
+          if (actiefFilter !== 'alle') actiefFilter = domeinId
+          await laadEnRender()
+          if (!openBewerk(id, { naam, domeinId })) { terugval()?.focus(); return }
+          const meld = el(`vm-fout-${id}`)
+          const begin = `Het vermogen is verplaatst naar ${doelNaam}, maar de nieuwe naam is niet opgeslagen.`
+          const slot = 'Klik nog eens op Opslaan om de naam te wijzigen.'
+          if (NAAM_CODES.has(code)) {
+            meld.textContent = `${begin} ${slot}`
+            zetVeldFout(naamId, `${naamId}-fout`, laatsteFout.tekst)
+          } else {
+            const reden = foutTekst(laatsteFout, 'formulier-lijst').replace(STAART_INVOER, '')
+            meld.textContent = `${begin} ${reden} ${slot}`
+            lijstEl.querySelector(`[data-actie="bewerk-opslaan"][data-id="${CSS.escape(id)}"]`)?.focus()
+          }
+          return
+        }
+        // Dubbel, domein weg/overkoepelend of tegelijk gewijzigd: lijst verversen, invoer en fout terugzetten
+        if (VERVERS_CODES.has(code)) {
+          await laadEnRender()
+          if (!openBewerk(id, { naam, domeinId: DOMEIN_CODES.has(code) ? '' : domeinId })) { terugval()?.focus(); return }
+          if (NAAM_CODES.has(code)) zetVeldFout(naamId, `${naamId}-fout`, laatsteFout.tekst)
+          else if (DOMEIN_CODES.has(code)) zetVeldFout(domeinVeldId, `${domeinVeldId}-fout`, laatsteFout.tekst)
+          else {
+            toonFout(el(`vm-fout-${id}`), laatsteFout, 'formulier-lijst')
+            lijstEl.querySelector(`[data-actie="bewerk-opslaan"][data-id="${CSS.escape(id)}"]`)?.focus()
+          }
+        }
+        return
+      }
+
+      await laadEnRender()
+      if (!domeinAnders) potlood(id)?.focus()
+      else if (actiefFilter === 'alle') potlood(id)?.focus()
+      else {
+        const nu = vanDomein(actiefFilter)
+        const doel = nu[k] || nu[nu.length - 1]
+        ;(doel ? potlood(doel.id) : terugval())?.focus()
+      }
+      const tekst = naamAnders && domeinAnders ? `Vermogen ${naam} opgeslagen en verplaatst naar ${doelNaam}.`
+        : domeinAnders ? `Vermogen ${naam} verplaatst naar ${doelNaam}.`
+        : `Vermogen ${naam} opgeslagen.`
+      toonOk(sectieOk, tekst)
+      meldingInBeeld(sectieOk)
+    }
+  })
+
+  await laadEnRender()
+}
+
 async function renderBestuursfunctiesBeheer(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'functies', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('functies')]], inhoud: `
-        <div class="sectie" style="margin-top:0" data-meldblok>
+        <div class="sectie" data-meldblok>
           <div class="sectie-kop">
             <h2>Bestuursfuncties</h2>
           </div>
           <div class="sectie-lijf">
-            <div id="functie-lijst"></div>
-            ${meldingenHTML('functie-ok', 'functie-fout')}
-            <div class="sr-only" id="functie-volgorde" role="status"></div>
-            <button class="btn-toevoegen" id="functie-toevoegen-knop" style="margin-top:0">+ Toevoegen</button>
+            <div class="beheer-balk">
+              <button class="btn-toevoegen" type="button" id="functie-toevoegen-knop">+ Bestuursfunctie toevoegen</button>
+            </div>
             <div class="pijler-form" id="functie-form" hidden>
               <div class="form-groep">
                 <label class="form-label" for="functie-naam">Naam</label>
@@ -1407,6 +2107,9 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
               </div>
               ${meldingenHTML(null, 'functie-form-fout')}
             </div>
+            ${meldingenHTML('functie-ok', 'functie-fout')}
+            <div class="sr-only" id="functie-volgorde" role="status"></div>
+            <div id="functie-lijst"></div>
           </div>
         </div>
 ` })
@@ -1421,7 +2124,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     const [functies, domeinen] = await Promise.all([laadBestuursfuncties(), laadStructuurelementen()])
     if (!lijst.isConnected) return
     if (functies.length === 0) {
-      lijst.innerHTML = `<p style="color:var(--muted);font-style:italic;font-size:var(--fs-toelichting)">Nog geen bestuursfuncties.</p>`
+      lijst.innerHTML = `<p class="lijst-leeg">Nog geen bestuursfuncties.</p>`
       return
     }
     lijst.setAttribute('role', 'table')
@@ -1440,10 +2143,10 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
           <strong class="cel-naam" role="cell">${esc(f.naam)}</strong>
           <span class="cel-functie" role="cell">${aantal === 0 ? 'Geen domeinen' : aantal === 1 ? '1 domein' : `${aantal} domeinen`}</span>
           <div class="kaart-acties cel-acties" role="cell">
-            <button class="btn-kaart-actie btn-volgorde" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="${esc(f.naam)} omhoog"${i === 0 ? ' disabled' : ''}>↑</button>
-            <button class="btn-kaart-actie btn-volgorde" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="${esc(f.naam)} omlaag"${i === functies.length - 1 ? ' disabled' : ''}>↓</button>
-            <button class="btn-kaart-actie" data-actie="bewerk" data-id="${esc(f.id)}">Bewerken</button>
-            <button class="btn-kaart-actie gevaar" data-actie="verwijder" data-id="${esc(f.id)}" data-aantal="${aantal}">Verwijderen</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="Omhoog: ${esc(f.naam)}"${i === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="Omlaag: ${esc(f.naam)}"${i === functies.length - 1 ? ' disabled' : ''}>↓</button>
+            ${actieKnopHTML('bewerk', f.id, 'bewerk', f.naam)}
+            ${actieKnopHTML('verwijder', f.id, 'verwijder', f.naam, ` data-aantal="${aantal}"`)}
           </div>
         </div>`
     }).join('')
@@ -1519,28 +2222,30 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       await laadEnRender().catch(e => console.error(e))
       focusInLijst(lijstEl, actie, id, terugval())
       if (uitkomst === 'ok' && plaats && volgordeStatus.isConnected) volgordeStatus.textContent = plaats
+      else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
       // Masterdata: een functie die nog bij een domein hoort, kan niet weg
       const aantal = Number(knop.dataset.aantal || 0)
       if (aantal > 0) {
         sectieFout.textContent = `Deze bestuursfunctie is nog eindverantwoordelijke van ${aantal === 1 ? '1 domein' : `${aantal} domeinen`}. Kies daar eerst een andere bestuursfunctie.`
+        meldingInBeeld(sectieFout)
         return
       }
       if (!confirm('Bestuursfunctie verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
       const naam = rij?.querySelector('.cel-naam')?.textContent || ''
-      const uitkomst = await metOpslaan(knop, () => verwijderBestuursfunctie(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout })
+      const uitkomst = await metOpslaan(knop, () => verwijderBestuursfunctie(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null })
       await laadEnRender().catch(e => console.error(e))
       if (uitkomst === 'ok') {
         terugval()?.focus()
         toonOk(sectieOk, `Bestuursfunctie ${naam} verwijderd.`)
       } else if (uitkomst === 'weg') terugval()?.focus()
-      else focusInLijst(lijstEl, 'verwijder', id, terugval())
+      else { focusInLijst(lijstEl, 'verwijder', id, terugval()); meldingInBeeld(sectieFout) }
     } else if (actie === 'bewerk') {
       const f = (await laadBestuursfuncties()).find(x => x.id === id)
       if (!f) return
       rij.classList.add('bewerken')
       rij.innerHTML = `
-        <div class="pijler-bewerk-form" style="width:100%">
+        <div class="pijler-bewerk-form">
           <div class="form-groep">
             <label class="form-label" for="fn-${esc(id)}">Naam</label>
             <input class="form-input" id="fn-${esc(id)}" value="${esc(f.naam)}" autocomplete="off" aria-describedby="fn-fout-${esc(id)}">
@@ -1571,8 +2276,10 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       if (uitkomst === 'weg') { terugval()?.focus(); return }
       focusInLijst(lijstEl, 'bewerk', id, terugval())
       toonOk(sectieOk, `Bestuursfunctie ${naam} opgeslagen.`)
+      meldingInBeeld(sectieOk)
     } else if (actie === 'bewerk-annuleer') {
       await laadEnRender()
+      focusInLijst(lijstEl, 'bewerk', id, terugval())
     }
   })
 }
@@ -1588,7 +2295,7 @@ const CLUB_SUCCES = {
 function renderClubBeheer(gebruiker, { succes } = {}) {
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'club', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('club')]], inhoud: `
-        <div class="sectie" style="margin-top:0" data-meldblok>
+        <div class="sectie" data-meldblok>
           <div class="sectie-kop">
             <h2>Clubprofiel</h2>
           </div>
@@ -1719,7 +2426,7 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
 // Mijn account — bereikbaar via de accountregel in het zijmenu
 function renderMijnAccount(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'account', kruimels: [['Home', 'home'], [navNaam('account')]], inhoud: `
-        <div class="sectie" style="margin-top:0">
+        <div class="sectie">
           <div class="sectie-kop">
             <h2>Mijn account</h2>
           </div>

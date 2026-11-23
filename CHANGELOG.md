@@ -2,6 +2,24 @@
 
 ## Ongepubliceerd
 
+### Toegevoegd
+- Vermogens beheren (CK-020): nieuwe pagina **Beheer → Vermogens** (zijmenu tussen Domeinen en Bestuursfuncties, puzzelpictogram, kruimelpad Home › Beheer › Vermogens). Vermogens staan gegroepeerd per pijler en ondersteunend domein, in de domeinvolgorde; met **Toon** kies je één domein. Toevoegen, hernoemen, naar een ander domein verplaatsen, ↑/↓ binnen het domein en verwijderen (met bevestiging), met de CK-023-meldingen. Lege staat met uitleg, groep "Zonder geldig domein" voor vermogens bij een verdwenen of overkoepelend domein, en een nette melding als laden mislukt.
+- Een vermogensnaam is uniek in de club (hoofdletters en spaties maken geen verschil) en heeft 2–100 tekens: letters (ook met accent), cijfers, spaties en `& ' - . , ( ) +`. De veldfout noemt het teken dat niet kan.
+- Home: vierde kerncijfer **Vermogens** en per pijler- of ondersteunende kaart "n vermogens" of "Nog geen vermogens". Laden de vermogens niet, dan werkt Home gewoon, met "–" en een korte melding.
+- Firestore-regels voor `vermogens` en `vermogensnamen`, en een teller `aantalVermogens` op domeinen. De regels dwingen af: unieke naam, vermogen alleen bij een pijler of ondersteunend domein, teller alleen ±1 samen met het vermogen, en een domein met vermogens kan niet weg en niet naar overkoepelend. Werkt ook met de huidige app (domeinen zonder teller = 0).
+- Scripts `npm run vermogens:import` (58 HCA-vermogens, `--droog`, idempotent, één transactie per vermogen) en `npm run vermogens:controle` (controleert tellers en naamdocumenten, herstelt naamdocumenten, meldt de rest met de juiste waarde voor de console).
+- Regeltests met de Firestore-emulator: `npm run test:regels` (geen login, project `demo-clubkompas`).
+
+### Gewijzigd
+- Beheer → Domeinen en Bestuursfuncties: de balk met **+ Domein toevoegen** / **+ Bestuursfunctie toevoegen** staat bovenaan, het formulier en de meldingen eronder, boven de lijst. Domeinen filter je met de keuzelijst **Toon** op soort (in plaats van vier knoppen); bij een andere soort dan "Alle soorten" legt een regel uit waarom ↑/↓ weg zijn.
+- Bewerken en Verwijderen zijn op alle beheerlijsten pictogramknoppen (potlood, prullenbak) met tooltip en een naam voor de schermlezer ("Bewerken: Leden"); op de telefoon zijn alle rijknoppen 44×44px. Tijdens verwijderen blijft het pictogram staan.
+- Domeinen: onder de naam staat "n vermogens" of "Nog geen vermogens", met een link naar de vermogens van dat domein. Een domein met vermogens verwijderen of overkoepelend maken geeft meteen een melding met de knop **Naar de vermogens van …**, ook als de database het weigert omdat iemand tegelijk iets toevoegde. Bij verwijderen gaat de focus naar die knop.
+- Knoppen in lijsten en formulieren krijgen bij toetsenbordfocus naast de oranje rand een donkere binnenlijn (beter zichtbaar in het lichte thema). ↑/↓ heten voor de schermlezer "Omhoog: X" / "Omlaag: X", net als "Bewerken: X".
+- Home: de vier kerncijfers staan tot 900px breed in een raster van 2×2. Velden in alle beheerformulieren zijn maximaal 480px breed. In donkere modus is het pijltje van keuzelijsten lichter.
+
+### Beveiliging
+- Regels: de volgorde van een vermogen is hoogstens 100000, en `laatsteVermogenId` op een domein is altijd een korte tekst. Scripts tonen stuurtekens uit clubdata als zichtbare code in de terminal, zodat een naam de uitvoer niet kan verstoren.
+
 ## [0.6.0] – 2026-11-23
 
 ### Gewijzigd
