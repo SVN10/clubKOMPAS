@@ -540,18 +540,18 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoordeel.md`. Met Paul besproken op 23 november 2026. Het P0d-deel (veldcontrole en tests) staat bij de harde eis voor P0d.
 
 ### CK-047 — Fixpakket v0.12.2 en beveiligingsheaders
-**Status:** Open · route klein
+**Status:** Gebouwd op `test` (23-11-2026), nog testen op tst · route klein
 
-- [ ] Rand van invoervelden naar minstens 3:1 contrast (`--border`, `src/style.css:9`). Nu is het 1,48:1 (WCAG 1.4.11)
-- [ ] Verkeerde hint "De volgorde wijzig je bij Toon: Alle soorten" aanpassen (`src/main.js:1491`)
-- [ ] Inlogscherm: gewone tekst in plaats van `Fout: <code>` (`src/main.js:707`), volgens het criterium van CK-023
-- [ ] Maximum van 200 tekens op de domeinnaam in de app (`src/main.js:1647`), gelijk aan de regels
-- [ ] `.toel` op petrol zonder opacity, zodat het 4,5:1 haalt (`src/style.css:152`)
-- [ ] `.cel-nr` niet vet (besluit 21, `src/style.css:564`); Eindverantwoordelijke en Eigenaar even groot
-- [ ] Lettertype Barlow Semi Condensed lokaal in `public/` in plaats van via Google Fonts (`src/style.css:1`). Gewicht 500 laden of niet meer gebruiken
-- [ ] Bevestiging bij het verwijderen van het logo (`src/main.js:3056`)
-- [ ] Opslaan als primaire knop in elk formulier (besluit 40)
-- [ ] `vercel.json` met beveiligingsheaders: CSP, `frame-ancestors`, `nosniff` en `Referrer-Policy`. De CSP eerst op tst testen, ná het lokaal zetten van het lettertype
+- [x] Rand van invoervelden naar minstens 3:1 contrast (`--border`, `src/style.css:9`). Nu is het 1,48:1 (WCAG 1.4.11)
+- [x] Verkeerde hint "De volgorde wijzig je bij Toon: Alle soorten" aanpassen (`src/main.js:1491`)
+- [x] Inlogscherm: gewone tekst in plaats van `Fout: <code>` (`src/main.js:707`), volgens het criterium van CK-023
+- [x] Maximum van 200 tekens op de domeinnaam in de app (`src/main.js:1647`), gelijk aan de regels
+- [x] `.toel` op petrol zonder opacity, zodat het 4,5:1 haalt (`src/style.css:152`)
+- [x] `.cel-nr` niet vet (besluit 21, `src/style.css:564`); Eindverantwoordelijke en Eigenaar even groot
+- [x] Lettertype Barlow Semi Condensed lokaal in `public/` in plaats van via Google Fonts (`src/style.css:1`). Gewicht 500 laden of niet meer gebruiken
+- [x] Bevestiging bij het verwijderen van het logo (`src/main.js:3056`)
+- [x] Opslaan als primaire knop in elk formulier (besluit 40)
+- [x] `vercel.json` met beveiligingsheaders: CSP, `frame-ancestors`, `nosniff` en `Referrer-Policy`. De CSP eerst op tst testen, ná het lokaal zetten van het lettertype
 
 ### CK-048 — Laadfouten en toegankelijke formulieren
 **Status:** Open · route middel

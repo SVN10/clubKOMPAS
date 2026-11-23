@@ -84,7 +84,8 @@ function esc(s) {
 const SOORTEN = [['pijler', 'Pijler'], ['domein', 'Ondersteunend domein'], ['overkoepelend', 'Overkoepelend domein']]
 const SOORT_LABEL = { pijler: 'Pijler', domein: 'Ondersteunend', overkoepelend: 'Overkoepelend' }
 const SOORT_SUB = { pijler: 'Pijler', domein: 'Ondersteunend domein', overkoepelend: 'Overkoepelend domein' }
-const SOORT_KLEUR = { pijler: '', domein: 'background:var(--orange)', overkoepelend: 'background:var(--muted)' }
+// Kleur van het stipje per soort via een klasse (geen style-attribuut: de CSP staat geen inline stijl toe, CK-047)
+const SOORT_KLEUR = { pijler: '', domein: ' stip-domein', overkoepelend: ' stip-overkoepelend' }
 
 // Optionele #hashtag per domein (bijv. #HCASpeelt): begint met #, geen spaties, max. 50 tekens
 function hashtagFout(waarde) {
@@ -635,7 +636,7 @@ async function renderStructuurGrid() {
           ? `<p class="kaart-vermogens">${vermogensTekst(perDomein.get(item.id))}</p>`
           : '<p class="kaart-vermogens leeg">Nog geen vermogens</p>') : ''}
         <div class="kaart-voet">
-          <span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
+          <span class="pill"><span class="stip${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span>
           ${item.hashtag ? `<span class="kaart-hashtag">${esc(item.hashtag)}</span>` : ''}
         </div>
       </div>`
@@ -704,7 +705,7 @@ function renderInlogscherm() {
         toonAdresNietToegestaan(algFout, testProject)
         return
       }
-      algFout.textContent = foutcodes[e.code] || `Fout: ${e.code}`
+      algFout.textContent = foutcodes[e.code] || 'Inloggen is niet gelukt. Probeer het opnieuw.'
       if (testProject && ['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(e.code)) {
         const hint = document.createElement('span')
         hint.className = 'inlog-test-hint'
@@ -1457,7 +1458,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
               </div>
               <div class="form-groep">
                 <label class="form-label" for="structuur-naam">Naam</label>
-                <input class="form-input" id="structuur-naam" name="naam" type="text" placeholder="Naam" autocomplete="off">
+                <input class="form-input" id="structuur-naam" name="naam" type="text" placeholder="Naam" autocomplete="off" maxlength="200">
                 <span class="form-fout" id="structuur-naam-fout"></span>
               </div>
               <div class="form-groep">
@@ -1480,7 +1481,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
                 ${pictogramKeuzeHTML('structuur-icoon', '')}
               </div>
               <div class="form-rij">
-                <button class="btn" id="structuur-opslaan">Opslaan</button>
+                <button class="btn opslaan" id="structuur-opslaan">Opslaan</button>
                 <button class="btn" id="structuur-annuleer">Annuleren</button>
               </div>
               ${meldingenHTML(null, 'structuur-form-fout')}
@@ -1488,7 +1489,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
             ${meldingenHTML('structuur-ok', 'structuur-fout')}
             <div class="sr-only" id="structuur-volgorde" role="status"></div>
             <div class="sr-only" id="structuur-filter-status" role="status"></div>
-            <p class="lijst-voetnoot" id="structuur-volgorde-hint" hidden>De volgorde wijzig je bij Toon: Alle soorten.</p>
+            <p class="lijst-voetnoot" id="structuur-volgorde-hint" hidden>De volgorde wijzig je bij Alle soorten.</p>
             <div id="structuur-lijst"></div>
           </div>
         </div>
@@ -1544,7 +1545,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
           <span class="cel-nr" role="cell">${plaats}</span>
           <span class="cel-picto" role="cell">${pictogramHTML(item, 'picto-klein')}</span>
           <span class="cel-naam" role="cell">${esc(item.naam)}</span>
-          <span role="cell"><span class="pill"><span class="stip" style="${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
+          <span role="cell"><span class="pill"><span class="stip${SOORT_KLEUR[item.type] || ''}"></span>${SOORT_LABEL[item.type] || ''}</span></span>
           <span class="cel-functie" role="cell">${esc(functieNaam.get(item.bestuursfunctieId) || '—')}</span>
           <span class="cel-vermogens" role="cell">${link}</span>
           <div class="kaart-acties cel-acties" role="cell">${pijlen}
@@ -1762,7 +1763,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
             ${pictogramKeuzeHTML(`bi-${id}`, item.icoon || '')}
           </div>
           <div class="form-rij">
-            <button class="btn" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn opslaan" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
           ${meldingenHTML(null, `bm-fout-${id}`)}
@@ -1880,7 +1881,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
                 <span class="form-fout" id="vermogen-domein-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn" type="button" id="vermogen-opslaan">Opslaan</button>
+                <button class="btn opslaan" type="button" id="vermogen-opslaan">Opslaan</button>
                 <button class="btn" type="button" id="vermogen-annuleer">Annuleren</button>
               </div>
               ${meldingenHTML(null, 'vermogen-form-fout')}
@@ -2082,7 +2083,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
             <span class="form-fout" id="vd-${esc(id)}-fout"></span>
           </div>
           <div class="form-rij">
-            <button class="btn" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn opslaan" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" type="button" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
           ${meldingenHTML(null, `vm-fout-${id}`)}
@@ -2532,7 +2533,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     rij.innerHTML = `
         <div class="pijler-bewerk-form onderdeel-bewerk" role="cell">${veldenHTML(idsVoor(id), x)}
           <div class="form-rij">
-            <button class="btn" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn opslaan" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" type="button" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
           ${meldingenHTML(null, `om-fout-${id}`)}
@@ -2561,7 +2562,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     const status = Object.hasOwn(STATUS_LABEL, actiefFilter) ? actiefFilter : 'in-voorbereiding'
     form.innerHTML = `${veldenHTML(NIEUW, { naam: '', omschrijving: '', bestuursfunctieId: '', status, begindatum: '', einddatum: '' })}
               <div class="form-rij">
-                <button class="btn" type="button" id="onderdeel-opslaan">Opslaan</button>
+                <button class="btn opslaan" type="button" id="onderdeel-opslaan">Opslaan</button>
                 <button class="btn" type="button" id="onderdeel-annuleer">Annuleren</button>
               </div>
               ${meldingenHTML(null, 'onderdeel-form-fout')}`
@@ -2733,7 +2734,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
                 <span class="form-fout" id="functie-naam-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn" id="functie-opslaan">Opslaan</button>
+                <button class="btn opslaan" id="functie-opslaan">Opslaan</button>
                 <button class="btn" id="functie-annuleer">Annuleren</button>
               </div>
               ${meldingenHTML(null, 'functie-form-fout')}
@@ -2925,7 +2926,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
             <span class="form-fout" id="fn-fout-${esc(id)}"></span>
           </div>
           <div class="form-rij">
-            <button class="btn" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn opslaan" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
             <button class="btn" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
           </div>
           ${meldingenHTML(null, `fm-fout-${id}`)}
@@ -2990,7 +2991,7 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
                 <span class="form-fout" id="profiel-seizoen-fout"></span>
               </div>
               <div class="form-rij">
-                <button class="btn" id="profiel-opslaan">Opslaan</button>
+                <button class="btn opslaan" id="profiel-opslaan">Opslaan</button>
               </div>
               ${meldingenHTML('profiel-ok', 'profiel-fout')}
             </div>
@@ -3055,6 +3056,7 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
   if (verwijderKnop) {
     verwijderKnop.addEventListener('click', async () => {
       if (verwijderKnop.getAttribute('aria-disabled') === 'true') return
+      if (!confirm('Clublogo verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
       const sessie = profielSessie()
       const uitkomst = await metOpslaan(verwijderKnop, () => sessie.schrijf({ logo: deleteField() }, ({ logo: _weg, ...rest }) => rest), {
         soort: 'logo', fout: logoFout,

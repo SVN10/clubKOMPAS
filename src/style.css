@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+/* Lettertype lokaal (CK-047): geen verzoek naar Google. Bron: @fontsource/barlow-semi-condensed 5.3.0, latin, OFL 1.1 (zie public/fonts/barlow-semi-condensed/OFL.txt) */
+@font-face { font-family: 'Barlow Semi Condensed'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/barlow-semi-condensed/barlow-semi-condensed-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-style: italic; font-weight: 400; font-display: swap; src: url('/fonts/barlow-semi-condensed/barlow-semi-condensed-latin-400-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/barlow-semi-condensed/barlow-semi-condensed-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/barlow-semi-condensed/barlow-semi-condensed-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/barlow-semi-condensed/barlow-semi-condensed-latin-700-normal.woff2') format('woff2'); }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -7,6 +12,7 @@
   --surface:  #F2F6F6;
   --card:     #FFFFFF;
   --border:   #C9D7D7;
+  --rand-invoer: #7E8F8F;   /* rand van invoervelden: 3,4:1 op wit (WCAG 1.4.11) */
   --petrol:   #46797B;
   --petrol-dark: #3A6567;
   --petrol-vlak: var(--petrol);   /* vlakken met witte tekst: balk, footer, sectiekop */
@@ -37,6 +43,7 @@
     --surface:  #152022;
     --card:     #1B2A2C;
     --border:   #2E4447;
+    --rand-invoer: #668487;
     --petrol:   #7DB1B3;
     --petrol-dark: #2F5658;
     --petrol-vlak: #2F5658;
@@ -152,7 +159,6 @@ body {
 .sectie-kop .toel {
   font-style: italic;
   font-size: var(--fs-toelichting);
-  opacity: .85;
 }
 .sectie-lijf {
   background: var(--surface);
@@ -184,6 +190,13 @@ body {
   border-color: var(--orange);
 }
 .btn.primary:hover { border-color: var(--text); }
+/* Opslaan is de primaire knop in elk formulier: petrol vlak (besluit 40, CK-047). Annuleren blijft .btn */
+.btn.opslaan {
+  background: var(--petrol-vlak);
+  color: var(--on-petrol);
+  border-color: var(--petrol-vlak);
+}
+.btn.opslaan:hover { border-color: var(--text); }
 
 /* ── Kaarten (vermogens / pijlers) ── */
 .grid {
@@ -236,6 +249,8 @@ body {
   border-radius: 50%;
   background: var(--petrol);
 }
+.stip.stip-domein { background: var(--orange); }
+.stip.stip-overkoepelend { background: var(--muted); }
 
 /* ── Footer ── */
 footer {
@@ -292,7 +307,7 @@ footer {
 }
 .form-input {
   padding: 8px 10px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--rand-invoer);
   border-radius: 4px;
   font-family: var(--font);
   font-size: var(--fs-lopend);
@@ -561,10 +576,10 @@ footer {
   color: var(--muted);
 }
 .beheer-kop > span:first-child, .cel-nr { text-align: right; }
-.cel-nr { font-size: var(--fs-toelichting); font-weight: 700; color: var(--muted); }
+.cel-nr { font-size: var(--fs-toelichting); color: var(--muted); }
 .cel-picto { display: flex; align-items: center; }
 .cel-naam { overflow-wrap: anywhere; }
-.cel-functie { font-size: var(--fs-toelichting); color: var(--text); }
+.cel-functie, .cel-eigenaar { font-size: var(--fs-toelichting); color: var(--text); }   /* Eindverantwoordelijke en Eigenaar even groot (CK-047) */
 .cel-acties { justify-content: flex-end; margin-top: 0; }
 .onzichtbaar { visibility: hidden; }
 
@@ -936,6 +951,7 @@ body.met-omgeving-balk .inlog-wrap {
 .btn-kaart-actie[aria-disabled="true"] { opacity: .6; cursor: progress; }
 .btn[aria-disabled="true"]:hover { border-color: var(--border); }
 .btn.primary[aria-disabled="true"]:hover { border-color: var(--orange); }
+.btn.opslaan[aria-disabled="true"]:hover { border-color: var(--petrol-vlak); }
 .btn-kaart-actie[aria-disabled="true"]:hover { border-color: var(--border); color: var(--muted); }
 .btn.gevaar[aria-disabled="true"]:hover { color: var(--petrol); }
 
@@ -1232,7 +1248,7 @@ a.btn { text-decoration: none; }
 .eigen-datum-tekst { flex: 1 1 auto; min-width: 0; border-right: 0; }
 .eigen-datum-knop {
   flex: none; width: 38px; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--card); border: 1px solid var(--border); color: var(--petrol); cursor: pointer; padding: 0;
+  background: var(--card); border: 1.5px solid var(--rand-invoer); color: var(--petrol); cursor: pointer; padding: 0;
 }
 .eigen-datum-knop svg, .eigen-kal-nav svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .eigen-datum-knop:hover { border-color: var(--petrol); }

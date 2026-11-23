@@ -1,5 +1,20 @@
 # Changelog
 
+## [Ongepubliceerd]
+
+### Gewijzigd (CK-047, fixpakket v0.12.2)
+- Invoervelden hebben een duidelijkere rand (eigen token `--rand-invoer`, 3,4:1 op wit en 3,7:1 in het donkere thema). Kaart- en tabelranden blijven licht (`--border`).
+- Opslaan is in elk formulier de primaire knop (petrol vlak, besluit 40). Annuleren blijft secundair.
+- Het logo verwijderen vraagt eerst om bevestiging: "Clublogo verwijderen? Dit kan niet ongedaan worden gemaakt." (besluit 41).
+- Beheer → Domeinen: de hint zegt nu "De volgorde wijzig je bij Alle soorten." De naam van een domein is maximaal 200 tekens, net als in de regels.
+- Inlogscherm: een onbekende fout toont een gewone tekst in plaats van een technische code.
+- De toelichting in een petrol sectiekop heeft geen doorzichtigheid meer (4,9:1). Rijnummers zijn niet meer vet (besluit 21). Eindverantwoordelijke en Eigenaar zijn even groot (14 px).
+- Het stipje bij de soort van een domein krijgt zijn kleur via een klasse in plaats van een `style`-attribuut (nodig voor de CSP).
+
+### Beveiliging en privacy
+- Het lettertype Barlow Semi Condensed staat lokaal in `public/fonts/` (latin, 400, 400 cursief, 500, 600, 700; OFL 1.1 van fontsource). Er gaat geen verzoek meer naar Google Fonts.
+- Nieuw `vercel.json` met beveiligingsheaders: Content-Security-Policy (alleen eigen bestanden plus Firebase: Firestore, Identity Toolkit, Secure Token, firebaseio en de auth-domeinen van test en productie; `img-src 'self' data:` voor het logo), `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff` en `Referrer-Policy: strict-origin-when-cross-origin`.
+
 ## [0.12.1] – 2026-11-23
 
 ### Gewijzigd
