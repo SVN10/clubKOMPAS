@@ -7,6 +7,11 @@ import {
   KAN_VERMOGENS, normaliseerVermogensnaam, vermogensnaamFout, laadVermogens, leesAantalVermogens, controleerNaamVrij,
   voegVermogenToe, hernoemVermogen, verplaatsVermogen, verwijderVermogen,
 } from './vermogens.js'
+import {
+  SOORT_ONDERDEEL, STATUSSEN, STATUS_LABEL, OP_PLAAT, normaliseerNaam, onderdeelnaamFout, normaliseerOmschrijving,
+  omschrijvingFout, periodeTekst, datumFout, sorteerOnderdelen, naamBezet, laadOnderdelen, voegOnderdeelToe,
+  bewerkOnderdeel, verwijderOnderdeel,
+} from './onderdelen.js'
 
 let huidigClubId = null
 let huidigProfiel = null
@@ -291,7 +296,7 @@ function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
 
 const OPSLAAN_TIJDSLIMIET = 15000
 const INLOG_CODES = new Set(['unauthenticated', 'auth/user-token-expired', 'auth/requires-recent-login'])
-const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg'])
+const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg'])
 const VERBINDING_CODES = new Set(['unavailable', 'deadline-exceeded', 'auth/network-request-failed'])
 const STAART_INVOER = ' Wat je hebt ingevuld, staat er nog.'
 const STAART_LIJST = ' De lijst is niet gewijzigd.'
@@ -318,6 +323,10 @@ const FOUTTEKSTEN = {
   'dubbele-naam': 'Deze bestuursfunctie bestaat al',
   aborted: 'Iemand anders wijzigde dit tegelijk. De lijst is bijgewerkt. Kijk of je wijziging nodig is en probeer het zo nodig opnieuw.',
   'vermogen-weg': 'Dit vermogen bestaat niet meer, misschien is het net door iemand anders verwijderd. De lijst is bijgewerkt.',
+  'dubbel-project': 'Er is al een project met deze naam.',
+  'dubbele-samenwerking': 'Er is al een samenwerking met deze naam.',
+  'project-weg': 'Dit project bestaat niet meer.',
+  'samenwerking-weg': 'Deze samenwerking bestaat niet meer.',
 }
 
 const TIJD_OP_ACCOUNT = {
@@ -998,14 +1007,29 @@ function plaatSectieHTML(kop, toel, klasse, kaarten) {
           </div>`
 }
 
-function plaatKaartHTML(d, lijst, functieNaam) {
+// Kaartjes van projecten of samenwerkingen in het overkoepelende blok met bevat (CK-046, besluiten 11, 12 en 18)
+function plaatOnderdelenHTML(d, { soort, items }) {
+  if (!items.length) return `<p class="plaat-leeg">Er zijn geen ${SOORT_ONDERDEEL[soort].meer}.</p>`
+  const kaartje = x => {
+    const sub = soort === 'projecten'
+      ? [x.status === 'in-voorbereiding' ? STATUS_LABEL['in-voorbereiding'] : '', periodeTekst(x.begindatum, x.einddatum)].filter(Boolean).join(' · ')
+      : ''
+    const klasse = soort === 'projecten' && x.status === 'in-voorbereiding' ? ' voorbereiding' : ''
+    return `<li class="plaat-onderdeel${klasse}">${esc(x.naam)}${sub ? `<span class="plaat-onderdeel-sub">${esc(sub)}</span>` : ''}</li>`
+  }
+  return `<ul class="plaat-onderdelen" role="list" aria-label="${esc(d.naam)}">${items.map(kaartje).join('')}</ul>`
+}
+
+function plaatKaartHTML(d, lijst, functieNaam, onderdelen = null) {
   const soort = d.type === 'pijler' ? 'pijler' : d.type === 'domein' ? 'steun' : 'over'
   const sub = d.type !== 'overkoepelend' && d.hashtag ? `<p class="plaat-sub">${esc(d.hashtag)}</p>` : ''
   const verantw = functieNaam
     ? `<p class="plaat-verantw">Eindverantwoordelijke: <strong>${esc(functieNaam.get(d.bestuursfunctieId) || 'nog niet gekozen')}</strong></p>`
     : ''
   let rest
-  if (d.type === 'overkoepelend') {
+  if (d.type === 'overkoepelend' && onderdelen) {
+    rest = plaatOnderdelenHTML(d, onderdelen)
+  } else if (d.type === 'overkoepelend') {
     rest = d.omschrijving ? `<p class="plaat-omschrijving">${esc(d.omschrijving)}</p>` : ''
   } else if (lijst.length) {
     rest = `<ul class="plaat-vermogens" role="list">${lijst.map(v => `<li class="plaat-vermogen">${esc(v.naam)}</li>`).join('')}</ul>`
@@ -1039,9 +1063,23 @@ async function renderPlaat(gebruiker) {
     plaatEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De plaat kon niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="plaat-herlaad">Opnieuw laden</button></div></div>${testHint}`
   }
 
-  function teken(domeinen, vermogens, functies) {
+  // onderdelen: { projecten: lijst | null, samenwerkingen: lijst | null }; null = laden mislukt
+  function teken(domeinen, vermogens, functies, onderdelen) {
     const functieNaam = functies ? new Map(functies.map(f => [f.id, f.naam])) : null
-    hintEl.textContent = functies ? '' : 'De eindverantwoordelijken konden niet worden geladen. Herlaad de pagina om het opnieuw te proberen.'
+    const blokVan = new Map()
+    let onderdelenMislukt = false
+    for (const soort of Object.keys(SOORT_ONDERDEEL)) {
+      const blok = domeinen.find(d => d.type === 'overkoepelend' && d.bevat === soort)
+      if (!blok) continue
+      const lijst = onderdelen[soort]
+      if (!lijst) { onderdelenMislukt = true; continue }
+      const items = soort === 'projecten' ? lijst.filter(x => OP_PLAAT.has(x.status)) : lijst
+      blokVan.set(blok.id, { soort, items })
+    }
+    hintEl.textContent = [
+      functies ? '' : 'De eindverantwoordelijken konden niet worden geladen. Herlaad de pagina om het opnieuw te proberen.',
+      onderdelenMislukt ? 'De projecten en samenwerkingen konden niet worden geladen. Herlaad de pagina om het opnieuw te proberen.' : '',
+    ].filter(Boolean).join(' ')
     const geldig = new Set(domeinen.filter(d => KAN_VERMOGENS.has(d.type)).map(d => d.id))
     const perDomein = new Map()
     vermogens.filter(v => geldig.has(v.domeinId)).forEach(v => {
@@ -1055,7 +1093,7 @@ async function renderPlaat(gebruiker) {
       const n = lijst.reduce((a, d) => a + (perDomein.get(d.id)?.length || 0), 0)
       return n ? vermogensTekst(n) : 'nog geen vermogens'
     }
-    const kaarten = lijst => lijst.map(d => plaatKaartHTML(d, perDomein.get(d.id) || [], functieNaam))
+    const kaarten = lijst => lijst.map(d => plaatKaartHTML(d, perDomein.get(d.id) || [], functieNaam, blokVan.get(d.id)))
     const pijlers = vanType('pijler')
     const steun = vanType('domein')
     const over = vanType('overkoepelend')
@@ -1085,6 +1123,7 @@ async function renderPlaat(gebruiker) {
 
   async function laadEnTeken() {
     const functiesBelofte = Promise.allSettled([laadBestuursfuncties()])
+    const onderdelenBelofte = Promise.allSettled(Object.keys(SOORT_ONDERDEEL).map(soort => laadOnderdelen(db, clubId, soort)))
     let domeinen, vermogens
     try {
       [domeinen, vermogens] = await Promise.all([laadStructuurelementen(), laadVermogens(db, clubId)])
@@ -1094,9 +1133,16 @@ async function renderPlaat(gebruiker) {
       return false
     }
     const [functieUitkomst] = await functiesBelofte
+    const onderdeelUitkomsten = await onderdelenBelofte
     if (!plaatEl.isConnected) return false
     if (functieUitkomst.status === 'rejected') console.error('Bestuursfuncties laden mislukt:', functieUitkomst.reason?.code)
-    teken(domeinen, vermogens, functieUitkomst.status === 'fulfilled' ? functieUitkomst.value : null)
+    const onderdelen = {}
+    Object.keys(SOORT_ONDERDEEL).forEach((soort, k) => {
+      const u = onderdeelUitkomsten[k]
+      if (u.status === 'rejected') console.error(`${SOORT_ONDERDEEL[soort].Meer} laden mislukt:`, u.reason?.code)
+      onderdelen[soort] = u.status === 'fulfilled' ? u.value : null
+    })
+    teken(domeinen, vermogens, functieUitkomst.status === 'fulfilled' ? functieUitkomst.value : null, onderdelen)
     return true
   }
 
@@ -1131,6 +1177,8 @@ const MENU_ICOON = {
   sluiten: '<path d="M12 12 L36 36"/><path d="M36 12 L12 36"/>',
   puzzel: '<path d="M9 15 H19 A4 4 0 1 1 27 15 H37 V25 A4 4 0 1 1 37 33 V39 H9 Z"/>',
   potlood: '<path d="M31 9 L39 17 L18 38 L9 39 L10 30 Z"/><path d="M27 13 L35 21"/>',
+  klembord: '<rect x="10" y="10" width="28" height="32" rx="3"/><rect x="18" y="6" width="12" height="8" rx="2"/><path d="M17 22 H31"/><path d="M17 29 H31"/><path d="M17 36 H25"/>',
+  schakels: '<g transform="rotate(-45 24 24)"><rect x="4" y="18" width="24" height="12" rx="6"/><rect x="20" y="18" width="24" height="12" rx="6"/></g>',
   prullenbak: '<path d="M8 13 H40"/><path d="M19 13 V8 H29 V13"/><path d="M12 13 L14.5 40 H33.5 L36 13"/><path d="M20 20 V33"/><path d="M28 20 V33"/>',
 }
 function menuIcoon(naam) {
@@ -1147,6 +1195,8 @@ const ZIJMENU = [
   { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
     { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
+    { id: 'projecten', naam: 'Projecten', ico: 'klembord' },
+    { id: 'samenwerkingen', naam: 'Samenwerkingen', ico: 'schakels' },
     { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
     { id: 'club', naam: 'Club', ico: 'vlag' },
   ]},
@@ -1162,6 +1212,8 @@ const NAV_DOEL = new Map([
   ['beheer', renderPijlersDomeinenBeheer],
   ['domeinen', renderPijlersDomeinenBeheer],
   ['vermogensbeheer', renderVermogensBeheer],
+  ['projecten', g => renderOnderdeelBeheer(g, 'projecten')],
+  ['samenwerkingen', g => renderOnderdeelBeheer(g, 'samenwerkingen')],
   ['functies', renderBestuursfunctiesBeheer],
   ['club', renderClubBeheer],
   ['account', renderMijnAccount],
@@ -2243,6 +2295,414 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   await laadEnRender()
 }
 
+// ── Projecten en samenwerkingen (CK-046) ──────────────────────────────────────
+// Eén beheerpagina voor beide soorten; id-voorvoegsel onderdeel- (er is er één tegelijk open)
+
+async function renderOnderdeelBeheer(gebruiker, soort) {
+  const cfg = SOORT_ONDERDEEL[soort]
+  const filterHTML = cfg.status ? `
+              <div class="filter-keuze">
+                <label class="form-label" for="onderdeel-filter">Toon</label>
+                <select class="form-input" id="onderdeel-filter">
+                  <option value="alle">Alle projecten</option>
+                  ${STATUSSEN.map(([k, label]) => `<option value="${k}">${label}</option>`).join('')}
+                </select>
+              </div>` : ''
+  document.querySelector('#app').innerHTML = appShellHTML({ actief: soort, kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam(soort)]], inhoud: `
+        <div class="sectie" data-meldblok>
+          <div class="sectie-kop">
+            <h2>${cfg.Meer}</h2>
+          </div>
+          <div class="sectie-lijf">
+            <div class="beheer-balk" id="onderdeel-balk" hidden>${filterHTML}
+              <button class="btn-toevoegen" type="button" id="onderdeel-toevoegen-knop">+ ${cfg.Enkel} toevoegen</button>
+            </div>
+            <div class="pijler-form" id="onderdeel-form" hidden></div>
+            ${meldingenHTML('onderdeel-ok', 'onderdeel-fout')}
+            <p class="vermogens-hint" id="onderdeel-functies-hint" role="status"></p>
+            <p class="tussen-hint" id="onderdeel-plaat-hint"></p>
+            <div class="sr-only" id="onderdeel-volgorde" role="status"></div>
+            <div class="sr-only" id="onderdeel-filter-status" role="status"></div>
+            <div id="onderdeel-lijst"><p class="lijst-laden">${cfg.Meer} worden geladen...</p></div>
+          </div>
+        </div>
+` })
+
+  bindAppShell(gebruiker)
+  bindMeldblokken()
+
+  const clubId = huidigClubId
+  const el = id => document.getElementById(id)
+  const balk = el('onderdeel-balk')
+  const filterEl = el('onderdeel-filter')
+  const form = el('onderdeel-form')
+  const lijstEl = el('onderdeel-lijst')
+  const sectieOk = el('onderdeel-ok')
+  const sectieFout = el('onderdeel-fout')
+  const functiesHint = el('onderdeel-functies-hint')
+  const plaatHint = el('onderdeel-plaat-hint')
+  const volgordeStatus = el('onderdeel-volgorde')
+  const filterStatus = el('onderdeel-filter-status')
+  const toevoegKnop = el('onderdeel-toevoegen-knop')
+
+  let onderdelen = []
+  let functies = null
+  let actiefFilter = 'alle'
+
+  const aantalTekst = n => `${n} ${n === 1 ? cfg.enkel : cfg.meer}`
+  const getoond = () => (actiefFilter === 'alle' ? onderdelen : onderdelen.filter(x => x.status === actiefFilter))
+  const terugval = () => zichtbareTerugval(toevoegKnop, form)
+  const potlood = id => lijstEl.querySelector(`[data-actie="bewerk"][data-id="${CSS.escape(id)}"]`)
+  const functieNaam = id => functies?.find(f => f.id === id)?.naam || ''
+  const leeg = label => `<span class="leeg-streep"><span aria-hidden="true">—</span><span class="sr-only">${label}</span></span>`
+  const idsVoor = id => ({ naam: `on-${id}`, status: `os-${id}`, begin: `ob-${id}`, eind: `oe-${id}`, eigenaar: `ow-${id}`, omschrijving: `oo-${id}` })
+  const NIEUW = { naam: 'onderdeel-naam', status: 'onderdeel-status', begin: 'onderdeel-begin', eind: 'onderdeel-eind', eigenaar: 'onderdeel-eigenaar', omschrijving: 'onderdeel-omschrijving' }
+
+  function veldenHTML(ids, w) {
+    const status = cfg.status ? `
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.status)}">Status</label>
+                <select class="form-input" id="${esc(ids.status)}">${STATUSSEN.map(([k, label]) => `<option value="${k}"${k === w.status ? ' selected' : ''}>${label}</option>`).join('')}</select>
+              </div>
+              <fieldset class="periode-velden">
+                <legend class="form-label">Periode (optioneel)</legend>
+                <div class="form-rij-datums">
+                  <div class="form-groep">
+                    <label class="datum-label" for="${esc(ids.begin)}">Begindatum</label>
+                    <input class="form-input" id="${esc(ids.begin)}" type="date" value="${esc(w.begindatum)}" aria-describedby="${esc(ids.begin)}-fout" data-eind="${esc(ids.eind)}">
+                    <span class="form-fout" id="${esc(ids.begin)}-fout"></span>
+                  </div>
+                  <div class="form-groep">
+                    <label class="datum-label" for="${esc(ids.eind)}">Einddatum</label>
+                    <input class="form-input" id="${esc(ids.eind)}" type="date" value="${esc(w.einddatum)}"${w.begindatum ? ` min="${esc(w.begindatum)}"` : ''} aria-describedby="${esc(ids.eind)}-fout">
+                    <span class="form-fout" id="${esc(ids.eind)}-fout"></span>
+                  </div>
+                </div>
+              </fieldset>` : ''
+    const eigenaar = functies?.some(f => f.id === w.bestuursfunctieId) ? w.bestuursfunctieId : ''
+    return `
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.naam)}">Naam</label>
+                <input class="form-input" id="${esc(ids.naam)}" type="text" value="${esc(w.naam)}" placeholder="${esc(cfg.voorbeeld)}" ${NAAM_VELD_ATTR} aria-describedby="${esc(ids.naam)}-fout" data-naamveld>
+                <span class="form-fout" id="${esc(ids.naam)}-fout"></span>
+              </div>${status}
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.eigenaar)}">Eigenaar</label>
+                ${bestuursfunctieKeuzeHTML(ids.eigenaar, eigenaar, functies || [])}
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.omschrijving)}">Omschrijving</label>
+                <textarea class="form-input" id="${esc(ids.omschrijving)}" rows="3" aria-describedby="${esc(ids.omschrijving)}-fout">${esc(w.omschrijving)}</textarea>
+                <span class="form-fout" id="${esc(ids.omschrijving)}-fout"></span>
+              </div>`
+  }
+
+  // Invoer lezen en controleren; geeft de velden of null (fouten staan dan bij de velden, focus op de eerste)
+  function leesVelden(ids, bestaand = null) {
+    const naam = normaliseerNaam(el(ids.naam)?.value)
+    const omschrijving = normaliseerOmschrijving(el(ids.omschrijving)?.value)
+    const gekozen = el(ids.eigenaar)?.value || ''
+    const behoud = bestaand && !gekozen && !functies?.some(f => f.id === bestaand.bestuursfunctieId)
+    const velden = { naam, omschrijving, bestuursfunctieId: behoud ? (bestaand.bestuursfunctieId || '') : gekozen }
+    const regels = [[ids.naam, `${ids.naam}-fout`, onderdeelnaamFout(naam)]]
+    if (cfg.status) {
+      const beginEl = el(ids.begin)
+      const eindEl = el(ids.eind)
+      Object.assign(velden, { status: el(ids.status)?.value || 'in-voorbereiding', begindatum: beginEl?.value || '', einddatum: eindEl?.value || '' })
+      const half = 'Vul een hele datum in, of maak het veld leeg.'
+      const d = datumFout(velden.begindatum, velden.einddatum)
+      regels.push([ids.begin, `${ids.begin}-fout`, beginEl?.validity?.badInput ? half : d.begin || ''])
+      regels.push([ids.eind, `${ids.eind}-fout`, eindEl?.validity?.badInput ? half : d.eind || ''])
+    }
+    regels.push([ids.omschrijving, `${ids.omschrijving}-fout`, omschrijvingFout(omschrijving)])
+    return valideerVelden(regels) ? velden : null
+  }
+
+  function rijHTML(x, plaats, k, n) {
+    const periode = cfg.status ? periodeTekst(x.begindatum, x.einddatum) : ''
+    const eigenaar = functieNaam(x.bestuursfunctieId)
+    const statusCel = cfg.status ? `
+          <span class="cel-status" role="cell">${Object.hasOwn(STATUS_LABEL, x.status) ? `<span class="status-label ${x.status}">${STATUS_LABEL[x.status]}</span>` : leeg('geen status')}</span>
+          <span class="cel-periode" role="cell"><span class="cel-label" aria-hidden="true">Periode: </span>${periode ? esc(periode) : leeg('geen periode')}</span>` : ''
+    return `
+        <div class="structuur-rij beheer-rij ${cfg.status ? 'project-rij' : 'samenwerking-rij'}" role="row" data-id="${esc(x.id)}">
+          <span class="cel-nr" role="cell">${plaats}</span>
+          <span class="cel-project" role="cell">
+            <span class="cel-naam">${esc(x.naam)}</span>${x.omschrijving ? `
+            <span class="cel-omschrijving">${esc(x.omschrijving)}</span>` : ''}
+          </span>${statusCel}
+          <span class="cel-eigenaar" role="cell"><span class="cel-label" aria-hidden="true">Eigenaar: </span>${eigenaar ? esc(eigenaar) : leeg('nog niet gekozen')}</span>
+          <div class="kaart-acties cel-acties" role="cell">
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omhoog"${k === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omlaag"${k === n - 1 ? ' disabled' : ''}>↓</button>
+            ${actieKnopHTML('bewerk', x.id, 'bewerk', x.naam)}${actieKnopHTML('verwijder', x.id, 'verwijder', x.naam)}
+          </div>
+        </div>`
+  }
+
+  function tekenLijst() {
+    if (!lijstEl.isConnected) return
+    balk.hidden = false
+    if (filterEl) filterEl.closest('.filter-keuze').hidden = !onderdelen.length
+    if (!onderdelen.length) {
+      lijstEl.innerHTML = `
+        <div class="leeg-blok">
+          <h3>Nog geen ${cfg.meer}</h3>
+          <p>${soort === 'projecten'
+            ? 'Een project is een tijdelijk traject van de club, zoals een verbouwing, een nieuw scorebord of een sponsortraject.'
+            : 'Een samenwerking is een vaste partner buiten de club, zoals de bond, de gemeente of scholen.'}</p>
+        </div>`
+      return
+    }
+    if (filterEl) filterEl.value = actiefFilter
+    const lijst = getoond()
+    if (!lijst.length) {
+      lijstEl.innerHTML = `<p class="lijst-leeg">Geen ${cfg.meer} met status ${STATUS_LABEL[actiefFilter]}.</p>`
+      return
+    }
+    const kop = cfg.status
+      ? '<span role="columnheader">#</span><span role="columnheader">Project</span><span role="columnheader">Status</span><span role="columnheader">Periode</span><span role="columnheader">Eigenaar</span>'
+      : '<span role="columnheader">#</span><span role="columnheader">Samenwerking</span><span role="columnheader">Eigenaar</span>'
+    lijstEl.innerHTML = `
+          <div role="table" aria-label="${cfg.Meer}">
+            <div class="beheer-rij beheer-kop ${cfg.status ? 'project-rij' : 'samenwerking-rij'}" role="row">${kop}<span role="columnheader"><span class="sr-only">Acties</span></span></div>
+            ${lijst.map((x, k) => rijHTML(x, onderdelen.indexOf(x) + 1, k, lijst.length)).join('')}
+          </div>`
+  }
+
+  function toonLaadfout(e) {
+    if (!lijstEl.isConnected) return
+    balk.hidden = true
+    form.hidden = true
+    toevoegKnop.hidden = false
+    const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
+      ? '<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor projecten en samenwerkingen al gepubliceerd?</p>' : ''
+    lijstEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De ${cfg.meer} konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="onderdeel-herlaad">Opnieuw laden</button></div></div>${testHint}`
+  }
+
+  async function laadEnRender() {
+    const bijzaken = Promise.allSettled([laadBestuursfuncties(), laadStructuurelementen()])
+    try {
+      onderdelen = await laadOnderdelen(db, clubId, soort)
+    } catch (e) {
+      console.error(`${cfg.Meer} laden mislukt:`, e?.code)
+      toonLaadfout(e)
+      return false
+    }
+    const [f, d] = await bijzaken
+    if (!lijstEl.isConnected) return false
+    if (f.status === 'rejected') console.error('Bestuursfuncties laden mislukt:', f.reason?.code)
+    functies = f.status === 'fulfilled' ? f.value : null
+    functiesHint.textContent = functies ? '' : 'De bestuursfuncties konden niet worden geladen. Herlaad de pagina om een eigenaar te kiezen.'
+    const opPlaat = d.status !== 'fulfilled' || d.value.some(x => x.type === 'overkoepelend' && x.bevat === soort)
+    plaatHint.textContent = opPlaat ? '' : `Deze ${cfg.meer} staan nog niet op de plaat: geen overkoepelend domein toont ${cfg.meer}.`
+    tekenLijst()
+    return true
+  }
+
+  function sluitForm() {
+    form.hidden = true
+    form.innerHTML = ''
+    toevoegKnop.hidden = false
+  }
+
+  function meldFilter() {
+    const n = getoond().length
+    zetStatus(filterStatus, n || actiefFilter === 'alle' ? `${aantalTekst(n)} getoond.` : `Geen ${cfg.meer} met status ${STATUS_LABEL[actiefFilter]}.`)
+  }
+
+  function openBewerk(id) {
+    const rij = lijstEl.querySelector(`.structuur-rij[data-id="${CSS.escape(id)}"]`)
+    const x = onderdelen.find(o => o.id === id)
+    if (!rij || !x) return null
+    rij.classList.add('bewerken')
+    rij.innerHTML = `
+        <div class="pijler-bewerk-form onderdeel-bewerk" role="cell">${veldenHTML(idsVoor(id), x)}
+          <div class="form-rij">
+            <button class="btn" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}">Opslaan</button>
+            <button class="btn" type="button" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
+          </div>
+          ${meldingenHTML(null, `om-fout-${id}`)}
+        </div>`
+    return rij
+  }
+
+  const dubbelFout = ids => ({ [cfg.dubbelCode]: [`${ids.naam}-fout`, ids.naam] })
+  async function controleerDubbel(naam, eigenId = null) {
+    if (naamBezet(await laadOnderdelen(db, clubId, soort), naam, eigenId)) throw { code: cfg.dubbelCode }
+  }
+
+  // Begindatum gekozen: einddatum niet eerder laten kiezen (hulp in de kiezer; de controle zit in leesVelden)
+  const bijBegin = e => {
+    const eindId = e.target.dataset?.eind
+    if (!eindId) return
+    const eind = el(eindId)
+    if (eind) eind.min = e.target.value || ''
+  }
+  const enterIsOpslaan = (e, knop) => {
+    if (e.key === 'Enter' && e.target.matches?.('[data-naamveld]')) { e.preventDefault(); knop()?.click() }
+  }
+
+  // ── Toevoegen ──
+  toevoegKnop.addEventListener('click', () => {
+    const status = Object.hasOwn(STATUS_LABEL, actiefFilter) ? actiefFilter : 'in-voorbereiding'
+    form.innerHTML = `${veldenHTML(NIEUW, { naam: '', omschrijving: '', bestuursfunctieId: '', status, begindatum: '', einddatum: '' })}
+              <div class="form-rij">
+                <button class="btn" type="button" id="onderdeel-opslaan">Opslaan</button>
+                <button class="btn" type="button" id="onderdeel-annuleer">Annuleren</button>
+              </div>
+              ${meldingenHTML(null, 'onderdeel-form-fout')}`
+    form.hidden = false
+    toevoegKnop.hidden = true
+    el(NIEUW.naam).focus()
+  })
+  form.addEventListener('change', bijBegin)
+  form.addEventListener('keydown', e => enterIsOpslaan(e, () => el('onderdeel-opslaan')))
+  form.addEventListener('click', async e => {
+    const knop = e.target.closest('button')
+    if (!knop || knop.getAttribute('aria-disabled') === 'true') return
+    if (knop.id === 'onderdeel-annuleer') {
+      sluitForm()
+      toevoegKnop.focus()
+      return
+    }
+    if (knop.id !== 'onderdeel-opslaan') return
+    const velden = leesVelden(NIEUW)
+    if (!velden) return
+    const uitkomst = await metOpslaan(knop, async () => {
+      await controleerDubbel(velden.naam)
+      await voegOnderdeelToe(db, clubId, soort, velden)
+    }, { soort: 'formulier-lijst', fout: el('onderdeel-form-fout'), veldFouten: dubbelFout(NIEUW) })
+    if (uitkomst !== 'ok' || !lijstEl.isConnected) return
+    sluitForm()
+    let staart = ''
+    if (actiefFilter !== 'alle' && actiefFilter !== velden.status) {
+      actiefFilter = 'alle'
+      staart = ' Het filter staat weer op Alle projecten.'
+    }
+    await laadEnRender()
+    toevoegKnop.focus()
+    toonOk(sectieOk, `${cfg.Enkel} ${velden.naam} toegevoegd.${staart}`)
+  })
+
+  // ── Filter ──
+  filterEl?.addEventListener('change', () => {
+    actiefFilter = filterEl.value
+    tekenLijst()
+    meldFilter()
+  })
+
+  // ── Rijacties ──
+  lijstEl.addEventListener('change', bijBegin)
+  lijstEl.addEventListener('keydown', e => {
+    const formEl = e.target.closest?.('.onderdeel-bewerk')
+    if (formEl) enterIsOpslaan(e, () => formEl.querySelector('[data-actie="bewerk-opslaan"]'))
+  })
+
+  lijstEl.addEventListener('click', async e => {
+    const herlaad = e.target.closest('#onderdeel-herlaad')
+    if (herlaad) {
+      if (herlaad.getAttribute('aria-disabled') === 'true') return
+      herlaad.textContent = 'Bezig...'
+      herlaad.setAttribute('aria-disabled', 'true')
+      const gelukt = await laadEnRender()
+      if (gelukt) (filterEl && !filterEl.closest('.filter-keuze').hidden ? filterEl : toevoegKnop).focus()
+      else el('onderdeel-herlaad')?.focus()
+      return
+    }
+    const knop = e.target.closest('[data-actie]')
+    if (!knop) return
+    if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true') return
+    const { actie, id } = knop.dataset
+    const x = onderdelen.find(o => o.id === id)
+    if (!x) return
+
+    if (actie === 'omhoog' || actie === 'omlaag') {
+      let plaats = ''
+      volgordeStatus.textContent = ''
+      const filter = actiefFilter
+      const uitkomst = await metOpslaan(knop, async () => {
+        const vers = await laadOnderdelen(db, clubId, soort)
+        const zichtbaarVers = filter === 'alle' ? vers : vers.filter(o => o.status === filter)
+        const i = zichtbaarVers.findIndex(o => o.id === id)
+        if (i < 0) throw { code: cfg.wegCode }
+        const j = actie === 'omhoog' ? i - 1 : i + 1
+        if (j < 0 || j >= zichtbaarVers.length) {
+          plaats = `${zichtbaarVers[i].naam} staat al ${j < 0 ? 'bovenaan' : 'onderaan'}. De lijst is bijgewerkt.`
+          return
+        }
+        const a = vers.indexOf(zichtbaarVers[i])
+        const b = vers.indexOf(zichtbaarVers[j])
+        ;[vers[a], vers[b]] = [vers[b], vers[a]]
+        await schrijfVolgorde(soort, vers, clubId)
+        plaats = `${vers[b].naam} staat nu op plaats ${b + 1} van ${vers.length}.`
+      }, { soort: 'lijstactie', lijst: lijstEl, bezig: null, fout: sectieFout })
+      await laadEnRender()
+      if (uitkomst === 'weg') terugval()?.focus()
+      else focusInLijst(lijstEl, actie, id, terugval())
+      if (uitkomst === 'ok') { if (plaats) zetStatus(volgordeStatus, plaats) }
+      else meldingInBeeld(sectieFout)
+    } else if (actie === 'verwijder') {
+      if (!confirm(`${cfg.Enkel} ${x.naam} verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return
+      const lijst = getoond()
+      const k = lijst.indexOf(x)
+      const uitkomst = await metOpslaan(knop, () => verwijderOnderdeel(db, clubId, soort, id), {
+        soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null,
+      })
+      await laadEnRender()
+      if (uitkomst === 'ok') {
+        const buur = potlood(lijst[k + 1]?.id || '') || potlood(lijst[k - 1]?.id || '')
+        ;(buur || terugval())?.focus()
+        toonOk(sectieOk, `${cfg.Enkel} ${x.naam} verwijderd.`)
+        meldingInBeeld(sectieOk)
+      } else if (uitkomst === 'weg') {
+        terugval()?.focus()
+        meldingInBeeld(sectieFout)
+      } else {
+        focusInLijst(lijstEl, 'verwijder', id, terugval())
+        meldingInBeeld(sectieFout)
+      }
+    } else if (actie === 'bewerk') {
+      if (openBewerk(id)) el(idsVoor(id).naam)?.focus()
+    } else if (actie === 'bewerk-annuleer') {
+      tekenLijst()
+      ;(potlood(id) || terugval())?.focus()
+    } else if (actie === 'bewerk-opslaan') {
+      const ids = idsVoor(id)
+      const velden = leesVelden(ids, x)
+      if (!velden) return
+      const ongewijzigd = Object.keys(velden).every(k => velden[k] === (x[k] ?? ''))
+      if (ongewijzigd) {
+        tekenLijst()
+        potlood(id)?.focus()
+        return
+      }
+      const lijst = getoond()
+      const k = lijst.indexOf(x)
+      const uitkomst = await metOpslaan(knop, async () => {
+        await controleerDubbel(velden.naam, id)
+        await bewerkOnderdeel(db, clubId, soort, id, velden)
+      }, { soort: 'formulier-lijst', fout: el(`om-fout-${id}`), weg: sectieFout, veldFouten: dubbelFout(ids) })
+      if (!lijstEl.isConnected || uitkomst === 'fout') return
+      await laadEnRender()
+      if (uitkomst === 'weg') {
+        terugval()?.focus()
+        meldingInBeeld(sectieFout)
+        return
+      }
+      const nu = getoond()
+      const doel = potlood(id) || potlood((nu[k] || nu[nu.length - 1])?.id || '')
+      ;(doel || terugval())?.focus()
+      const afgerond = cfg.status && velden.status === 'afgerond' && x.status !== 'afgerond'
+        ? ` ${velden.naam} is afgerond en staat niet meer op de plaat.` : ''
+      toonOk(sectieOk, `${cfg.Enkel} ${velden.naam} opgeslagen.${afgerond}`)
+      meldingInBeeld(sectieOk)
+    }
+  })
+
+  await laadEnRender()
+}
+
 async function renderBestuursfunctiesBeheer(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'functies', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('functies')]], inhoud: `
         <div class="sectie" data-meldblok>
@@ -2267,6 +2727,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
             </div>
             ${meldingenHTML('functie-ok', 'functie-fout')}
             <div class="sr-only" id="functie-volgorde" role="status"></div>
+            <p class="vermogens-hint" id="functie-hint" role="status"></p>
             <div id="functie-lijst"></div>
           </div>
         </div>
@@ -2276,11 +2737,37 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 
   const geldigeNaam = naam => naam.length >= 2 && naam.length <= 100
 
+  // Waar een functie eindverantwoordelijke (domeinen) of eigenaar (projecten, samenwerkingen) van is (CK-046)
+  // Domeinen moeten laden; projecten en samenwerkingen fail-soft (null), dan is de telling onvolledig
+  const laadVerwijzers = async () => {
+    const [domeinen, ...rest] = await Promise.all([
+      laadStructuurelementen(),
+      ...Object.keys(SOORT_ONDERDEEL).map(soort => laadOnderdelen(db, huidigClubId, soort).catch(e => {
+        console.error(`${SOORT_ONDERDEEL[soort].Meer} laden mislukt:`, e?.code)
+        return null
+      })),
+    ])
+    return [domeinen, ...rest]
+  }
+  const telling = (verwijzers, id) => {
+    const [domeinen, ...onderdelen] = verwijzers
+    const tel = lijst => (lijst || []).filter(x => x.bestuursfunctieId === id).length
+    const delen = [[tel(domeinen), 'domein', 'domeinen']]
+    Object.values(SOORT_ONDERDEEL).forEach((cfg, k) => delen.push([tel(onderdelen[k]), cfg.enkel, cfg.meer]))
+    const tekst = delen.filter(([n]) => n > 0).map(([n, enkel, meer]) => `${n} ${n === 1 ? enkel : meer}`)
+    const volledig = onderdelen.every(Boolean)
+    return { domeinen: delen[0][0], overig: delen.slice(1).reduce((a, [n]) => a + n, 0), tekst, volledig }
+  }
+  const ONVOLLEDIG = 'De projecten en samenwerkingen konden niet worden geladen. De kolom Eindverantwoordelijk voor telt daarom alleen de domeinen, en een bestuursfunctie verwijderen kan pas als alles geteld kan worden. Herlaad de pagina om het opnieuw te proberen.'
+  const enLijst = delen => (delen.length < 2 ? delen.join('') : `${delen.slice(0, -1).join(', ')} en ${delen[delen.length - 1]}`)
+
   async function laadEnRender() {
     const lijst = document.getElementById('functie-lijst')
     if (!lijst) return
-    const [functies, domeinen] = await Promise.all([laadBestuursfuncties(), laadStructuurelementen()])
+    const [functies, verwijzers] = await Promise.all([laadBestuursfuncties(), laadVerwijzers()])
     if (!lijst.isConnected) return
+    const hint = document.getElementById('functie-hint')
+    if (hint) hint.textContent = verwijzers.slice(1).every(Boolean) ? '' : ONVOLLEDIG
     if (functies.length === 0) {
       lijst.innerHTML = `<p class="lijst-leeg">Nog geen bestuursfuncties.</p>`
       return
@@ -2294,17 +2781,17 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
           <span role="columnheader">Eindverantwoordelijk voor</span>
           <span role="columnheader"><span class="sr-only">Acties</span></span>
         </div>` + functies.map((f, i) => {
-      const aantal = domeinen.filter(d => d.bestuursfunctieId === f.id).length
+      const { tekst, volledig } = telling(verwijzers, f.id)
       return `
         <div class="structuur-rij beheer-rij functie-rij" role="row" data-id="${esc(f.id)}">
           <span class="cel-nr" role="cell">${i + 1}</span>
           <strong class="cel-naam" role="cell">${esc(f.naam)}</strong>
-          <span class="cel-functie" role="cell">${aantal === 0 ? 'Geen domeinen' : aantal === 1 ? '1 domein' : `${aantal} domeinen`}</span>
+          <span class="cel-functie" role="cell">${tekst.length ? tekst.join(', ') : volledig ? 'Niets' : 'Geen domeinen'}</span>
           <div class="kaart-acties cel-acties" role="cell">
             <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(f.id)}" aria-label="Omhoog: ${esc(f.naam)}"${i === 0 ? ' disabled' : ''}>↑</button>
             <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(f.id)}" aria-label="Omlaag: ${esc(f.naam)}"${i === functies.length - 1 ? ' disabled' : ''}>↓</button>
             ${actieKnopHTML('bewerk', f.id, 'bewerk', f.naam)}
-            ${actieKnopHTML('verwijder', f.id, 'verwijder', f.naam, ` data-aantal="${aantal}"`)}
+            ${actieKnopHTML('verwijder', f.id, 'verwijder', f.naam)}
           </div>
         </div>`
     }).join('')
@@ -2382,10 +2869,25 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       if (uitkomst === 'ok' && plaats && volgordeStatus.isConnected) volgordeStatus.textContent = plaats
       else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
-      // Masterdata: een functie die nog bij een domein hoort, kan niet weg
-      const aantal = Number(knop.dataset.aantal || 0)
-      if (aantal > 0) {
-        sectieFout.textContent = `Deze bestuursfunctie is nog eindverantwoordelijke van ${aantal === 1 ? '1 domein' : `${aantal} domeinen`}. Kies daar eerst een andere bestuursfunctie.`
+      // Masterdata: een functie die nog bij een domein, project of samenwerking hoort, kan niet weg. Vers tellen.
+      let t
+      try {
+        t = telling(await metTijdslimiet(laadVerwijzers()), id)
+      } catch (fout) {
+        console.error('Telling voor verwijderen mislukt:', fout?.code)
+        toonFout(sectieFout, fout, 'lijstactie')
+        meldingInBeeld(sectieFout)
+        return
+      }
+      if (!lijstEl.isConnected) return
+      if (t.tekst.length) {
+        const rol = t.domeinen && t.overig ? 'eindverantwoordelijke of eigenaar' : t.domeinen ? 'eindverantwoordelijke' : 'eigenaar'
+        sectieFout.textContent = `Deze bestuursfunctie is nog ${rol} van ${enLijst(t.tekst)}. Kies daar eerst een andere bestuursfunctie.`
+        meldingInBeeld(sectieFout)
+        return
+      }
+      if (!t.volledig) {
+        sectieFout.textContent = 'Deze bestuursfunctie kan nu niet worden verwijderd: de projecten en samenwerkingen konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.'
         meldingInBeeld(sectieFout)
         return
       }

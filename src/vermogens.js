@@ -9,43 +9,58 @@ export const NAAM_MAX = 100
 export const KAN_VERMOGENS = new Set(['pijler', 'domein'])
 
 const LETTER = 'a-zA-Z0-9À-ÖØ-öø-ÿ'
-const GELDIGE_NAAM = new RegExp(`^[${LETTER}][${LETTER} &'.,()+-]*$`)
-const GELDIG_TEKEN = new RegExp(`[${LETTER} &'.,()+-]`)
 const EERSTE_TEKEN = new RegExp(`^[${LETTER}]`)
 const ONZICHTBAAR = /[\p{Extended_Pictographic}\p{Cf}\p{Cc}]/u
-const TEKENS_STAART = "Gebruik letters (ook met accent, zoals é, ë of ç), cijfers, spaties en & ' - . , ( ) +"
 
 export function normaliseerVermogensnaam(naam) {
   return String(naam ?? '').normalize('NFC').trim().replace(/\s+/g, ' ')
 }
+export const normaliseerNaam = normaliseerVermogensnaam
 
 export function naamSleutel(naam) {
   return naam.toLowerCase()
-}
-
-export function geldigeVermogensnaam(naam) {
-  const n = [...naam].length
-  return n >= NAAM_MIN && n <= NAAM_MAX && GELDIGE_NAAM.test(naam)
 }
 
 function opsomming(delen) {
   return delen.length < 2 ? delen.join('') : `${delen.slice(0, -1).join(', ')} en ${delen[delen.length - 1]}`
 }
 
-// Veldfout voor een (al genormaliseerde) naam, of '' als hij voldoet. Volgorde: tekens, eerste teken, lengte.
-export function vermogensnaamFout(naam) {
-  if (!naam) return 'Vul een naam in.'
-  const tekens = [...naam]
-  if (tekens.some(t => ONZICHTBAAR.test(t))) {
-    return `Er staat een teken in de naam dat niet kan, bijvoorbeeld een emoji. ${TEKENS_STAART}`
+// Naamregels met een eigen tekenset: extra = tekens bovenop letters, cijfers en spatie (het '-' blijft achteraan)
+export function maakNaamregels(extra) {
+  const geldigeNaam = new RegExp(`^[${LETTER}][${LETTER} ${extra}-]*$`)
+  const geldigTeken = new RegExp(`[${LETTER} ${extra}-]`)
+  const toonbaar = [...extra].filter(t => t !== '&' && t !== "'")
+  const staart = `Gebruik letters (ook met accent, zoals é, ë of ç), cijfers, spaties en & ' - ${toonbaar.join(' ')}`
+  const geldig = naam => {
+    const n = [...naam].length
+    return n >= NAAM_MIN && n <= NAAM_MAX && geldigeNaam.test(naam)
   }
-  const fout = [...new Set(tekens.filter(t => !GELDIG_TEKEN.test(t)))]
-  if (fout.length === 1) return `Het teken ${fout[0]} kan niet in een naam. ${TEKENS_STAART}`
-  if (fout.length > 1) return `De tekens ${opsomming(fout.slice(0, 3))} kunnen niet in een naam. ${TEKENS_STAART}`
-  if (!EERSTE_TEKEN.test(naam)) return 'Begin de naam met een letter of cijfer.'
-  if (tekens.length < NAAM_MIN) return `Een naam heeft minimaal ${NAAM_MIN} tekens.`
-  if (tekens.length > NAAM_MAX) return `Een naam heeft maximaal ${NAAM_MAX} tekens. Nu zijn het er ${tekens.length}.`
-  return ''
+  // Veldfout voor een (al genormaliseerde) naam, of '' als hij voldoet. Volgorde: tekens, eerste teken, lengte.
+  const fout = naam => {
+    if (!naam) return 'Vul een naam in.'
+    const tekens = [...naam]
+    if (tekens.some(t => ONZICHTBAAR.test(t))) {
+      return `Er staat een teken in de naam dat niet kan, bijvoorbeeld een emoji. ${staart}`
+    }
+    const fouteTekens = [...new Set(tekens.filter(t => !geldigTeken.test(t)))]
+    if (fouteTekens.length === 1) return `Het teken ${fouteTekens[0]} kan niet in een naam. ${staart}`
+    if (fouteTekens.length > 1) return `De tekens ${opsomming(fouteTekens.slice(0, 3))} kunnen niet in een naam. ${staart}`
+    if (!EERSTE_TEKEN.test(naam)) return 'Begin de naam met een letter of cijfer.'
+    if (tekens.length < NAAM_MIN) return `Een naam heeft minimaal ${NAAM_MIN} tekens.`
+    if (tekens.length > NAAM_MAX) return `Een naam heeft maximaal ${NAAM_MAX} tekens. Nu zijn het er ${tekens.length}.`
+    return ''
+  }
+  return { geldig, fout }
+}
+
+const VERMOGENSNAAM = maakNaamregels("&'.,()+")
+
+export function geldigeVermogensnaam(naam) {
+  return VERMOGENSNAAM.geldig(naam)
+}
+
+export function vermogensnaamFout(naam) {
+  return VERMOGENSNAAM.fout(naam)
 }
 
 export function teller(domein) {

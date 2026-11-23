@@ -123,6 +123,50 @@ service cloud.firestore {
         || (nieuw == oud - 1 && v is string && v.size() > 0 && vermogenGaatWeg(clubId, domeinId, v)));
     }
 
+    // ── Projecten en samenwerkingen (CK-046) ──
+    // Eerste teken letter of cijfer; daarna ook spatie en & ' - . , ( ) + /. Uniek alleen in de app.
+    function geldigeOnderdeelnaam(n) {
+      return n is string && n.size() >= 2 && n.size() <= 100
+        && n.matches("[a-zA-Z0-9À-ÖØ-öø-ÿ][a-zA-Z0-9À-ÖØ-öø-ÿ &'.,()+/-]*")
+        && n == n.trim()
+        && !n.matches('.*  .*');
+    }
+    function tekstTot(v, max) {
+      return v is string && v.size() <= max;
+    }
+    // JJJJ-MM-DD (maand 01-12, dag 01-31) of leeg
+    function geldigeDatum(v) {
+      return tekstTot(v, 10) && (v == '' || v.matches('[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])'));
+    }
+    // Beide ingevuld: einde niet vóór begin (stringvergelijking werkt door het vaste formaat)
+    function geldigePeriode(d) {
+      return d.begindatum == '' || d.einddatum == '' || d.einddatum >= d.begindatum;
+    }
+    function geldigeBasis(d) {
+      return geldigeOnderdeelnaam(d.naam)
+        && tekstTot(d.omschrijving, 500)
+        && tekstTot(d.bestuursfunctieId, 100)
+        && d.volgorde is int && d.volgorde >= 1 && d.volgorde <= 100000;
+    }
+    function geldigProject(d) {
+      return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
+        && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
+        && geldigeBasis(d)
+        && d.status in ['in-voorbereiding', 'lopend', 'afgerond']
+        && geldigeDatum(d.begindatum)
+        && geldigeDatum(d.einddatum)
+        && geldigePeriode(d);
+    }
+    function geldigeSamenwerking(d) {
+      return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
+        && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
+        && geldigeBasis(d);
+    }
+    // Welk overkoepelend blok op de plaat de kaartjes toont: ontbreekt, of projecten/samenwerkingen
+    function geldigBevat(d) {
+      return !('bevat' in d) || d.bevat in ['projecten', 'samenwerkingen'];
+    }
+
     // Wijzer gebruiker → club: alleen eigen document lezen, nooit schrijven vanuit de app
     match /gebruikers/{uid} {
       allow read: if ingelogd() && request.auth.uid == uid;
@@ -170,12 +214,14 @@ service cloud.firestore {
           && request.resource.data.naam.size() <= 200
           && teller(request.resource.data) is int
           && teller(request.resource.data) == 0
-          && geldigLaatste(request.resource.data);
+          && geldigLaatste(request.resource.data)
+          && geldigBevat(request.resource.data);
         allow update: if isLid(clubId)
           && request.resource.data.type in ['pijler', 'domein', 'overkoepelend']
           && request.resource.data.naam is string
           && request.resource.data.naam.size() <= 200
           && tellerWijzigingKlopt(clubId, id)
+          && geldigBevat(request.resource.data)
           && (request.resource.data.type != 'overkoepelend'
               || resource.data.type == 'overkoepelend'
               || teller(request.resource.data) == 0);
@@ -206,6 +252,18 @@ service cloud.firestore {
           && oudeNaamLos(clubId, resource.data.naam, id)
           && (!exists(domeinPad(clubId, resource.data.domeinId))
               || tellerStap(clubId, resource.data.domeinId, id, -1));
+      }
+
+      // Projecten (CK-046): tijdelijke trajecten met status en periode
+      match /projecten/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId) && geldigProject(request.resource.data);
+      }
+
+      // Samenwerkingen (CK-046): externe partners, zonder status of periode
+      match /samenwerkingen/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
       }
 
       // Naamdocumenten: alleen aanmaken (nooit wijzigen); weg alleen als de naam niet meer bij dat vermogen hoort

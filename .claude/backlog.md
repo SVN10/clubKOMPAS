@@ -376,7 +376,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ### Na CK-044 — vervolgpunten (nog te nummeren)
 **Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
 
-- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens` en `vermogensnamen` (CK-020); controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
 - [ ] **Eén `h1` per pagina** (nu alleen Home)
 - [x] **Domeinenlijst te breed** naast het zijmenu (op tst gezien tot ~1080px): opgelost 23 november 2026 met meegevende kolommen en een container query (domeinen stapelen onder 760px lijstbreedte, functies onder 590px)
 - [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
@@ -491,3 +491,23 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 
 **Vervolgpunten na CK-045:**
 - [ ] Home later uitbreiden: laatst gewijzigd, taken voor de gebruiker.
+
+---
+
+### CK-046 — Projecten en samenwerkingen beheren (Platform-laag P0, masterdata)
+**Status:** Gebouwd op test (23 november 2026) · route groot · wacht op testlijst tst
+
+*Twee beheerpagina's onder Beheer: Projecten (met status en periode) en Samenwerkingen, met eigenaar uit de bestuursfuncties. Ze verschijnen als kaartjes op het Vermogensoverzicht, in het overkoepelende domein met `bevat`. Technisch: `.claude/docs/CK-046.md`.*
+
+- [x] Collecties `projecten` en `samenwerkingen` met Firestore-regels en regeltests (94 van 94 groen)
+- [x] Beheer → Projecten en Samenwerkingen: toevoegen, bewerken, ↑/↓, verwijderen, statusfilter, lege staat en laadfout
+- [x] Plaat: kaartjes in plaats van de domeinomschrijving; gestippeld bij in voorbereiding, afgerond verborgen
+- [x] Bestuursfuncties: kolom en verwijderblokkade tellen ook projecten en samenwerkingen
+- [x] Inrichtscript HCA (`npm run projecten:import`, `--droog`, idempotent) — nog niet gedraaid
+- [ ] Testlijst op tst afwerken (lay-out 1200/768/375px, datumkiezer, schermlezer)
+- [ ] Regels en import op productie (niet op 26 november 2026)
+
+**Vervolgpunten na CK-046:**
+- [ ] Keuze voor `bevat` in het domeinformulier (nu zet alleen het inrichtscript het veld)
+- [ ] Bestaan van de bestuursfunctie (eigenaar) afdwingen in de regels, samen met de domeinen
+- [ ] Restrisico P0d: elk lid kan projecten en samenwerkingen schrijven en verwijderen, en `bevat` zetten of weghalen

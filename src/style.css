@@ -1030,6 +1030,50 @@ a.btn { text-decoration: none; }
   .groep-leeg { padding-left: 36px; }
 }
 
+/* Projecten en samenwerkingen (CK-046) */
+#onderdeel-lijst { container-type: inline-size; }
+.filter-keuze[hidden] { display: none; }
+.project-rij      { grid-template-columns: 28px minmax(140px, 1.4fr) 128px 140px minmax(110px, 1fr) 152px; }
+.samenwerking-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 152px; }
+@media (max-width: 700px) { .samenwerking-rij { grid-template-columns: 28px minmax(100px, 1.2fr) minmax(100px, 1fr) 200px; } }
+.cel-project { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cel-project .cel-naam { font-weight: 700; overflow-wrap: anywhere; }
+.cel-omschrijving { font-size: var(--fs-toelichting); line-height: 18px; color: var(--muted); overflow-wrap: anywhere; }
+.cel-label { display: none; color: var(--muted); }
+.leeg-streep { color: var(--muted); }
+.status-label {
+  display: inline-block; width: fit-content; padding: 1px 8px; white-space: nowrap;
+  font-size: var(--fs-label); line-height: 16px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: 999px; color: var(--text);
+}
+.status-label.lopend { border-color: var(--petrol); color: var(--petrol); }
+.status-label.in-voorbereiding { border-style: dashed; border-color: var(--muted); }
+.status-label.afgerond { color: var(--muted); background: var(--surface); }
+.periode-velden { border: 0; padding: 0; margin: 0; min-width: 0; max-width: 480px; }
+.periode-velden legend { padding: 0; margin-bottom: 4px; }
+.form-rij-datums { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-rij-datums .form-groep { gap: 2px; }
+.datum-label { font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); }
+
+@container (max-width: 760px) {
+  .beheer-rij.beheer-kop.project-rij { display: none; }
+  .project-rij { grid-template-columns: 24px auto 1fr; row-gap: 6px; column-gap: 10px; }
+  .project-rij .cel-project  { grid-column: 2 / -1; }
+  .project-rij .cel-status   { grid-column: 2; grid-row: 2; }
+  .project-rij .cel-periode  { grid-column: 3; grid-row: 2; font-size: var(--fs-toelichting); }
+  .project-rij .cel-eigenaar { grid-column: 2 / -1; font-size: var(--fs-toelichting); }
+  .project-rij .cel-acties   { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+  .project-rij .cel-label    { display: inline; }
+}
+@container (max-width: 500px) {
+  .beheer-rij.beheer-kop.samenwerking-rij { display: none; }
+  .samenwerking-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
+  .samenwerking-rij .cel-eigenaar { grid-column: 2; font-size: var(--fs-toelichting); }
+  .samenwerking-rij .cel-label { display: inline; }
+  .samenwerking-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+}
+@media (max-width: 480px) { .form-rij-datums { grid-template-columns: 1fr; } }
+
 /* Domeinen: aantal vermogens onder de naam (besluit 16) */
 .cel-domein { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cel-sub { font-size: var(--fs-toelichting); line-height: 18px; font-weight: 600; width: fit-content; }
@@ -1088,9 +1132,17 @@ a.btn { text-decoration: none; }
 }
 .plaat-leeg { font-size: var(--fs-toelichting); font-style: italic; color: var(--muted); }
 .plaat-omschrijving { font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); }
+.plaat-onderdelen { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.plaat-onderdeel {
+  background: var(--surface); border: 1px solid var(--border); padding: 5px 8px;
+  font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); overflow-wrap: anywhere;
+}
+.plaat-onderdeel.voorbereiding { border-style: dashed; border-color: var(--muted); background: transparent; }
+.plaat-onderdeel-sub { display: block; font-size: var(--fs-label); line-height: 16px; color: var(--muted); }
 @container (max-width: 520px) {
   .plaat-rij { grid-template-columns: 1fr; }
   .plaat-vermogen { padding: 4px 8px; }
+  .plaat-onderdeel { padding: 4px 8px; }
 }
 .cijfer-link { text-decoration: none; color: inherit; }
 .cijfer-link:hover { border-color: var(--petrol); }

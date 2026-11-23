@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Toegevoegd
+- Projecten en samenwerkingen beheren (CK-046): nieuwe pagina's **Beheer → Projecten** en **Beheer → Samenwerkingen** (naam, omschrijving, eigenaar uit de bestuursfuncties; een project ook status en begin- en einddatum). Toevoegen, bewerken, ↑/↓, verwijderen, statusfilter bij projecten, lege staat en laadfout met **Opnieuw laden**.
+- Vermogensoverzicht: in het overkoepelende domein met `bevat` staan kaartjes voor projecten en samenwerkingen in plaats van de omschrijving. Een project in voorbereiding is gestippeld, een afgerond project staat er niet op.
+- Firestore-regels voor `projecten` en `samenwerkingen`, en het veld `bevat` op structuurelementen. Datums zijn `JJJJ-MM-DD` of leeg, met einddatum niet vóór begindatum.
+- Script `npm run projecten:import` (HCA, `--droog`, idempotent, één batch) dat de projecten en samenwerkingen aanmaakt en `bevat` zet.
+
+### Gewijzigd
+- Beheer → Bestuursfuncties: de kolom toont ook projecten en samenwerkingen waarvan de functie eigenaar is. Verwijderen is geblokkeerd zolang de functie ergens eindverantwoordelijke of eigenaar van is.
+
 ## [0.9.0] – 2026-11-23
 
 ### Gewijzigd

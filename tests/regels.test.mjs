@@ -13,6 +13,11 @@ import {
   laadVermogens, normaliseerVermogensnaam, vermogensnaamFout, naamSleutel,
 } from '../src/vermogens.js'
 import { HCA_VERMOGENS, maakImportplan, controleerVermogens } from '../scripts/lib/vermogens-hca.mjs'
+import {
+  SOORT_ONDERDEEL, onderdeelnaamFout, periodeTekst, datumFout, geldigOnderdeel, onderdeelVelden, naamBezet,
+  laadOnderdelen, voegOnderdeelToe, bewerkOnderdeel, verwijderOnderdeel,
+} from '../src/onderdelen.js'
+import { HCA_ONDERDELEN, maakOnderdelenPlan } from '../scripts/lib/onderdelen-hca.mjs'
 
 const CLUB = 'club1'
 // De bronlijst (CK-020-bron-vermogensoverzicht.md) bevat 58 namen (13 + 45), bevestigd tegen het HCA-overzicht v1.4.
@@ -726,5 +731,243 @@ describe('scripts: terminaluitvoer (beveiliging 3)', () => {
     const { veilig } = await import('../scripts/lib/omgeving.mjs')
     assert.equal(veilig('Leden\u001b[2J\nnep\u202Eregel'), 'Leden\\u{1B}[2J\\u{A}nep\\u{202E}regel')
     assert.equal(veilig('Lief & Leed — Financiën'), 'Lief & Leed — Financiën')
+  })
+})
+
+// ── Projecten en samenwerkingen (CK-046) ──
+const PROJECT = { naam: 'LED-scorebord', omschrijving: '', bestuursfunctieId: 'vz', status: 'in-voorbereiding', begindatum: '', einddatum: '', volgorde: 1 }
+const SAMENWERKING = { naam: 'KNHB', omschrijving: '', bestuursfunctieId: 'vz', volgorde: 1 }
+const HCA_NAMEN = Object.values(HCA_ONDERDELEN).flatMap(l => l.map(([n]) => n))
+
+describe('CK-046 app-functies', () => {
+  test('naamregels: tekenset met / en dezelfde opbouw als vermogens', () => {
+    assert.equal(onderdeelnaamFout(''), 'Vul een naam in.')
+    assert.equal(onderdeelnaamFout('A'), 'Een naam heeft minimaal 2 tekens.')
+    assert.match(onderdeelnaamFout('x'.repeat(101)), /maximaal 100 tekens\. Nu zijn het er 101\./)
+    assert.equal(onderdeelnaamFout('-Bouw'), 'Begin de naam met een letter of cijfer.')
+    assert.equal(onderdeelnaamFout('Seizoen 27/28'), '')
+    assert.match(onderdeelnaamFout('Feest 🎉'), /^Er staat een teken in de naam dat niet kan, bijvoorbeeld een emoji\..*\( \) \+ \/$/)
+    assert.match(onderdeelnaamFout('a_b'), /^Het teken _ kan niet in een naam\. Gebruik letters .*& ' - \. , \( \) \+ \/$/)
+    assert.match(vermogensnaamFout('a/b'), /^Het teken \/ kan niet in een naam\..*\( \) \+$/)
+  })
+  test('alle 10 HCA-namen voldoen', () => {
+    assert.equal(HCA_NAMEN.length, 10)
+    for (const n of HCA_NAMEN) assert.equal(onderdeelnaamFout(n), '', n)
+  })
+  test('periodeTekst volgens de tabel in het ontwerp', () => {
+    assert.equal(periodeTekst('2026-09-01', '2028-06-30'), 'sep 2026 – jun 2028')
+    assert.equal(periodeTekst('2027-03-01', '2027-03-31'), 'mrt 2027')
+    assert.equal(periodeTekst('2026-09-01', ''), 'vanaf sep 2026')
+    assert.equal(periodeTekst('', '2028-06-30'), 't/m jun 2028')
+    assert.equal(periodeTekst('', ''), '')
+    assert.equal(periodeTekst(undefined, undefined), '')
+  })
+  test('datumFout: einde vóór begin bij de einddatum, half ingevulde datum', () => {
+    assert.deepEqual(datumFout('2027-06-01', '2027-05-31'), { eind: 'De einddatum ligt vóór de begindatum.' })
+    assert.deepEqual(datumFout('2027-06-01', '2027-06-01'), {})
+    assert.deepEqual(datumFout('', '2027-01-01'), {})
+    assert.deepEqual(datumFout('2027-6-1', ''), { begin: 'Vul een hele datum in, of maak het veld leeg.' })
+  })
+  test('naamBezet: hoofdletters en spaties tellen niet, eigen id telt niet', () => {
+    const lijst = [{ id: 'a', naam: 'Ver(nieuw)bouw' }]
+    assert.ok(naamBezet(lijst, 'ver(NIEUW)bouw  '))
+    assert.ok(!naamBezet(lijst, 'VER(nieuw)bouw', 'a'))
+    assert.ok(!naamBezet(lijst, 'Verbouw'))
+  })
+  test('geldigOnderdeel spiegelt de regels', () => {
+    assert.ok(geldigOnderdeel('projecten', PROJECT))
+    assert.ok(geldigOnderdeel('samenwerkingen', SAMENWERKING))
+    assert.ok(!geldigOnderdeel('samenwerkingen', { ...SAMENWERKING, status: 'lopend' }))
+    assert.ok(!geldigOnderdeel('projecten', { ...PROJECT, status: 'bezig' }))
+    assert.ok(!geldigOnderdeel('projecten', { ...PROJECT, begindatum: '2027' }))
+  })
+})
+
+describe('CK-046 regels: projecten en samenwerkingen slagen', () => {
+  test('project toevoegen (lege velden), status en periode wijzigen, verwijderen', async () => {
+    const { id, volgorde } = await assertSucceeds(voegOnderdeelToe(db, CLUB, 'projecten', { naam: 'Hoofdsponsoring 27/28+', status: 'lopend' }))
+    assert.equal(volgorde, 1)
+    assert.deepEqual(await lees('projecten', id), { naam: 'Hoofdsponsoring 27/28+', omschrijving: '', bestuursfunctieId: '', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 })
+    const tweede = await voegOnderdeelToe(db, CLUB, 'projecten', { naam: 'Ver(nieuw)bouw', status: 'in-voorbereiding' })
+    assert.equal(tweede.volgorde, 2)
+    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'projecten', id, {
+      naam: 'Hoofdsponsoring 27/28+', omschrijving: 'Café & co <b>', bestuursfunctieId: 'vz', status: 'afgerond', begindatum: '2026-09-01', einddatum: '2028-06-30',
+    }))
+    assert.equal((await lees('projecten', id)).status, 'afgerond')
+    assert.equal((await lees('projecten', id)).volgorde, 1)
+    await assertSucceeds(verwijderOnderdeel(db, CLUB, 'projecten', id))
+    assert.equal(await lees('projecten', id), null)
+    const e = await fout(verwijderOnderdeel(db, CLUB, 'projecten', id))
+    assert.equal(e.code, 'project-weg')
+    const e2 = await fout(bewerkOnderdeel(db, CLUB, 'projecten', id, { naam: 'Weg', status: 'lopend' }))
+    assert.equal(e2.code, 'project-weg')
+  })
+  test('samenwerking toevoegen, bewerken en verwijderen', async () => {
+    const { id } = await assertSucceeds(voegOnderdeelToe(db, CLUB, 'samenwerkingen', { naam: 'KNHB' }))
+    assert.deepEqual(await lees('samenwerkingen', id), { naam: 'KNHB', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'samenwerkingen', id, { naam: 'KNHB', omschrijving: 'De bond', bestuursfunctieId: 'vz' }))
+    assert.equal((await laadOnderdelen(db, CLUB, 'samenwerkingen')).length, 1)
+    await assertSucceeds(verwijderOnderdeel(db, CLUB, 'samenwerkingen', id))
+  })
+  test('alle HCA-namen geaccepteerd; ↑/↓ als batch over alle HCA-projecten', async () => {
+    for (const [soort, lijst] of Object.entries(HCA_ONDERDELEN)) {
+      for (const [naam, status] of lijst) await assertSucceeds(voegOnderdeelToe(db, CLUB, soort, { naam, status }))
+    }
+    const projecten = await laadOnderdelen(db, CLUB, 'projecten')
+    assert.deepEqual(projecten.map(p => p.volgorde), [1, 2, 3, 4, 5])
+    const b = writeBatch(db)
+    projecten.reverse().forEach((p, k) => b.update(doc(db, ...pad('projecten', p.id)), { volgorde: k + 1 }))
+    await assertSucceeds(b.commit())
+    assert.equal((await laadOnderdelen(db, CLUB, 'projecten'))[0].naam, 'Buitenopslag (blaashal)')
+  })
+  test('grenzen: naam 2 en 100 tekens, omschrijving 500, Latin-1', async () => {
+    const r = n => doc(db, ...pad('projecten', n))
+    await assertSucceeds(setDoc(r('a'), { ...PROJECT, naam: 'xy' }))
+    await assertSucceeds(setDoc(r('b'), { ...PROJECT, naam: 'x'.repeat(100), omschrijving: 'o'.repeat(500) }))
+    await assertSucceeds(setDoc(r('c'), { ...PROJECT, naam: 'Ærø Øst / Ñandú (ÀÖØöøÿ)' }))
+  })
+  test('domein: bewerken zonder bevat blijft slagen, bevat zetten op projecten of samenwerkingen slaagt', async () => {
+    const d = doc(db, ...pad('structuurelementen', 'proj'))
+    await assertSucceeds(updateDoc(d, { type: 'overkoepelend', naam: 'Projecten', omschrijving: 'Trajecten', bestuursfunctieId: 'vz', hashtag: '', icoon: '' }))
+    await assertSucceeds(updateDoc(d, { bevat: 'projecten' }))
+    await assertSucceeds(updateDoc(d, { naam: 'Trajecten' }))
+    assert.equal((await lees('structuurelementen', 'proj')).bevat, 'projecten')
+    await assertSucceeds(addDoc(collection(db, ...pad('structuurelementen')), { type: 'overkoepelend', naam: 'Partners', bevat: 'samenwerkingen' }))
+  })
+})
+
+describe('CK-046 regels weigeren', () => {
+  const r = (soort, id = 'x') => doc(db, ...pad(soort, id))
+  test('niet-lid kan niet lezen of schrijven', async () => {
+    await admin(a => setDoc(doc(a, ...pad('projecten', 'p1')), PROJECT))
+    await assertFails(getDocs(collection(buiten, ...pad('projecten'))))
+    await assertFails(getDoc(doc(buiten, ...pad('projecten', 'p1'))))
+    await assertFails(setDoc(doc(buiten, ...pad('projecten', 'p2')), PROJECT))
+    await assertFails(deleteDoc(doc(buiten, ...pad('projecten', 'p1'))))
+    await assertFails(setDoc(doc(buiten, ...pad('samenwerkingen', 's1')), SAMENWERKING))
+    await assertFails(getDocs(collection(buiten, ...pad('samenwerkingen'))))
+  })
+  test('extra of ontbrekend veld', async () => {
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, contactpersoon: 'Jan' }))
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, periode: '2026–2028' }))
+    const { omschrijving, ...zonder } = PROJECT
+    await assertFails(setDoc(r('projecten'), zonder))
+    const { einddatum, ...zonderEinde } = PROJECT
+    await assertFails(setDoc(r('projecten'), zonderEinde))
+    await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, status: 'lopend' }))
+    await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, begindatum: '' }))
+    const { bestuursfunctieId, ...zonderEigenaar } = SAMENWERKING
+    await assertFails(setDoc(r('samenwerkingen'), zonderEigenaar))
+  })
+  test('status en datums', async () => {
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, status: 'bezig' }))
+    for (const datum of ['2027', '2027-3-1', '01-03-2027', '2027-03-01T00:00', 20270301, null]) {
+      await assertFails(setDoc(r('projecten'), { ...PROJECT, begindatum: datum }), String(datum))
+      await assertFails(setDoc(r('projecten'), { ...PROJECT, einddatum: datum }), String(datum))
+    }
+    await assertSucceeds(setDoc(r('projecten'), { ...PROJECT, begindatum: '2026-09-01', einddatum: '2028-06-30' }))
+  })
+  test('datums inhoudelijk: maand 01-12, dag 01-31, einde niet vóór begin (herstelronde)', async () => {
+    for (const datum of ['2026-13-45', '2026-00-10', '2026-12-32', '2026-02-00', '0000-00-00']) {
+      await assertFails(setDoc(r('projecten'), { ...PROJECT, begindatum: datum }), datum)
+      await assertFails(setDoc(r('projecten'), { ...PROJECT, einddatum: datum }), datum)
+    }
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, begindatum: '2027-06-01', einddatum: '2027-05-31' }))
+    await assertSucceeds(setDoc(r('projecten'), { ...PROJECT, begindatum: '2027-06-01', einddatum: '2027-06-01' }))
+    await assertSucceeds(setDoc(r('projecten'), { ...PROJECT, begindatum: '2027-06-01', einddatum: '' }))
+    await assertSucceeds(setDoc(r('projecten'), { ...PROJECT, begindatum: '', einddatum: '2027-05-31' }))
+    await assertSucceeds(setDoc(r('projecten'), { ...PROJECT, begindatum: '2026-01-31', einddatum: '2026-12-01' }))
+    await assertSucceeds(setDoc(r('projecten', 'p'), { ...PROJECT, begindatum: '2027-01-01', einddatum: '2027-12-31' }))
+    await assertFails(updateDoc(r('projecten', 'p'), { einddatum: '2026-12-31' }))
+    assert.ok(!geldigOnderdeel('projecten', { ...PROJECT, begindatum: '2026-13-45' }))
+    assert.ok(!geldigOnderdeel('projecten', { ...PROJECT, begindatum: '2027-06-01', einddatum: '2027-05-31' }))
+    assert.deepEqual(datumFout('2026-13-45', ''), { begin: 'Vul een hele datum in, of maak het veld leeg.' })
+  })
+  test('ongeldige namen', async () => {
+    for (const naam of ['x', 'x'.repeat(101), ' Bouw', 'Bouw ', 'Ver  bouw', 'a_b', 'Feest 🎉', '-Bouw', 'a\nb', 42]) {
+      await assertFails(setDoc(r('projecten'), { ...PROJECT, naam }), String(naam))
+      await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, naam }), String(naam))
+    }
+  })
+  test('omschrijving, eigenaar en volgorde', async () => {
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, omschrijving: 'o'.repeat(501) }))
+    await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, omschrijving: 'o'.repeat(501) }))
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, bestuursfunctieId: 7 }))
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, bestuursfunctieId: 'x'.repeat(101) }))
+    for (const volgorde of [0, 1.5, '1', 100001]) {
+      await assertFails(setDoc(r('projecten'), { ...PROJECT, volgorde }), String(volgorde))
+      await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, volgorde }), String(volgorde))
+    }
+  })
+  test('update naar ongeldig wordt geweigerd', async () => {
+    await assertSucceeds(setDoc(r('projecten', 'p'), PROJECT))
+    await assertFails(updateDoc(r('projecten', 'p'), { status: 'weg' }))
+    await assertFails(updateDoc(r('projecten', 'p'), { extra: true }))
+    await assertSucceeds(updateDoc(r('projecten', 'p'), { volgorde: 2 }))
+  })
+  test('bevat met een andere waarde', async () => {
+    const d = doc(db, ...pad('structuurelementen', 'proj'))
+    await assertFails(updateDoc(d, { bevat: 'vermogens' }))
+    await assertFails(updateDoc(d, { bevat: '' }))
+    await assertFails(updateDoc(d, { bevat: ['projecten'] }))
+    await assertFails(addDoc(collection(db, ...pad('structuurelementen')), { type: 'overkoepelend', naam: 'X', bevat: 'leden' }))
+  })
+})
+
+describe('CK-046 inrichtscript: plan', () => {
+  const leesAlles = async () => admin(async a => {
+    const l = async naam => (await getDocs(collection(a, ...pad(naam)))).docs.map(d => ({ id: d.id, ...d.data() }))
+    return { domeinen: await l('structuurelementen'), functies: await l('bestuursfuncties'), projecten: await l('projecten'), samenwerkingen: await l('samenwerkingen') }
+  })
+  const voerUit = async plan => {
+    const b = writeBatch(db)
+    for (const { soort, velden } of plan.nieuw) b.set(doc(collection(db, ...pad(soort))), velden)
+    for (const x of plan.bevat) b.update(doc(db, ...pad('structuurelementen', x.domeinId)), { bevat: x.soort })
+    await b.commit()
+  }
+  beforeEach(async () => {
+    await admin(a => setDoc(doc(a, ...pad('structuurelementen', 'samen')), { type: 'overkoepelend', naam: 'Samenwerkingen', volgorde: 15 }))
+  })
+
+  test('eerste keer 10 items en 2 keer bevat in één batch, tweede keer niets; Voorzitter is eigenaar', async () => {
+    const eerste = maakOnderdelenPlan(await leesAlles())
+    assert.deepEqual(eerste.fouten, [])
+    assert.equal(eerste.nieuw.length, 10)
+    assert.equal(eerste.bevat.length, 2)
+    await assertSucceeds(voerUit(eerste))
+    const p = await laadOnderdelen(db, CLUB, 'projecten')
+    assert.deepEqual(p.map(x => [x.naam, x.status, x.volgorde, x.bestuursfunctieId]), HCA_ONDERDELEN.projecten.map(([n, s], k) => [n, s, k + 1, 'vz']))
+    assert.equal((await lees('structuurelementen', 'proj')).bevat, 'projecten')
+    assert.equal((await lees('structuurelementen', 'samen')).bevat, 'samenwerkingen')
+    const tweede = maakOnderdelenPlan(await leesAlles())
+    assert.deepEqual([tweede.fouten, tweede.nieuw, tweede.bevat, tweede.letOp], [[], [], [], []])
+    assert.equal(tweede.overgeslagen.length, 10)
+  })
+  test('bestaand item met andere status: ongemoeid, LET OP; nieuwe volgorde na de hoogste', async () => {
+    await voegOnderdeelToe(db, CLUB, 'projecten', { naam: 'Eigen project', status: 'lopend' })
+    await voegOnderdeelToe(db, CLUB, 'projecten', { naam: 'buitenopslag (BLAASHAL)', status: 'lopend' })
+    const plan = maakOnderdelenPlan(await leesAlles())
+    assert.equal(plan.nieuw.filter(x => x.soort === 'projecten').length, 4)
+    assert.equal(plan.nieuw[0].velden.volgorde, 3)
+    assert.deepEqual(plan.letOp, ['buitenopslag (BLAASHAL) staat er al met status lopend, ongemoeid.'])
+  })
+  test('stopt bij ontbrekend, dubbel of niet-overkoepelend domein, andere bevat of geen Voorzitter', async () => {
+    await admin(a => deleteDoc(doc(a, ...pad('structuurelementen', 'samen'))))
+    assert.equal(maakOnderdelenPlan(await leesAlles()).fouten.length, 1)
+    await admin(a => setDoc(doc(a, ...pad('structuurelementen', 'samen')), { type: 'domein', naam: 'Samenwerkingen' }))
+    assert.equal(maakOnderdelenPlan(await leesAlles()).fouten.length, 1)
+    await admin(a => setDoc(doc(a, ...pad('structuurelementen', 'samen')), { type: 'overkoepelend', naam: 'samenwerkingen ', bevat: 'projecten' }))
+    const { fouten } = maakOnderdelenPlan(await leesAlles())
+    assert.equal(fouten.length, 1)
+    assert.match(fouten[0], /toont al "projecten"/)
+    await admin(a => setDoc(doc(a, ...pad('structuurelementen', 'samen')), { type: 'overkoepelend', naam: 'Samenwerkingen' }))
+    await admin(a => setDoc(doc(a, ...pad('bestuursfuncties', 'vz')), { naam: 'Penningmeester', volgorde: 1 }))
+    assert.equal(maakOnderdelenPlan(await leesAlles()).fouten.length, 1)
+  })
+  test('vindt een hernoemd domein op bevat', async () => {
+    await admin(a => updateDoc(doc(a, ...pad('structuurelementen', 'proj')), { naam: 'Trajecten', bevat: 'projecten' }))
+    const plan = maakOnderdelenPlan(await leesAlles())
+    assert.deepEqual(plan.fouten, [])
+    assert.deepEqual(plan.bevat.map(x => x.soort), ['samenwerkingen'])
   })
 })
