@@ -377,6 +377,11 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 **Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
 
 - [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), `commissies` (CK-041), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+  - [ ] **Aanvulling uit de app-analyse v0.12.1** (`.claude/reports/APP-0.12.1-eindoordeel.md`, M1/M2), in dezelfde regelronde:
+    - veldcontrole (`hasOnly`, typen, lengtes) op `instellingen`, `bestuursfuncties` en `structuurelementen` (`firestore.rules:192-228`);
+    - een maximale lengte voor het logo, en een domeinnaam die niet leeg mag zijn;
+    - regeltests voor de P0c-regels: zelf `gebruikers/{uid}` schrijven, zelf `leden/{uid}` aanmaken, je rol ophogen, `clubs/{id}` schrijven en het document van een ander lezen;
+    - een test voor de omgevingsguard in `src/firebase.js`.
 - [ ] **Eén `h1` per pagina** (nu alleen Home)
 - [x] **Domeinenlijst te breed** naast het zijmenu (op tst gezien tot ~1080px): opgelost 23 november 2026 met meegevende kolommen en een container query (domeinen stapelen onder 760px lijstbreedte, functies onder 590px)
 - [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
@@ -528,3 +533,59 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 **Vervolgpunten na CK-041:**
 - [ ] Leden in een commissie: alleen na P0d (`isBeheerder`) en een compliance-controle (AVG)
 - [ ] Restrisico P0d: elk lid kan commissies schrijven en verwijderen
+
+---
+
+## Uit de app-brede kwaliteitsanalyse v0.12.1 (23 november 2026)
+Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoordeel.md`. Met Paul besproken op 23 november 2026. Het P0d-deel (veldcontrole en tests) staat bij de harde eis voor P0d.
+
+### CK-047 — Fixpakket v0.12.2 en beveiligingsheaders
+**Status:** Open · route klein
+
+- [ ] Rand van invoervelden naar minstens 3:1 contrast (`--border`, `src/style.css:9`). Nu is het 1,48:1 (WCAG 1.4.11)
+- [ ] Verkeerde hint "De volgorde wijzig je bij Toon: Alle soorten" aanpassen (`src/main.js:1491`)
+- [ ] Inlogscherm: gewone tekst in plaats van `Fout: <code>` (`src/main.js:707`), volgens het criterium van CK-023
+- [ ] Maximum van 200 tekens op de domeinnaam in de app (`src/main.js:1647`), gelijk aan de regels
+- [ ] `.toel` op petrol zonder opacity, zodat het 4,5:1 haalt (`src/style.css:152`)
+- [ ] `.cel-nr` niet vet (besluit 21, `src/style.css:564`); Eindverantwoordelijke en Eigenaar even groot
+- [ ] Lettertype Barlow Semi Condensed lokaal in `public/` in plaats van via Google Fonts (`src/style.css:1`). Gewicht 500 laden of niet meer gebruiken
+- [ ] Bevestiging bij het verwijderen van het logo (`src/main.js:3056`)
+- [ ] `vercel.json` met beveiligingsheaders: CSP, `frame-ancestors`, `nosniff` en `Referrer-Policy`. De CSP eerst op tst testen, ná het lokaal zetten van het lettertype
+
+### CK-048 — Laadfouten en toegankelijke formulieren
+**Status:** Open · route middel
+
+- [ ] Een laadfout op Domeinen, Bestuursfuncties en het Domeinenoverzicht toont een melding met "Opnieuw laden", net als Vermogens (`src/main.js:593`, `:988`, `:1558`, `:2813`)
+- [ ] Inlogscherm: fouten via `zetVeldFout` met `aria-invalid`/`aria-describedby` en een live-region (`src/main.js:667-690`)
+- [ ] Datumkiezer: de focus blijft op een geldige dag, en Escape blijft werken (`src/keuzelijst.js:183`, `:226-232`)
+- [ ] Een foutrand op de eigen keuzelijst en de datumkiezer (`src/keuzelijst.js:50-58`)
+
+### CK-049 — AVG-basis vóór ledengegevens
+**Status:** Open · grotendeels zonder code (Paul) · **harde poort vóór ledengegevens, naast P0d**
+
+- [ ] Verwerkingsregister (zie ook het punt bij "Na P0e"), met het e-mailadres in `leden/{uid}`
+- [ ] Verwerkersovereenkomst met HCA, met Google en Vercel als subverwerkers. Kiezen tussen Vercel Pro (met DPA) en een alternatief
+- [ ] Procedure voor inzage, export en verwijdering van een account
+- [ ] Datalekprocedure
+- [ ] Back-up van Firestore
+- [ ] Bewaartermijnen vastleggen
+- [ ] Afweging over een DPIA
+- [ ] Regio van Firebase Auth noteren (Firestore staat in eur3)
+- [ ] Daarna een korte privacyverklaring, met een link in de footer van de app
+
+### CK-050 — Beheertabellen gelijktrekken en opruimen
+**Status:** Open · route middel · later, samen met het opsplitsen van `main.js` (zie `pipeline.md`)
+
+- [ ] Dezelfde teksten bij verwijderen, lege toestand en validatie, hetzelfde Enter-gedrag en dezelfde labels op de pijlknoppen in alle beheertabellen (gedeelde helpers)
+- [ ] Region-landmarks (`<section aria-labelledby>`) en een `h1` per beheerpagina (zie ook "Na CK-044")
+- [ ] Kolomkoppen blijven voor de schermlezer bestaan in een smalle tabel; de bewerkrij van Domeinen krijgt `role="cell"`
+- [ ] Kleuren via klassen in plaats van inline `style=` (`SOORT_KLEUR`)
+- [ ] Dode code weg: `src/counter.js`, `src/assets/*`, `public/icons.svg`, de ongebruikte import, `huidigeRol`/`laadRol`, en dode of dubbele CSS
+- [ ] Oudere scripts tonen namen via `veilig()`. `scripts/firestore.rules.migratie` verwijderen of er een waarschuwing in zetten
+
+### CK-051 — Huisstijlbesluiten (Paul)
+**Status:** Open · alleen een besluit, daarna eventueel mee in CK-047 of CK-050
+
+- [ ] Kaarten en knoppen: vierkant houden (0–6 px, geen schaduw, lichte rand) of 12 px afronding met schaduw? Voorstel: vierkant houden en de huisstijlregel aanpassen
+- [ ] Opslaan als primaire knop (petrol vlak)? Voorstel: ja
+- [ ] Verwijderen: `confirm()` houden met één vaste tekst, of een eigen dialoog? Voorstel: `confirm()` houden
