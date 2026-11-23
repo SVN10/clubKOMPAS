@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.10.1] – 2026-11-23
 
 ### Gewijzigd
 - Titelbalk: de titel (clubKOMPAS · clubnaam) en het kompas zijn 20% groter (titel 26,4px, kompas 29px; op de telefoon 21,6px en 26px).
