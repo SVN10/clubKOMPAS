@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.10.0] – 2026-11-23
 
 ### Toegevoegd
 - Projecten en samenwerkingen beheren (CK-046): nieuwe pagina's **Beheer → Projecten** en **Beheer → Samenwerkingen** (naam, omschrijving, eigenaar uit de bestuursfuncties; een project ook status en begin- en einddatum). Toevoegen, bewerken, ↑/↓, verwijderen, statusfilter bij projecten, lege staat en laadfout met **Opnieuw laden**.

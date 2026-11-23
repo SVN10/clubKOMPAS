@@ -495,7 +495,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ---
 
 ### CK-046 — Projecten en samenwerkingen beheren (Platform-laag P0, masterdata)
-**Status:** Gebouwd op test (23 november 2026) · route groot · wacht op testlijst tst
+**Status:** ✅ Live als v0.10.0 (23 november 2026) · route groot · getest op tst, met bijstellingen van Paul (besluiten 19–27: beheertabellen, kerncijfers, plaat) · eindoordeel en testlijst: `.claude/reports/CK-046-eindoordeel.md`
 
 *Twee beheerpagina's onder Beheer: Projecten (met status en periode) en Samenwerkingen, met eigenaar uit de bestuursfuncties. Ze verschijnen als kaartjes op het Vermogensoverzicht, in het overkoepelende domein met `bevat`. Technisch: `.claude/docs/CK-046.md`.*
 
