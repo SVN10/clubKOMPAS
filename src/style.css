@@ -542,9 +542,12 @@ footer {
 }
 .structuur-rij.beheer-rij.bewerken { display: block; }
 /* Vaste breedte voor de actiekolom, zodat de kop (zonder knoppen) gelijk loopt met de rijen */
-/* Smalle, vaste kolommen die op elkaar aansluiten; de vrije ruimte zit vóór de knoppen */
-.domein-rij { grid-template-columns: 28px 24px 180px 140px 200px minmax(240px, 1fr); }
-.functie-rij { grid-template-columns: 28px 220px 180px minmax(240px, 1fr); }
+/* CK-044: de kolommen geven mee met de breedte van de lijst (zijmenu in- of uitgeklapt).
+   De actiekolom is vast (past ↑ ↓ Bewerken Verwijderen), zodat de kop gelijk loopt met de rijen.
+   Is de lijst te smal, dan stapelen de rijen (container query hieronder). */
+#structuur-lijst, #functie-lijst { container-type: inline-size; }
+.domein-rij { grid-template-columns: 28px 24px minmax(120px, 1.2fr) 140px minmax(120px, 1fr) 240px; }
+.functie-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 240px; }
 .beheer-rij.beheer-kop {
   display: grid;
   align-items: center;
@@ -564,13 +567,18 @@ footer {
 .cel-functie { font-size: var(--fs-toelichting); color: var(--text); }
 .cel-acties { justify-content: flex-end; margin-top: 0; }
 .onzichtbaar { visibility: hidden; }
-@media (max-width: 700px) {
-  .beheer-rij.beheer-kop { display: none; }
+/* Gestapeld als de lijst zelf te smal is (domeinen < 760px, functies < 590px breed) */
+@container (max-width: 760px) {
+  .beheer-rij.beheer-kop.domein-rij { display: none; }
   .domein-rij { grid-template-columns: 24px 24px 1fr; row-gap: 4px; }
-  .functie-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
   .domein-rij > :nth-child(4), .domein-rij > :nth-child(5) { grid-column: 3; }
+  .domein-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+}
+@container (max-width: 590px) {
+  .beheer-rij.beheer-kop.functie-rij { display: none; }
+  .functie-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
   .functie-rij > :nth-child(3) { grid-column: 2; }
-  .beheer-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+  .functie-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
 }
 
 /* Keuzelijsten even hoog als tekstvelden */

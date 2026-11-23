@@ -15,6 +15,7 @@
   - Donker thema: balk, footer en sectiekoppen krijgen een donkere petrol (`--petrol-vlak`, wit erop 8,1:1). Het lichte thema is ongewijzigd.
   - Zonder ingestelde naam toont de accountregel alleen het deel van het e-mailadres vóór de @.
   - Huisstijl: het ☰-icoon heeft dezelfde lijndikte als de menupictogrammen; schaduwen en dimlaag lopen via tokens.
+  - De lijsten op Domeinen en Bestuursfuncties passen naast het zijmenu: de kolommen geven mee met de breedte, de knoppen blijven in beeld, en is de lijst te smal dan staan de gegevens onder elkaar (container query). Voorheen vielen de knoppen bij een venster smaller dan ~1080px rechts buiten beeld.
 
 ### Beveiliging
 - `esc()` escapet ook enkele aanhalingstekens. Navigatie zoekt alleen in een vaste tabel (`Map`), ids in het menu worden ge-escaped. Uitloggen buiten het menu om (bijv. in een ander tabblad) ruimt een open menupaneel op. Een mislukte uitlog wordt gelogd (alleen de foutcode).

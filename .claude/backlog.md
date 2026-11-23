@@ -354,7 +354,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ---
 
 ### CK-044 — Eén navigatie: zijmenu op elke pagina (Platform-laag)
-**Status:** Gebouwd, kwaliteitscontroles en beoordelaar GO voor `test` (23 november 2026) · nog: testen op tst (13 stappen, `.claude/reports/CK-044-eindoordeel.md`), dan live · Bouwverslag: `.claude/reports/CK-044-bouwverslag.md` · **MoSCoW:** Should · **Laag:** Platform (app-shell, generiek voor elke club) · Besluiten: `.claude/specs/CK-044-besluiten.md` (Paul, 22 november 2026) · Draait CK-037 "Home zonder zijmenu" terug en herziet de 30px-uitzondering uit CK-031
+**Status:** Gebouwd, kwaliteitscontroles en beoordelaar GO voor `test` (23 november 2026) · op tst gevonden en opgelost: domeinenlijst te breed naast het zijmenu · nog: testen op tst (13 stappen, `.claude/reports/CK-044-eindoordeel.md`), dan live · Bouwverslag: `.claude/reports/CK-044-bouwverslag.md` · **MoSCoW:** Should · **Laag:** Platform (app-shell, generiek voor elke club) · Besluiten: `.claude/specs/CK-044-besluiten.md` (Paul, 22 november 2026) · Draait CK-037 "Home zonder zijmenu" terug en herziet de 30px-uitzondering uit CK-031
 
 *Als bestuurder wil ik op elke pagina hetzelfde zijmenu met overzicht, beheer en mijn account, zodat ik altijd op één plek navigeer en weet waar ik ben.*
 
@@ -378,7 +378,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 
 - [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
 - [ ] **Eén `h1` per pagina** (nu alleen Home)
-- [ ] **Domeinenlijst op ~768px** met uitgeklapt zijmenu: vaste kolommen (~900px) passen niet; responsieve rij
+- [x] **Domeinenlijst te breed** naast het zijmenu (op tst gezien tot ~1080px): opgelost 23 november 2026 met meegevende kolommen en een container query (domeinen stapelen onder 760px lijstbreedte, functies onder 590px)
 - [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
 - [ ] **Ongebruikte CSS opruimen:** `.functie-label`, `.picto-groot`, `.structuur-rij-info`, `.volgorde-nr`
 - [ ] **Uitloggen mislukt:** nu alleen een melding in de console; zichtbare melding voor de gebruiker
