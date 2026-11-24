@@ -1162,6 +1162,11 @@ describe('P0d: alleen een beheerder schrijft', () => {
       await assertFails(updateDoc(doc(buiten, ...pad(col, id)), wijziging), `${col}: wijzigen`)
       await assertFails(deleteDoc(doc(buiten, ...pad(col, id))), `${col}: verwijderen`)
     }
+    // Positieve controle (CK-057): dezelfde wijziging mag de eigen beheerder wel, dus de weigering hierboven komt door de club
+    for (const [col, id, , wijziging] of gevallen) {
+      if (col === 'vermogensnamen') continue   // naamdocumenten wijzigen alleen via een vermogen-transactie
+      await assertSucceeds(updateDoc(doc(db, ...pad(col, id)), wijziging), `${col}: eigen beheerder wijzigt`)
+    }
   })
 })
 
@@ -1216,6 +1221,19 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
     await assertFails(updateDoc(doc(db, ...pad('bestuursfuncties', 'vz')), { email: 'vz@example.com' }))
   })
 
+  test('domein: soort wijzigen van overkoepelend met bevat naar pijler kan, mits bevat weg gaat (CK-057)', async () => {
+    await assertSucceeds(setDoc(domein('ov'), { type: 'overkoepelend', naam: 'Projecten', bevat: 'projecten', volgorde: 5 }))
+    await assertFails(updateDoc(domein('ov'), { type: 'pijler' }))
+    const { deleteField } = await import('firebase/firestore')
+    await assertSucceeds(updateDoc(domein('ov'), { type: 'pijler', bevat: deleteField() }))
+  })
+
+  test('domein: geldige namen met accenten, leestekens en emoji mogen', async () => {
+    for (const naam of ['Café & Bar – \'s-Hertogenbosch', 'Jeugd\u00A0O12', '🏑 Hockey', 'Oranje 🇳🇱', 'Top 👍🏽']) {
+      await assertSucceeds(setDoc(domein('n'), { ...DOMEIN, naam }), naam)
+    }
+  })
+
   test('domein: toegestane velden en grenzen', async () => {
     await assertSucceeds(setDoc(domein('a'), DOMEIN))
     await assertSucceeds(setDoc(domein('b'), { ...DOMEIN, naam: 'x'.repeat(200), omschrijving: 'o'.repeat(500), icoon: 'samenwerkingen', hashtag: `#${'h'.repeat(49)}` }))
@@ -1229,7 +1247,7 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
       { naam: '' }, { naam: '   ' }, { naam: 'x'.repeat(201) }, { naam: 7 },
       { omschrijving: 'o'.repeat(501) }, { omschrijving: 5 },
       { hashtag: 'HCASpeelt' }, { hashtag: '#HCA Speelt' }, { hashtag: '#' }, { hashtag: '#a#b' }, { hashtag: `#${'h'.repeat(50)}` },
-      { icoon: 'i'.repeat(51) }, { icoon: 'stick' }, { icoon: 'HCASpeelt' }, { naam: 'Hockey\u202E' }, { naam: 'Hoc\u200Bkey' }, { naam: 'Hockey\n' }, { naam: 'a\nb\nc' }, { naam: 'Hoc\tkey\r\nclub' }, { bestuursfunctieId: 'b'.repeat(101) }, { bestuursfunctieId: 3 },
+      { icoon: 'i'.repeat(51) }, { icoon: 'stick' }, { icoon: 'HCASpeelt' }, { naam: 'Hockey\u202E' }, { naam: 'Hoc\u200Bkey' }, { naam: 'Hockey\n' }, { naam: 'a\nb\nc' }, { naam: 'Hoc\tkey\r\nclub' }, { naam: 'Hockey\u2028' }, { naam: '\uFEFFHockey' }, { naam: 'Hoc\u00ADkey' }, { naam: 'Hockey\u0085' }, { naam: 'Hoc\u2060key' }, { bestuursfunctieId: 'b'.repeat(101) }, { bestuursfunctieId: 3 },
       { volgorde: 0 }, { volgorde: 1.5 }, { volgorde: '1' }, { volgorde: 100001 },
       { type: 'iets' }, { bevat: 'commissies' }, { bevat: 'projecten' }, { type: 'domein', bevat: 'samenwerkingen' },
     ]

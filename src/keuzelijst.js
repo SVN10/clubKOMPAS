@@ -36,7 +36,7 @@ function koppelLabel(veld, doel) {
   return label.id
 }
 
-// aria-describedby, aria-invalid, disabled en de foutrand (klasse fout) van het echte veld doorgeven aan ons veld
+// disabled van het echte veld volgen, en (aria = true) ook aria-describedby, aria-invalid en de foutrand (klasse fout)
 // aria = false: alleen disabled volgen (de kalenderknop hoort niet bij de foutmelding, CK-056)
 function volgAttributen(veld, doel, aria = true) {
   const zet = () => {

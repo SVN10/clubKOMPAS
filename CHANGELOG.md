@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.4] – 2026-11-24
+
+### Gewijzigd (CK-057: fixpakket uit de gerichte analyse van v0.13.3)
+- Een overkoepelend domein dat projecten of samenwerkingen op de plaat toont, kun je weer omzetten naar pijler of ondersteunend domein. De koppeling `bevat` gaat dan weg.
+- Snel weg en terug navigeren naar Domeinen of Bestuursfuncties geeft geen dubbele klikafhandeling meer.
+- De melding bij een onzichtbaar teken in een naam noemt ook samengestelde emoji (zoals een gezin).
+
+### Beveiliging
+- Namen worden strenger gecontroleerd op onzichtbare tekens. Alle stuur- en opmaaktekens en regel- en alineascheidingen worden geweigerd (`\p{Cc}`, `\p{Cf}`, `\p{Zl}`, `\p{Zp}`), in de regels, de app en `p0d:controle` gelijk. Accenten, leestekens en gewone emoji blijven mogelijk.
+- 133 regeltests, met een positieve controle bij de test voor een beheerder van een andere club.
+
 ## [0.13.2] – 2026-11-24
 
 ### Gewijzigd (CK-056: fixpakket uit de analyse van v0.13.0)

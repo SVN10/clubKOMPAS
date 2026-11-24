@@ -52,7 +52,7 @@ Daarnaast:
 
 ## Uitschuifpaneel (≤700px) en toegankelijkheid
 
-- Het zijmenu wordt een `position: fixed` paneel onder de omgevingsbalk (`--paneel-top`, gemeten bij openen). `openPaneel()` zet `.open`, toont de dimlaag, `aria-expanded="true"` op ☰, `inert` op alles uit `PANEEL_INERT` (overslaglink, balk, kolom, footer, omgevingsbalk), `body.paneel-open` (scroll-lock) en zet de focus op ✕.
+- Het zijmenu wordt een `position: fixed` paneel over de volle hoogte (`top: 0`; sinds 23-11-2026 staat de omgevingsbalk onderaan, `--paneel-top` is in CK-056 vervallen). `openPaneel()` zet `.open`, toont de dimlaag, `aria-expanded="true"` op ☰, `inert` op alles uit `PANEEL_INERT` (overslaglink, balk, kolom, footer, omgevingsbalk), `body.paneel-open` (scroll-lock) en zet de focus op ✕.
 - `sluitPaneel({ focus })` draait dit terug en zet de focus terug op ☰. Gebruik `focus: false` als de focus daarna toch elders heen gaat (navigeren, uitloggen, nieuwe render, `onAuthStateChanged` zonder sessie). Het opruimen gebeurt ook als het paneel niet open is, zodat een hangende `inert` of scroll-lock nooit overblijft.
 - Sluiten: ✕, Esc, dimlaag, een menu-item, of een breedtewissel naar >700px.
 - Er is precies één `aria-current="page"` per pagina; op de accountregel als `actief: 'account'`. De accountregel heet voor schermlezers "Mijn account, naam · rol" (`.naam-voor` + visueel verborgen komma).
@@ -69,7 +69,6 @@ Daarnaast:
 | `--petrol-vlak` | licht `var(--petrol)`, donker `#2F5658` | achtergrond van vlakken met witte tekst: `.top-bar`, `footer`, `.sectie-kop`. Niet `--petrol` gebruiken voor nieuwe vlakken met witte tekst: in donker thema haalt dat maar 2,38:1, `--petrol-vlak` 8,1:1 |
 | `--logo-ruimte` | 16px; `192px` met `.heeft-logo`; `124px` met logo op ≤700px | rechterruimte voor titel en kruimelpad zodat het clublogo niets overlapt. Gebruik hem voor elk nieuw element dat in de kopstrook rechts moet uitlijnen |
 | `--kop-h` | 52px; 80px met `body.met-omgeving-balk` | hoogte petrol balk (plus omgevingsbalk); bepaalt de hoogte van het sticky zijmenu (`100dvh - --kop-h`) |
-| `--paneel-top` | gezet door `openPaneel()` | bovenkant van paneel en dimlaag, onder de omgevingsbalk |
 | `--schaduw-tooltip`, `--schaduw-paneel`, `--dimlaag` | in `:root`, licht en donker gelijk | schaduwen en dimlaag; geen losse `rgba` in regels |
 
 Maten: balk 52px, logo 78px (36px mobiel), zijmenu 172px uitgeklapt / 44px ingeklapt. Het ☰-icoon heeft `stroke-width: 2.25` zodat de gerenderde lijn (1,125px) gelijk is aan die van de menu-items (18px bij 3 op 48).

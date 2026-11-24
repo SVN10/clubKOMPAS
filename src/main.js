@@ -502,8 +502,8 @@ function valideerVelden(regels) {
 // ── Gelijke teksten en gedrag in alle beheertabellen (CK-050) ──
 // Zelfde zinnen als de naamregels van vermogens en onderdelen (vermogens.js)
 // Onzichtbare stuur-, nul-breedte- en bidi-tekens: de regels weigeren ze (CK-056)
-const ONZICHTBARE_TEKENS = /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/
-const ONZICHTBAAR_FOUT = 'Er staat een onzichtbaar teken in de naam, bijvoorbeeld uit een gekopieerde tekst. Typ de naam opnieuw.'
+const ONZICHTBARE_TEKENS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u   // gelijk aan geenStuurtekens in firestore.rules (CK-057)
+const ONZICHTBAAR_FOUT = 'Er staat een onzichtbaar teken in de naam, bijvoorbeeld uit een gekopieerde tekst of een samengestelde emoji (zoals een gezin of een beroep). Typ de naam opnieuw, zonder zo\'n emoji.'
 function naamFout(naam, max = 100) {
   if (!naam) return 'Vul een naam in.'
   if (ONZICHTBARE_TEKENS.test(naam)) return ONZICHTBAAR_FOUT
@@ -1655,6 +1655,8 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
 
   bindAppShell(gebruiker)
   bindMeldblokken()
+  // Deze render werkt alleen op zijn eigen lijst, ook als de gebruiker intussen weg en terug ging (CK-057)
+  const mijnLijst = document.getElementById('structuur-lijst')
 
   const clubId = huidigClubId
   // Filter kan meekomen vanaf een kerncijfer (Domeinenoverzicht, Vermogensoverzicht)
@@ -1662,7 +1664,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
   let huidigeItems = []
 
   function toonLaadfout(e) {
-    const lijst = document.getElementById('structuur-lijst')
+    const lijst = mijnLijst
     if (!lijst?.isConnected) return
     console.error('Domeinen laden mislukt:', e?.code)
     document.querySelector('.beheer-balk').hidden = true
@@ -1674,7 +1676,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
   }
 
   async function laadEnRender() {
-    const lijst = document.getElementById('structuur-lijst')
+    const lijst = mijnLijst
     if (!lijst) return false
     if (functiesFout) { toonLaadfout(functiesFout); return false }
     let items
@@ -1737,7 +1739,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
   await laadEnRender()
 
   // Opnieuw laden: de hele pagina opnieuw, want ook de bestuursfuncties kunnen ontbroken hebben
-  const lijstNu = document.getElementById('structuur-lijst')
+  const lijstNu = mijnLijst
   if (!lijstNu?.isConnected) return   // intussen naar een andere pagina gegaan (CK-056)
   bindHerlaad(lijstNu, 'structuur-herlaad', async () => {
     await renderPijlersDomeinenBeheer(gebruiker, { filter: actiefFilter, alsNog: lijstNu })
@@ -1983,6 +1985,8 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
       }
       const icoon = document.getElementById(`bi-${id}`)?.value || ''
       const data = { type, naam, hashtag, omschrijving: omschr, bestuursfunctieId: verantw, icoon }
+      // bevat hoort alleen bij een overkoepelend domein; bij een andere soort weghalen (CK-057)
+      if (type !== 'overkoepelend') data.bevat = deleteField()
       let blokkade = 0
       const uitkomst = await metOpslaan(knop, async () => {
         try {
@@ -2935,6 +2939,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 ` })
   bindAppShell(gebruiker)
   bindMeldblokken()
+  const mijnLijst = document.getElementById('functie-lijst')   // eigen lijst, ook na weg en terug (CK-057)
 
 
   // Waar een functie eindverantwoordelijke (domeinen) of eigenaar (commissies, projecten, samenwerkingen) van is (CK-046, CK-041)
@@ -2962,7 +2967,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   const enLijst = delen => (delen.length < 2 ? delen.join('') : `${delen.slice(0, -1).join(', ')} en ${delen[delen.length - 1]}`)
 
   async function laadEnRender() {
-    const lijst = document.getElementById('functie-lijst')
+    const lijst = mijnLijst
     if (!lijst) return false
     const balk = document.querySelector('.beheer-balk')
     let functies, verwijzers
@@ -3014,7 +3019,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 
   await laadEnRender()
 
-  const lijstEl = document.getElementById('functie-lijst')
+  const lijstEl = mijnLijst
   if (!lijstEl?.isConnected) return   // intussen naar een andere pagina gegaan (CK-056)
   const toevoegKnop = document.getElementById('functie-toevoegen-knop')
   bindHerlaad(lijstEl, 'functie-herlaad', async () => (await laadEnRender()) !== false, () => toevoegKnop)

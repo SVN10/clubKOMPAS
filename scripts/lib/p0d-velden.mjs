@@ -15,7 +15,7 @@ const isInt = v => Number.isInteger(v)
 const LOGO = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
 const HASHTAG = /^#[^\s#]{1,49}$/
 // CK-056: geen stuur-, nul-breedte- of bidi-tekens in namen; pictogram uit de vaste lijst
-const STUURTEKENS = /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/
+const STUURTEKENS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u   // gelijk aan geenStuurtekens in firestore.rules (CK-057)
 const zonderStuurtekens = v => !STUURTEKENS.test(v)
 export const PICTOGRAMMEN = ['', 'hcaspeelt', 'hcagroeit', 'hcadoet', 'bestuur', 'leden', 'vrijwilligers', 'relaties',
   'communicatie', 'financien', 'accommodatie', 'hospitality', 'materiaal', 'digitaal', 'projecten', 'samenwerkingen']

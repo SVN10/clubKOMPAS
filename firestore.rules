@@ -187,7 +187,8 @@ service cloud.firestore {
     // Geen stuur-, nul-breedte- of bidi-tekens in namen (CK-056): die kunnen een naam vervalsen of uitvoer verstoren
     function geenStuurtekens(v) {
       // matches() toetst de hele tekst; een negatieve klasse vangt ook regeleinden (een . in RE2 niet)
-      return v.matches('[^\\x{0000}-\\x{001F}\\x{007F}\\x{200B}-\\x{200F}\\x{202A}-\\x{202E}\\x{2066}-\\x{2069}]*');
+      // Cc = stuurtekens (ook C1), Cf = opmaaktekens (nul-breedte, bidi, BOM, zacht afbreekstreepje), Zl/Zp = regel- en alineascheiding (CK-057)
+      return v.matches('[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]*');
     }
     // Pictogram: leeg of een sleutel uit de vaste lijst (PICTOGRAMMEN in src/main.js, CK-056)
     function geldigIcoon(d) {

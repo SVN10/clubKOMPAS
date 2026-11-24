@@ -629,3 +629,14 @@ Rapporten: `.claude/reports/APP-0.13.0-beveiliging.md` en `APP-0.13.0-analyse.md
 - [ ] Firebase-console (Paul, L6): zelfregistratie uit, bescherming tegen e-mailenumeratie aan en de API-key beperken. Daarna de aparte melding voor `auth/user-not-found` weghalen (C-4)
 
 Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m A-6, T-6 en T-7 (zie `APP-0.13.0-analyse.md`).
+
+### CK-057 — Fixpakket uit de gerichte analyse van v0.13.3
+**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route klein (de regels veranderen: regeltests draaien, en Paul publiceert opnieuw) · rapport: `.claude/reports/APP-0.13.3-analyse.md` (geen kritieke punten; CK-056 loste 12 van de 15 punten volledig op)
+
+- [ ] N-4 (procedure, belangrijk): de regels toetsen het hele document. Een oud domein met een afwijkend pictogram of een onzichtbaar teken in de naam is daardoor niet meer te bewerken. Draai in productie `npm run p0d:controle -- --omgeving=productie --droog` (de regels staan daar al) en herstel afwijkingen. Doe dit vóór elke volgende `regels:productie`
+- [x] N-2: een overkoepelend domein met `bevat` omzetten naar pijler of ondersteunend geeft "geen toestemming". Haal `bevat` bij die wijziging weg (`deleteField`) (`src/main.js:~1985`, `firestore.rules:233`)
+- [x] N-1: de regex sluit nog niet alles uit: U+2028/2029, U+FEFF, C1 (0080–009F), U+00AD, U+2060–2064 en U+061C komen erdoor. Gebruik `[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]*` in de regels, de app en het controlescript (in de emulator getest)
+- [x] N-5: de melding voor emoji met een ZWJ (zoals 👨‍👩‍👧) noemt dat zo'n emoji niet kan
+- [x] N-3: snel weg en terug (A→B→A) bindt de oude render zijn listeners op de nieuwe lijst. Leg het lijst-element vast vóór de eerste `await` (`src/main.js:1741`, `:3018`)
+- [x] N-6: de L1-test krijgt een positieve controle: de eigen beheerder mag het wel (`tests/regels.test.mjs`)
+- [x] N-7: `.claude/docs/CK-044-technisch.md:55`, `:72` (`--paneel-top`) en het commentaar in `src/keuzelijst.js:38` bijwerken
