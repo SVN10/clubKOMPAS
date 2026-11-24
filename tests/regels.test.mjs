@@ -1030,3 +1030,348 @@ describe('CK-041 commissies', () => {
     await assertFails(addDoc(collection(db, ...pad('structuurelementen')), { type: 'overkoepelend', naam: 'Commissies', bevat: 'commissies' }))
   })
 })
+
+// ── P0d: alleen de rol beheerder schrijft masterdata ──
+// kees is lid met rol 'lid', bram is lid zonder rol; jan is beheerder (zie beforeEach hierboven).
+import { controleerProfiel, controleerBestuursfunctie, controleerDomein, controleerP0d, LOGO_MAX_TEKENS } from '../scripts/lib/p0d-velden.mjs'
+import { bepaalOmgeving, PRODUCTIE_PROJECT_ID, FIREBASE_SLEUTELS } from '../src/omgeving.js'
+
+const P0D_PROFIEL = { naam: 'Testclub', afkorting: 'TST', seizoen: '2026–2027' }
+const P0D_PROJECT = { naam: 'Nieuw veld', omschrijving: '', bestuursfunctieId: 'vz', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 }
+const P0D_SAMEN = { naam: 'Gemeente', omschrijving: '', bestuursfunctieId: 'vz', volgorde: 1 }
+const png = n => `data:image/png;base64,${'A'.repeat(n)}`
+
+describe('P0d: alleen een beheerder schrijft', () => {
+  let kees, bram
+  beforeEach(async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'gebruikers', 'kees'), { clubId: CLUB })
+      await setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'lid' })
+      await setDoc(doc(a, 'gebruikers', 'bram'), { clubId: CLUB })
+      await setDoc(doc(a, ...pad('leden', 'bram')), { email: 'bram@example.com' })
+      await setDoc(doc(a, ...pad('instellingen', 'profiel')), P0D_PROFIEL)
+      await setDoc(doc(a, ...pad('projecten', 'p1')), P0D_PROJECT)
+      await setDoc(doc(a, ...pad('samenwerkingen', 's1')), P0D_SAMEN)
+      await setDoc(doc(a, ...pad('commissies', 'c1')), P0D_SAMEN)
+    })
+    kees = env.authenticatedContext('kees').firestore()
+    bram = env.authenticatedContext('bram').firestore()
+  })
+
+  test('een lid zonder beheerrol kan alles lezen', async () => {
+    for (const fs of [kees, bram]) {
+      await assertSucceeds(getDoc(doc(fs, ...pad('instellingen', 'profiel'))))
+      for (const c of ['bestuursfuncties', 'structuurelementen', 'vermogens', 'vermogensnamen', 'projecten', 'samenwerkingen', 'commissies']) {
+        await assertSucceeds(getDocs(collection(fs, ...pad(c))))
+      }
+    }
+  })
+
+  test('instellingen, bestuursfuncties en structuurelementen: lid geweigerd, beheerder toegestaan', async () => {
+    for (const fs of [kees, bram]) {
+      await assertFails(setDoc(doc(fs, ...pad('instellingen', 'profiel')), { naam: 'Overgenomen' }, { merge: true }))
+      await assertFails(setDoc(doc(fs, ...pad('instellingen', 'profiel')), { logo: png(8) }, { merge: true }))
+      await assertFails(addDoc(collection(fs, ...pad('bestuursfuncties')), { naam: 'Secretaris', volgorde: 2 }))
+      await assertFails(updateDoc(doc(fs, ...pad('bestuursfuncties', 'vz')), { naam: 'Baas' }))
+      await assertFails(deleteDoc(doc(fs, ...pad('bestuursfuncties', 'vz'))))
+      await assertFails(addDoc(collection(fs, ...pad('structuurelementen')), { type: 'domein', naam: 'Nieuw', volgorde: 20 }))
+      await assertFails(updateDoc(doc(fs, ...pad('structuurelementen', 'leden')), { naam: 'Leden & co' }))
+      await assertFails(updateDoc(doc(fs, ...pad('structuurelementen', 'leden')), { volgorde: 1 }))
+      await assertFails(deleteDoc(doc(fs, ...pad('structuurelementen', 'proj'))))
+    }
+    await assertSucceeds(setDoc(doc(db, ...pad('instellingen', 'profiel')), { naam: 'Testclub HCA' }, { merge: true }))
+    await assertSucceeds(addDoc(collection(db, ...pad('bestuursfuncties')), { naam: 'Secretaris', volgorde: 2 }))
+    await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { naam: 'Leden & co' }))
+    await assertSucceeds(deleteDoc(doc(db, ...pad('structuurelementen', 'proj'))))
+  })
+
+  test('bevat zetten of weghalen: alleen een beheerder', async () => {
+    const d = fs => doc(fs, ...pad('structuurelementen', 'proj'))
+    await assertFails(updateDoc(d(kees), { bevat: 'projecten' }))
+    await assertSucceeds(updateDoc(d(db), { bevat: 'projecten' }))
+    const { deleteField } = await import('firebase/firestore')
+    await assertFails(updateDoc(d(kees), { bevat: deleteField() }))
+    await assertFails(updateDoc(d(bram), { bevat: 'samenwerkingen' }))
+    await assertSucceeds(updateDoc(d(db), { bevat: deleteField() }))
+    assert.equal('bevat' in (await lees('structuurelementen', 'proj')), false)
+  })
+
+  test('vermogens en naamdocumenten: lid geweigerd via de app-functies en rechtstreeks', async () => {
+    assert.equal((await fout(voegVermogenToe(kees, CLUB, { naam: 'Teamindeling', domeinId: 'speelt' }))).code, 'permission-denied')
+    await assertFails(rauwToevoegen(kees))
+    const { id } = await voegVermogenToe(db, CLUB, { naam: 'Teamindeling', domeinId: 'speelt' })
+    await assertFails(hernoemVermogen(kees, CLUB, id, 'Teamplanning'))
+    await assertFails(verplaatsVermogen(kees, CLUB, id, 'leden'))
+    await assertFails(verwijderVermogen(kees, CLUB, id))
+    await assertFails(updateDoc(doc(kees, ...pad('vermogens', id)), { volgorde: 2 }))
+    await assertFails(setDoc(doc(kees, ...pad('vermogensnamen', 'los')), { vermogenId: id }))
+    await assertFails(deleteDoc(doc(kees, ...pad('vermogensnamen', 'teamindeling'))))
+    await assertSucceeds(verwijderVermogen(db, CLUB, id))
+  })
+
+  test('projecten, samenwerkingen en commissies: lid geweigerd, beheerder toegestaan', async () => {
+    for (const [soort, data] of [['projecten', P0D_PROJECT], ['samenwerkingen', P0D_SAMEN], ['commissies', P0D_SAMEN]]) {
+      const bestaand = { projecten: 'p1', samenwerkingen: 's1', commissies: 'c1' }[soort]
+      for (const fs of [kees, bram]) {
+        await assertFails(setDoc(doc(fs, ...pad(soort, 'nieuw')), data), soort)
+        await assertFails(updateDoc(doc(fs, ...pad(soort, bestaand)), { volgorde: 2 }), soort)
+        await assertFails(deleteDoc(doc(fs, ...pad(soort, bestaand))), soort)
+      }
+      await assertFails(voegOnderdeelToe(kees, CLUB, soort, { naam: 'Iets nieuws', status: 'lopend', begindatum: '', einddatum: '' }))
+      await assertSucceeds(setDoc(doc(db, ...pad(soort, 'nieuw')), data))
+      await assertSucceeds(deleteDoc(doc(db, ...pad(soort, bestaand))))
+    }
+  })
+
+  test('rol moet precies "beheerder" zijn', async () => {
+    for (const rol of ['Beheerder', ' beheerder', 'bestuurder', 'admin', '', 1, true]) {
+      await admin(a => setDoc(doc(a, ...pad('leden', 'kees')), { rol }))
+      await assertFails(updateDoc(doc(kees, ...pad('bestuursfuncties', 'vz')), { naam: 'Baas' }), JSON.stringify(rol))
+    }
+    await admin(a => setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'beheerder' }))
+    await assertSucceeds(updateDoc(doc(kees, ...pad('bestuursfuncties', 'vz')), { naam: 'Baas' }))
+  })
+
+  test('beheerder van een andere club schrijft niet in deze club', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'clubs', 'club2', 'leden', 'piet'), { rol: 'beheerder' })
+    })
+    await assertFails(updateDoc(doc(buiten, ...pad('bestuursfuncties', 'vz')), { naam: 'Baas' }))
+    await assertFails(setDoc(doc(buiten, ...pad('instellingen', 'profiel')), { naam: 'Overgenomen' }, { merge: true }))
+  })
+})
+
+describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelementen', () => {
+  const profiel = () => doc(db, ...pad('instellingen', 'profiel'))
+  const domein = (id = 'x') => doc(db, ...pad('structuurelementen', id))
+  const DOMEIN = { type: 'pijler', naam: 'Hockey', hashtag: '#HCASpeelt', omschrijving: 'Alles rond hockey', bestuursfunctieId: 'vz', icoon: 'stick', volgorde: 1 }
+
+  test('clubprofiel: alleen naam, afkorting, seizoen en logo', async () => {
+    await assertSucceeds(setDoc(profiel(), P0D_PROFIEL))
+    await assertSucceeds(setDoc(profiel(), { naam: 'n'.repeat(100), afkorting: 'a'.repeat(20), seizoen: 's'.repeat(20) }))
+    await assertFails(setDoc(profiel(), { ...P0D_PROFIEL, beheerder: 'jan' }))
+    await assertFails(setDoc(profiel(), { kleur: 'rood' }, { merge: true }))
+    await assertFails(setDoc(profiel(), { naam: '' }, { merge: true }))
+    await assertFails(setDoc(profiel(), { naam: '   ' }, { merge: true }))
+    await assertFails(setDoc(profiel(), { naam: 'n'.repeat(101) }, { merge: true }))
+    await assertFails(setDoc(profiel(), { afkorting: 'a'.repeat(21) }, { merge: true }))
+    await assertFails(setDoc(profiel(), { seizoen: 2026 }, { merge: true }))
+  })
+
+  test('logo: alleen PNG, JPEG of WebP als base64, met een maximale lengte', async () => {
+    for (const soort of ['png', 'jpeg', 'webp']) {
+      await assertSucceeds(setDoc(profiel(), { logo: `data:image/${soort};base64,iVBORw0KGgo=` }, { merge: true }), soort)
+    }
+    await assertSucceeds(setDoc(profiel(), { logo: png(LOGO_MAX_TEKENS - 'data:image/png;base64,'.length) }, { merge: true }))
+    await assertFails(setDoc(profiel(), { logo: png(LOGO_MAX_TEKENS - 'data:image/png;base64,'.length + 1) }, { merge: true }))
+    for (const logo of [
+      'data:image/svg+xml;base64,PHN2Zz4=', 'data:image/svg+xml,<svg onload=alert(1)>', 'data:image/gif;base64,R0lGOD',
+      'data:image/png,ruw', 'data:image/png;base64,', 'data:image/png;base64,AA AA', 'data:image/png;base64,AA"><script>',
+      'DATA:image/png;base64,AAAA', 'http://example.com/x.png', 'javascript:alert(1)', 42,
+    ]) {
+      await assertFails(setDoc(profiel(), { logo }, { merge: true }), String(logo))
+    }
+  })
+
+  test('bestuursfuncties: alleen naam en volgorde', async () => {
+    const col = collection(db, ...pad('bestuursfuncties'))
+    await assertSucceeds(addDoc(col, { naam: 'Secretaris', volgorde: 2 }))
+    await assertSucceeds(addDoc(col, { naam: 'Zonder volgorde' }))
+    await assertFails(addDoc(col, { naam: 'Secretaris', volgorde: 2, persoon: 'Jan Jansen' }))
+    await assertFails(addDoc(col, { naam: 'Secretaris', volgorde: '2' }))
+    await assertFails(addDoc(col, { naam: 'Secretaris', volgorde: 0 }))
+    await assertFails(addDoc(col, { naam: '   ', volgorde: 3 }))
+    await assertFails(addDoc(col, { naam: ' x ', volgorde: 3 }))
+    await assertFails(addDoc(col, { volgorde: 3 }))
+    await assertFails(updateDoc(doc(db, ...pad('bestuursfuncties', 'vz')), { email: 'vz@example.com' }))
+  })
+
+  test('domein: toegestane velden en grenzen', async () => {
+    await assertSucceeds(setDoc(domein('a'), DOMEIN))
+    await assertSucceeds(setDoc(domein('b'), { ...DOMEIN, naam: 'x'.repeat(200), omschrijving: 'o'.repeat(500), icoon: 'i'.repeat(50), hashtag: `#${'h'.repeat(49)}` }))
+    await assertSucceeds(setDoc(domein('c'), { ...DOMEIN, hashtag: '' }))
+    await assertSucceeds(setDoc(domein('d'), { type: 'overkoepelend', naam: 'Projecten', bevat: 'projecten' }))
+  })
+
+  test('domein: weigert extra velden, lege naam, te lange omschrijving en ongeldige waarden', async () => {
+    const weiger = [
+      { verantwoordelijke: 'Voorzitter' }, { leden: ['Jan'] }, { email: 'x@example.com' },
+      { naam: '' }, { naam: '   ' }, { naam: 'x'.repeat(201) }, { naam: 7 },
+      { omschrijving: 'o'.repeat(501) }, { omschrijving: 5 },
+      { hashtag: 'HCASpeelt' }, { hashtag: '#HCA Speelt' }, { hashtag: '#' }, { hashtag: '#a#b' }, { hashtag: `#${'h'.repeat(50)}` },
+      { icoon: 'i'.repeat(51) }, { bestuursfunctieId: 'b'.repeat(101) }, { bestuursfunctieId: 3 },
+      { volgorde: 0 }, { volgorde: 1.5 }, { volgorde: '1' }, { volgorde: 100001 },
+      { type: 'iets' }, { bevat: 'commissies' },
+    ]
+    for (const extra of weiger) await assertFails(setDoc(domein(), { ...DOMEIN, ...extra }), JSON.stringify(extra).slice(0, 60))
+    const { naam, ...zonderNaam } = DOMEIN
+    await assertFails(setDoc(domein(), zonderNaam))
+    const { type, ...zonderType } = DOMEIN
+    await assertFails(setDoc(domein(), zonderType))
+    await assertFails(updateDoc(domein('leden'), { omschrijving: 'o'.repeat(501) }))
+    await assertFails(updateDoc(domein('leden'), { naam: ' ' }))
+  })
+
+  test('oud document met een onbekend veld: eerst opschonen, dan weer te bewerken', async () => {
+    await admin(a => setDoc(doc(a, ...pad('structuurelementen', 'oud')), { type: 'domein', naam: 'Oud', verantwoordelijke: 'Voorzitter', volgorde: 4 }))
+    await assertFails(updateDoc(domein('oud'), { volgorde: 5 }))
+    const { deleteField } = await import('firebase/firestore')
+    await assertSucceeds(updateDoc(domein('oud'), { verantwoordelijke: deleteField() }))
+    await assertSucceeds(updateDoc(domein('oud'), { volgorde: 5 }))
+  })
+
+  test('de JavaScript-spiegel (scripts/lib/p0d-velden.mjs) oordeelt zoals de regels', async () => {
+    const gevallen = [
+      ['instellingen', 'profiel', controleerProfiel, P0D_PROFIEL],
+      ['instellingen', 'profiel', controleerProfiel, { ...P0D_PROFIEL, kleur: 'rood' }],
+      ['instellingen', 'profiel', controleerProfiel, { naam: ' ' }],
+      ['instellingen', 'profiel', controleerProfiel, { logo: 'data:image/svg+xml;base64,PHN2Zz4=' }],
+      ['instellingen', 'profiel', controleerProfiel, { logo: 'data:image/webp;base64,UklGR==' }],
+      ['bestuursfuncties', 'f', controleerBestuursfunctie, { naam: 'Secretaris', volgorde: 2 }],
+      ['bestuursfuncties', 'f', controleerBestuursfunctie, { naam: 'S', volgorde: 2 }],
+      ['bestuursfuncties', 'f', controleerBestuursfunctie, { naam: '   ', volgorde: 2 }],
+      ['bestuursfuncties', 'f', controleerBestuursfunctie, { naam: 'Secretaris', persoon: 'Jan' }],
+      ['structuurelementen', 'd', controleerDomein, DOMEIN],
+      ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, verantwoordelijke: 'x' }],
+      ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, omschrijving: 'o'.repeat(501) }],
+      ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, hashtag: '#a b' }],
+      ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, naam: '' }],
+      ['structuurelementen', 'd', controleerDomein, { type: 'overkoepelend', naam: 'P', bevat: 'samenwerkingen' }],
+      ['structuurelementen', 'd', controleerDomein, { naam: 'Zonder type' }],
+    ]
+    for (const [c, id, check, data] of gevallen) {
+      const { onbekend, fouten } = check(data)
+      const goed = onbekend.length === 0 && fouten.length === 0
+      const ref = doc(db, ...pad(c, id))
+      await (goed ? assertSucceeds : assertFails)(setDoc(ref, data), `${c} ${JSON.stringify(data).slice(0, 60)}`)
+      await admin(a => deleteDoc(doc(a, ...pad(c, id))))
+    }
+  })
+
+  test('controleerP0d: meldt een ontbrekende beheerrol en ruimt alleen onbekende velden op', () => {
+    const r = controleerP0d({
+      rol: 'lid',
+      profiel: { ...P0D_PROFIEL, kleur: 'rood' },
+      functies: [{ id: 'vz', data: { naam: 'Voorzitter', volgorde: 1 } }],
+      domeinen: [
+        { id: 'a', data: DOMEIN },
+        { id: 'b', data: { type: 'domein', naam: 'Oud', verantwoordelijke: 'Voorzitter' } },
+        { id: 'c', data: { type: 'domein', naam: 'Lang', omschrijving: 'o'.repeat(501) } },
+        { id: 'd', data: { type: 'domein', naam: 'Met id', id: 'nep' } },
+      ],
+    })
+    assert.equal(r.afwijkingen.length, 2)
+    assert.match(r.afwijkingen[0], /niet "beheerder"/)
+    assert.match(r.afwijkingen[1], /structuurelementen\/c .*omschrijving/)
+    assert.deepEqual(r.herstel.map(h => [h.pad, h.velden]), [['instellingen/profiel', ['kleur']], ['structuurelementen/b', ['verantwoordelijke']], ['structuurelementen/d', ['id']]])
+    assert.deepEqual(controleerP0d({ rol: 'beheerder', profiel: null, functies: [], domeinen: [] }), { afwijkingen: [], herstel: [] })
+  })
+})
+
+// ── P0c: gebruikers en leden zijn vanuit de app alleen te lezen, en alleen je eigen document ──
+describe('P0c: gebruikers, leden en het clubdocument', () => {
+  beforeEach(async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'gebruikers', 'kees'), { clubId: CLUB })
+      await setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'lid' })
+    })
+  })
+  const kees = () => env.authenticatedContext('kees').firestore()
+
+  test('je eigen documenten lezen mag', async () => {
+    await assertSucceeds(getDoc(doc(db, 'gebruikers', 'jan')))
+    await assertSucceeds(getDoc(doc(db, ...pad('leden', 'jan'))))
+    await assertSucceeds(getDoc(doc(db, 'clubs', CLUB)))
+  })
+  test('zelf gebruikers/{uid} schrijven: geweigerd (ook je eigen, ook naar een andere club)', async () => {
+    await assertFails(setDoc(doc(db, 'gebruikers', 'jan'), { clubId: 'club2' }))
+    await assertFails(updateDoc(doc(db, 'gebruikers', 'jan'), { clubId: 'club2' }))
+    await assertFails(deleteDoc(doc(db, 'gebruikers', 'jan')))
+    await assertFails(setDoc(doc(buiten, 'gebruikers', 'piet'), { clubId: CLUB }))
+  })
+  test('zelf leden/{uid} aanmaken: geweigerd', async () => {
+    await assertFails(setDoc(doc(buiten, ...pad('leden', 'piet')), { rol: 'beheerder' }))
+    await assertFails(setDoc(doc(buiten, ...pad('leden', 'piet')), { rol: 'lid' }))
+    await assertFails(setDoc(doc(db, ...pad('leden', 'nieuw')), { rol: 'lid' }))
+  })
+  test('je rol ophogen of je lidmaatschap weghalen: geweigerd', async () => {
+    await assertFails(updateDoc(doc(kees(), ...pad('leden', 'kees')), { rol: 'beheerder' }))
+    await assertFails(setDoc(doc(kees(), ...pad('leden', 'kees')), { rol: 'beheerder' }))
+    await assertFails(updateDoc(doc(db, ...pad('leden', 'kees')), { rol: 'beheerder' }))
+    await assertFails(updateDoc(doc(db, ...pad('leden', 'jan')), { rol: 'eigenaar' }))
+    await assertFails(deleteDoc(doc(kees(), ...pad('leden', 'kees'))))
+  })
+  test('clubs/{id} schrijven: geweigerd, ook voor een beheerder', async () => {
+    await assertFails(updateDoc(doc(db, 'clubs', CLUB), { naam: 'Overgenomen' }))
+    await assertFails(setDoc(doc(db, 'clubs', 'club3'), { naam: 'Nieuwe club' }))
+    await assertFails(deleteDoc(doc(db, 'clubs', CLUB)))
+    await assertFails(getDoc(doc(buiten, 'clubs', CLUB)))
+  })
+  test('het document van een ander lezen: geweigerd', async () => {
+    await assertFails(getDoc(doc(db, 'gebruikers', 'kees')))
+    await assertFails(getDoc(doc(db, ...pad('leden', 'kees'))))
+    await assertFails(getDoc(doc(kees(), ...pad('leden', 'jan'))))
+    await assertFails(getDocs(collection(db, ...pad('leden'))))
+    await assertFails(getDocs(collection(db, 'gebruikers')))
+  })
+  test('niet ingelogd: niets te lezen', async () => {
+    const anoniem = env.unauthenticatedContext().firestore()
+    await assertFails(getDoc(doc(anoniem, 'gebruikers', 'jan')))
+    await assertFails(getDoc(doc(anoniem, ...pad('instellingen', 'profiel'))))
+    await assertFails(getDocs(collection(anoniem, ...pad('structuurelementen'))))
+  })
+})
+
+// ── Omgevingsguard (src/omgeving.js, gebruikt door src/firebase.js) ──
+describe('omgevingsguard', () => {
+  const config = (projectId, anders = {}) => ({
+    apiKey: 'sleutel', authDomain: `${projectId}.firebaseapp.com`, projectId,
+    storageBucket: `${projectId}.appspot.com`, messagingSenderId: '123', appId: '1:123:web:abc', ...anders,
+  })
+  const TEST = 'svn10-clubkompas-test'
+  const g = invoer => bepaalOmgeving({ dev: false, modus: 'production', label: '', vercelEnv: '', modusSleutels: [], ...invoer })
+
+  test('lokaal: npm run dev tegen test, dev:productie tegen productie', () => {
+    assert.deepEqual(g({ dev: true, modus: 'test', config: config(TEST), modusSleutels: FIREBASE_SLEUTELS }),
+      { soort: 'ontwikkel', label: 'Ontwikkel', configFout: null, labelWijktAf: false, liveOnvolledig: false })
+    const p = g({ dev: true, modus: 'productie', config: config(PRODUCTIE_PROJECT_ID) })
+    assert.equal(p.soort, 'productie-lokaal')
+    assert.equal(p.configFout, null)
+  })
+  test('lokaal: productieproject zonder modus productie stopt', () => {
+    assert.equal(g({ dev: true, modus: 'test', config: config(PRODUCTIE_PROJECT_ID), modusSleutels: FIREBASE_SLEUTELS }).configFout, 'productie-lokaal')
+    assert.equal(g({ dev: true, modus: 'development', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'productie-lokaal')
+  })
+  test('lokaal: gemengde of onvolledige config stopt', () => {
+    assert.equal(g({ dev: true, modus: 'test', config: config(TEST), modusSleutels: FIREBASE_SLEUTELS.slice(1) }).configFout, 'gemengde-config')
+    assert.equal(g({ dev: true, modus: 'test', config: config(TEST, { authDomain: 'svn10-clubkompas.firebaseapp.com' }), modusSleutels: FIREBASE_SLEUTELS }).configFout, 'gemengde-config')
+    assert.equal(g({ dev: true, modus: 'test', config: config(TEST, { appId: '1:999:web:abc' }), modusSleutels: FIREBASE_SLEUTELS }).configFout, 'gemengde-config')
+    assert.equal(g({ dev: true, modus: 'test', config: config(TEST, { apiKey: '' }), modusSleutels: FIREBASE_SLEUTELS }).configFout, 'gemengde-config')
+  })
+  test('geen project: geen-config', () => {
+    assert.equal(g({ config: config('') }).configFout, 'geen-config')
+    assert.equal(g({ dev: true, modus: 'test', config: config('') }).configFout, 'geen-config')
+  })
+  test('Vercel Production: altijd productie, breekt nooit op een onvolledige config', () => {
+    const live = g({ vercelEnv: 'production', label: 'productie', config: config(PRODUCTIE_PROJECT_ID) })
+    assert.deepEqual([live.soort, live.configFout, live.labelWijktAf], ['productie', null, false])
+    assert.equal(g({ vercelEnv: 'production', label: 'test', config: config(PRODUCTIE_PROJECT_ID) }).soort, 'productie')
+    const half = g({ vercelEnv: 'production', label: 'productie', config: config(PRODUCTIE_PROJECT_ID, { apiKey: '' }) })
+    assert.deepEqual([half.configFout, half.liveOnvolledig], [null, true])
+  })
+  test('Vercel Preview met het productieproject: stopt (test-met-productie)', () => {
+    assert.equal(g({ vercelEnv: 'preview', label: 'productie', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
+    assert.equal(g({ vercelEnv: 'preview', label: 'ontwikkel', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
+  })
+  test('Vercel Preview met het testproject: test, met balk', () => {
+    const r = g({ vercelEnv: 'preview', label: 'test', config: config(TEST) })
+    assert.deepEqual([r.soort, r.configFout, r.labelWijktAf], ['test', null, false])
+    assert.equal(g({ vercelEnv: 'preview', label: 'test', config: config(TEST, { appId: '1:999:web:abc' }) }).configFout, 'gemengde-config')
+  })
+  test('lokale build (vite build, geen Vercel): label bepaalt test of ontwikkel; afwijkend label geeft alleen een waarschuwing', () => {
+    assert.equal(g({ label: 'productie', config: config(PRODUCTIE_PROJECT_ID) }).soort, 'productie')
+    assert.equal(g({ label: 'test', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
+    const r = g({ label: 'productie', config: config(TEST) })
+    assert.deepEqual([r.soort, r.labelWijktAf, r.configFout], ['test', true, null])
+  })
+})

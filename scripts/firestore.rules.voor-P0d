@@ -1,0 +1,294 @@
+// Repo is de bron. Publiceren via `npm run regels:test`, daarna `npm run regels:productie`.
+// Terugval: plak de inhoud in de Firebase-console (eerst test, dan productie).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function ingelogd() {
+      return request.auth != null;
+    }
+
+    function isLid(clubId) {
+      return ingelogd()
+        && exists(/databases/$(database)/documents/clubs/$(clubId)/leden/$(request.auth.uid));
+    }
+
+    function geldigLogo(data) {
+      return !('logo' in data)
+        || (data.logo is string && data.logo.matches('data:image/.*'));
+    }
+
+    // ── Vermogens (CK-020) ──
+    // Uniek per club via een naamdocument vermogensnamen/{sleutelVan(naam)}; per domein een teller
+    // aantalVermogens (ontbreekt = 0) die alleen ±1 mag veranderen, gekoppeld aan het vermogen
+    // in laatsteVermogenId dat in dezelfde schrijfactie bij dat domein komt of eruit gaat.
+    function vermogenPad(clubId, id) {
+      return /databases/$(database)/documents/clubs/$(clubId)/vermogens/$(id);
+    }
+    // Sleutel van een naam, gelijk aan naam.toLowerCase() in de app. lower() zet in de regels (getoetst
+    // in de emulator) alleen A-Z om; de Latin-1-hoofdletters (À-Ö, Ø-Þ) daarom hier zelf.
+    function sleutelVan(naam) {
+      return naam.lower()
+        .replace('À', 'à')
+        .replace('Á', 'á')
+        .replace('Â', 'â')
+        .replace('Ã', 'ã')
+        .replace('Ä', 'ä')
+        .replace('Å', 'å')
+        .replace('Æ', 'æ')
+        .replace('Ç', 'ç')
+        .replace('È', 'è')
+        .replace('É', 'é')
+        .replace('Ê', 'ê')
+        .replace('Ë', 'ë')
+        .replace('Ì', 'ì')
+        .replace('Í', 'í')
+        .replace('Î', 'î')
+        .replace('Ï', 'ï')
+        .replace('Ð', 'ð')
+        .replace('Ñ', 'ñ')
+        .replace('Ò', 'ò')
+        .replace('Ó', 'ó')
+        .replace('Ô', 'ô')
+        .replace('Õ', 'õ')
+        .replace('Ö', 'ö')
+        .replace('Ø', 'ø')
+        .replace('Ù', 'ù')
+        .replace('Ú', 'ú')
+        .replace('Û', 'û')
+        .replace('Ü', 'ü')
+        .replace('Ý', 'ý')
+        .replace('Þ', 'þ');
+    }
+    function naamPad(clubId, naam) {
+      return /databases/$(database)/documents/clubs/$(clubId)/vermogensnamen/$(sleutelVan(naam));
+    }
+    function domeinPad(clubId, id) {
+      return /databases/$(database)/documents/clubs/$(clubId)/structuurelementen/$(id);
+    }
+    function teller(d) {
+      return d.get('aantalVermogens', 0);
+    }
+
+    // Eerste teken letter of cijfer; daarna ook spatie en & ' - . , ( ) +. Letters: a-z, A-Z en Latin-1.
+    function geldigeVermogensnaam(n) {
+      return n is string && n.size() >= 2 && n.size() <= 100
+        && n.matches("[a-zA-Z0-9À-ÖØ-öø-ÿ][a-zA-Z0-9À-ÖØ-öø-ÿ &'.,()+-]*")
+        && n == n.trim()
+        && !n.matches('.*  .*');
+    }
+    function geldigVermogen(d) {
+      return d.keys().hasOnly(['naam', 'domeinId', 'volgorde'])
+        && d.keys().hasAll(['naam', 'domeinId', 'volgorde'])
+        && geldigeVermogensnaam(d.naam)
+        && d.domeinId is string && d.domeinId.size() > 0 && d.domeinId.size() <= 100
+        && d.volgorde is int && d.volgorde >= 1 && d.volgorde <= 100000;
+    }
+    function domeinKanVermogens(clubId, domeinId) {
+      return getAfter(domeinPad(clubId, domeinId)).data.type in ['pijler', 'domein'];
+    }
+    // Teller van domein domeinId verandert in deze schrijfactie met precies stap, toegeschreven aan vermogen id
+    function tellerStap(clubId, domeinId, id, stap) {
+      let voor = get(domeinPad(clubId, domeinId)).data;
+      let na = getAfter(domeinPad(clubId, domeinId)).data;
+      return teller(na) == teller(voor) + stap && na.get('laatsteVermogenId', '') == id;
+    }
+    function naamHoortNaBij(clubId, naam, id) {
+      return getAfter(naamPad(clubId, naam)).data.vermogenId == id;
+    }
+    function oudeNaamLos(clubId, naam, id) {
+      return !existsAfter(naamPad(clubId, naam))
+        || getAfter(naamPad(clubId, naam)).data.vermogenId != id;
+    }
+    function vermogenKomtBij(clubId, domeinId, v) {
+      return getAfter(vermogenPad(clubId, v)).data.domeinId == domeinId
+        && (!exists(vermogenPad(clubId, v)) || get(vermogenPad(clubId, v)).data.domeinId != domeinId);
+    }
+    function vermogenGaatWeg(clubId, domeinId, v) {
+      return get(vermogenPad(clubId, v)).data.domeinId == domeinId
+        && (!existsAfter(vermogenPad(clubId, v)) || getAfter(vermogenPad(clubId, v)).data.domeinId != domeinId);
+    }
+    // laatsteVermogenId: ontbreekt, of een korte string (ook als de teller gelijk blijft)
+    function geldigLaatste(d) {
+      return !('laatsteVermogenId' in d)
+        || (d.laatsteVermogenId is string && d.laatsteVermogenId.size() <= 100);
+    }
+    function tellerWijzigingKlopt(clubId, domeinId) {
+      let oud = teller(resource.data);
+      let nieuw = teller(request.resource.data);
+      let v = request.resource.data.get('laatsteVermogenId', '');
+      return nieuw is int && nieuw >= 0 && geldigLaatste(request.resource.data) && (
+        nieuw == oud
+        || (nieuw == oud + 1 && v is string && v.size() > 0 && vermogenKomtBij(clubId, domeinId, v))
+        || (nieuw == oud - 1 && v is string && v.size() > 0 && vermogenGaatWeg(clubId, domeinId, v)));
+    }
+
+    // ── Projecten en samenwerkingen (CK-046) ──
+    // Eerste teken letter of cijfer; daarna ook spatie en & ' - . , ( ) + /. Uniek alleen in de app.
+    function geldigeOnderdeelnaam(n) {
+      return n is string && n.size() >= 2 && n.size() <= 100
+        && n.matches("[a-zA-Z0-9À-ÖØ-öø-ÿ][a-zA-Z0-9À-ÖØ-öø-ÿ &'.,()+/-]*")
+        && n == n.trim()
+        && !n.matches('.*  .*');
+    }
+    function tekstTot(v, max) {
+      return v is string && v.size() <= max;
+    }
+    // JJJJ-MM-DD (maand 01-12, dag 01-31) of leeg
+    function geldigeDatum(v) {
+      return tekstTot(v, 10) && (v == '' || v.matches('[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])'));
+    }
+    // Beide ingevuld: einde niet vóór begin (stringvergelijking werkt door het vaste formaat)
+    function geldigePeriode(d) {
+      return d.begindatum == '' || d.einddatum == '' || d.einddatum >= d.begindatum;
+    }
+    function geldigeBasis(d) {
+      return geldigeOnderdeelnaam(d.naam)
+        && tekstTot(d.omschrijving, 500)
+        && tekstTot(d.bestuursfunctieId, 100)
+        && d.volgorde is int && d.volgorde >= 1 && d.volgorde <= 100000;
+    }
+    function geldigProject(d) {
+      return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
+        && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
+        && geldigeBasis(d)
+        && d.status in ['in-voorbereiding', 'lopend', 'afgerond']
+        && geldigeDatum(d.begindatum)
+        && geldigeDatum(d.einddatum)
+        && geldigePeriode(d);
+    }
+    // Ook voor commissies (CK-041): naam, omschrijving, eigenaar, volgorde
+    function geldigeSamenwerking(d) {
+      return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
+        && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
+        && geldigeBasis(d);
+    }
+    // Welk overkoepelend blok op de plaat de kaartjes toont: ontbreekt, of projecten/samenwerkingen
+    function geldigBevat(d) {
+      return !('bevat' in d) || d.bevat in ['projecten', 'samenwerkingen'];
+    }
+
+    // Wijzer gebruiker → club: alleen eigen document lezen, nooit schrijven vanuit de app
+    match /gebruikers/{uid} {
+      allow read: if ingelogd() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /clubs/{clubId} {
+      // Clubdocument zelf
+      allow read: if isLid(clubId);
+      allow write: if false;
+
+      // Lidmaatschap: alleen je eigen ledendocument lezen, niemand mag via de app schrijven
+      match /leden/{uid} {
+        allow read: if ingelogd() && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // Expliciet per collectie. Elke nieuwe collectie moet hier bewust worden toegevoegd;
+      // alles wat niet genoemd is, is dicht.
+
+      // Clubprofiel (naam, afkorting, seizoen, logo als data:image/-URL)
+      match /instellingen/{docId} {
+        allow read: if isLid(clubId);
+        allow create, update: if isLid(clubId)
+          && docId == 'profiel'
+          && geldigLogo(request.resource.data);
+      }
+
+      // Bestuursfuncties (masterdata): eindverantwoordelijken voor de domeinen
+      match /bestuursfuncties/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId)
+          && request.resource.data.naam is string
+          && request.resource.data.naam.size() >= 2
+          && request.resource.data.naam.size() <= 100;
+      }
+
+      // Domeinen (pijler, ondersteunend of overkoepelend). Met vermogens (teller > 0): niet
+      // verwijderen en niet naar overkoepelend. De app schrijft de tellervelden nooit los.
+      match /structuurelementen/{id} {
+        allow read: if isLid(clubId);
+        allow create: if isLid(clubId)
+          && request.resource.data.type in ['pijler', 'domein', 'overkoepelend']
+          && request.resource.data.naam is string
+          && request.resource.data.naam.size() <= 200
+          && teller(request.resource.data) is int
+          && teller(request.resource.data) == 0
+          && geldigLaatste(request.resource.data)
+          && geldigBevat(request.resource.data);
+        allow update: if isLid(clubId)
+          && request.resource.data.type in ['pijler', 'domein', 'overkoepelend']
+          && request.resource.data.naam is string
+          && request.resource.data.naam.size() <= 200
+          && tellerWijzigingKlopt(clubId, id)
+          && geldigBevat(request.resource.data)
+          && (request.resource.data.type != 'overkoepelend'
+              || resource.data.type == 'overkoepelend'
+              || teller(request.resource.data) == 0);
+        allow delete: if isLid(clubId) && teller(resource.data) == 0;
+      }
+
+      // Vermogens (CK-020): naam, domein (pijler of ondersteunend) en volgorde binnen het domein
+      match /vermogens/{id} {
+        allow read: if isLid(clubId);
+        allow create: if isLid(clubId)
+          && geldigVermogen(request.resource.data)
+          && domeinKanVermogens(clubId, request.resource.data.domeinId)
+          && tellerStap(clubId, request.resource.data.domeinId, id, 1)
+          && naamHoortNaBij(clubId, request.resource.data.naam, id);
+        allow update: if isLid(clubId)
+          && geldigVermogen(request.resource.data)
+          // naam: zelfde sleutel, of het nieuwe naamdocument is van dit vermogen en het oude is los
+          && (sleutelVan(request.resource.data.naam) == sleutelVan(resource.data.naam)
+              || (naamHoortNaBij(clubId, request.resource.data.naam, id)
+                  && oudeNaamLos(clubId, resource.data.naam, id)))
+          // domein: ongewijzigd, of verplaatst met beide tellers ±1 (oud domein mag ontbreken)
+          && (request.resource.data.domeinId == resource.data.domeinId
+              || (domeinKanVermogens(clubId, request.resource.data.domeinId)
+                  && tellerStap(clubId, request.resource.data.domeinId, id, 1)
+                  && (!exists(domeinPad(clubId, resource.data.domeinId))
+                      || tellerStap(clubId, resource.data.domeinId, id, -1))));
+        allow delete: if isLid(clubId)
+          && oudeNaamLos(clubId, resource.data.naam, id)
+          && (!exists(domeinPad(clubId, resource.data.domeinId))
+              || tellerStap(clubId, resource.data.domeinId, id, -1));
+      }
+
+      // Projecten (CK-046): tijdelijke trajecten met status en periode
+      match /projecten/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId) && geldigProject(request.resource.data);
+      }
+
+      // Samenwerkingen (CK-046): externe partners, zonder status of periode
+      match /samenwerkingen/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
+      }
+
+      // Commissies (CK-041): zelfde velden als een samenwerking, alleen in Beheer
+      match /commissies/{id} {
+        allow read, delete: if isLid(clubId);
+        allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
+      }
+
+      // Naamdocumenten: alleen aanmaken (nooit wijzigen); weg alleen als de naam niet meer bij dat vermogen hoort
+      match /vermogensnamen/{sleutel} {
+        allow read: if isLid(clubId);
+        allow create: if isLid(clubId)
+          && request.resource.data.keys().hasOnly(['vermogenId'])
+          && request.resource.data.vermogenId is string
+          && request.resource.data.vermogenId.size() > 0
+          && request.resource.data.vermogenId.size() <= 100
+          && sleutelVan(getAfter(vermogenPad(clubId, request.resource.data.vermogenId)).data.naam) == sleutel;
+        allow update: if false;
+        allow delete: if isLid(clubId)
+          && (!existsAfter(vermogenPad(clubId, resource.data.vermogenId))
+              || sleutelVan(getAfter(vermogenPad(clubId, resource.data.vermogenId)).data.naam) != sleutel);
+      }
+    }
+
+    // Alles wat hierboven niet genoemd is: dicht (impliciet, Firestore default deny)
+  }
+}

@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "regels:test": "node scripts/regels.mjs --omgeving=test",
     "regels:productie": "node scripts/regels.mjs --omgeving=productie",
+    "p0d:controle": "node scripts/controleer-p0d.mjs",
     "test:regels": "firebase emulators:exec --only firestore --project demo-clubkompas \"node --test tests/regels.test.mjs\"",
     "vermogens:import": "node scripts/inrichten-vermogens-hca.mjs",
     "vermogens:controle": "node scripts/controleer-vermogens.mjs",

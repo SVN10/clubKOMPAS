@@ -13,9 +13,20 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/clubs/$(clubId)/leden/$(request.auth.uid));
     }
 
+    // Beheer (P0d): alleen de rol 'beheerder' in clubs/{clubId}/leden/{uid} mag masterdata schrijven.
+    // Ontbreekt het ledendocument, dan geeft get() een fout en wordt de schrijfactie geweigerd.
+    function isBeheerder(clubId) {
+      return ingelogd()
+        && get(/databases/$(database)/documents/clubs/$(clubId)/leden/$(request.auth.uid)).data.get('rol', '') == 'beheerder';
+    }
+
+    // Logo: alleen PNG, JPEG of WebP als base64-data-URL (geen SVG, CK-052), max. 700.000 tekens.
+    // De app verkleint naar max. 300 px; een PNG van 300 x 300 is in base64 hooguit ca. 480.000 tekens.
     function geldigLogo(data) {
       return !('logo' in data)
-        || (data.logo is string && data.logo.matches('data:image/.*'));
+        || (data.logo is string
+            && data.logo.size() <= 700000
+            && data.logo.matches('data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}'));
     }
 
     // ── Vermogens (CK-020) ──
@@ -168,6 +179,49 @@ service cloud.firestore {
       return !('bevat' in d) || d.bevat in ['projecten', 'samenwerkingen'];
     }
 
+    // ── Veldcontrole masterdata (P0d) ──
+    // Velden die ontbreken mogen (oudere documenten, schrijven met merge); wat er staat, moet kloppen.
+    function nietLeeg(v, max) {
+      return v is string && v.size() <= max && v.trim().size() > 0;
+    }
+    function optioneel(d, veld, max) {
+      return !(veld in d) || tekstTot(d[veld], max);
+    }
+    function geldigeVolgorde(d) {
+      return !('volgorde' in d) || (d.volgorde is int && d.volgorde >= 1 && d.volgorde <= 100000);
+    }
+    // Clubprofiel: naam, afkorting, seizoen en logo; elk veld mag ontbreken (merge), maar niet leeg zijn
+    function geldigProfiel(d) {
+      return d.keys().hasOnly(['naam', 'afkorting', 'seizoen', 'logo'])
+        && (!('naam' in d) || nietLeeg(d.naam, 100))
+        && (!('afkorting' in d) || nietLeeg(d.afkorting, 20))
+        && (!('seizoen' in d) || nietLeeg(d.seizoen, 20))
+        && geldigLogo(d);
+    }
+    function geldigeBestuursfunctie(d) {
+      return d.keys().hasOnly(['naam', 'volgorde'])
+        && d.naam is string && d.naam.trim().size() >= 2 && d.naam.size() <= 100
+        && geldigeVolgorde(d);
+    }
+    // Hashtag: leeg, of # gevolgd door 1-49 tekens zonder spatie of tweede # (zoals hashtagFout in de app)
+    function geldigeHashtag(d) {
+      return !('hashtag' in d)
+        || (d.hashtag is string && (d.hashtag == '' || d.hashtag.matches('#[^\\s#]{1,49}')));
+    }
+    function geldigDomein(d) {
+      return d.keys().hasOnly(['type', 'naam', 'hashtag', 'omschrijving', 'bestuursfunctieId', 'icoon',
+          'volgorde', 'aantalVermogens', 'laatsteVermogenId', 'bevat'])
+        && d.type in ['pijler', 'domein', 'overkoepelend']
+        && nietLeeg(d.naam, 200)
+        && geldigeHashtag(d)
+        && optioneel(d, 'omschrijving', 500)
+        && optioneel(d, 'bestuursfunctieId', 100)
+        && optioneel(d, 'icoon', 50)
+        && geldigeVolgorde(d)
+        && geldigLaatste(d)
+        && geldigBevat(d);
+    }
+
     // Wijzer gebruiker → club: alleen eigen document lezen, nooit schrijven vanuit de app
     match /gebruikers/{uid} {
       allow read: if ingelogd() && request.auth.uid == uid;
@@ -188,56 +242,51 @@ service cloud.firestore {
       // Expliciet per collectie. Elke nieuwe collectie moet hier bewust worden toegevoegd;
       // alles wat niet genoemd is, is dicht.
 
+      // Lezen: elk lid. Schrijven (aanmaken, wijzigen, verwijderen): alleen een beheerder (P0d).
+      // Daarmee kan ook alleen een beheerder 'bevat' op een domein zetten of weghalen.
+
       // Clubprofiel (naam, afkorting, seizoen, logo als data:image/-URL)
       match /instellingen/{docId} {
         allow read: if isLid(clubId);
-        allow create, update: if isLid(clubId)
+        allow create, update: if isBeheerder(clubId)
           && docId == 'profiel'
-          && geldigLogo(request.resource.data);
+          && geldigProfiel(request.resource.data);
       }
 
       // Bestuursfuncties (masterdata): eindverantwoordelijken voor de domeinen
       match /bestuursfuncties/{id} {
-        allow read, delete: if isLid(clubId);
-        allow create, update: if isLid(clubId)
-          && request.resource.data.naam is string
-          && request.resource.data.naam.size() >= 2
-          && request.resource.data.naam.size() <= 100;
+        allow read: if isLid(clubId);
+        allow delete: if isBeheerder(clubId);
+        allow create, update: if isBeheerder(clubId)
+          && geldigeBestuursfunctie(request.resource.data);
       }
 
       // Domeinen (pijler, ondersteunend of overkoepelend). Met vermogens (teller > 0): niet
       // verwijderen en niet naar overkoepelend. De app schrijft de tellervelden nooit los.
       match /structuurelementen/{id} {
         allow read: if isLid(clubId);
-        allow create: if isLid(clubId)
-          && request.resource.data.type in ['pijler', 'domein', 'overkoepelend']
-          && request.resource.data.naam is string
-          && request.resource.data.naam.size() <= 200
+        allow create: if isBeheerder(clubId)
+          && geldigDomein(request.resource.data)
           && teller(request.resource.data) is int
-          && teller(request.resource.data) == 0
-          && geldigLaatste(request.resource.data)
-          && geldigBevat(request.resource.data);
-        allow update: if isLid(clubId)
-          && request.resource.data.type in ['pijler', 'domein', 'overkoepelend']
-          && request.resource.data.naam is string
-          && request.resource.data.naam.size() <= 200
+          && teller(request.resource.data) == 0;
+        allow update: if isBeheerder(clubId)
+          && geldigDomein(request.resource.data)
           && tellerWijzigingKlopt(clubId, id)
-          && geldigBevat(request.resource.data)
           && (request.resource.data.type != 'overkoepelend'
               || resource.data.type == 'overkoepelend'
               || teller(request.resource.data) == 0);
-        allow delete: if isLid(clubId) && teller(resource.data) == 0;
+        allow delete: if isBeheerder(clubId) && teller(resource.data) == 0;
       }
 
       // Vermogens (CK-020): naam, domein (pijler of ondersteunend) en volgorde binnen het domein
       match /vermogens/{id} {
         allow read: if isLid(clubId);
-        allow create: if isLid(clubId)
+        allow create: if isBeheerder(clubId)
           && geldigVermogen(request.resource.data)
           && domeinKanVermogens(clubId, request.resource.data.domeinId)
           && tellerStap(clubId, request.resource.data.domeinId, id, 1)
           && naamHoortNaBij(clubId, request.resource.data.naam, id);
-        allow update: if isLid(clubId)
+        allow update: if isBeheerder(clubId)
           && geldigVermogen(request.resource.data)
           // naam: zelfde sleutel, of het nieuwe naamdocument is van dit vermogen en het oude is los
           && (sleutelVan(request.resource.data.naam) == sleutelVan(resource.data.naam)
@@ -249,7 +298,7 @@ service cloud.firestore {
                   && tellerStap(clubId, request.resource.data.domeinId, id, 1)
                   && (!exists(domeinPad(clubId, resource.data.domeinId))
                       || tellerStap(clubId, resource.data.domeinId, id, -1))));
-        allow delete: if isLid(clubId)
+        allow delete: if isBeheerder(clubId)
           && oudeNaamLos(clubId, resource.data.naam, id)
           && (!exists(domeinPad(clubId, resource.data.domeinId))
               || tellerStap(clubId, resource.data.domeinId, id, -1));
@@ -257,33 +306,36 @@ service cloud.firestore {
 
       // Projecten (CK-046): tijdelijke trajecten met status en periode
       match /projecten/{id} {
-        allow read, delete: if isLid(clubId);
-        allow create, update: if isLid(clubId) && geldigProject(request.resource.data);
+        allow read: if isLid(clubId);
+        allow delete: if isBeheerder(clubId);
+        allow create, update: if isBeheerder(clubId) && geldigProject(request.resource.data);
       }
 
       // Samenwerkingen (CK-046): externe partners, zonder status of periode
       match /samenwerkingen/{id} {
-        allow read, delete: if isLid(clubId);
-        allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
+        allow read: if isLid(clubId);
+        allow delete: if isBeheerder(clubId);
+        allow create, update: if isBeheerder(clubId) && geldigeSamenwerking(request.resource.data);
       }
 
       // Commissies (CK-041): zelfde velden als een samenwerking, alleen in Beheer
       match /commissies/{id} {
-        allow read, delete: if isLid(clubId);
-        allow create, update: if isLid(clubId) && geldigeSamenwerking(request.resource.data);
+        allow read: if isLid(clubId);
+        allow delete: if isBeheerder(clubId);
+        allow create, update: if isBeheerder(clubId) && geldigeSamenwerking(request.resource.data);
       }
 
       // Naamdocumenten: alleen aanmaken (nooit wijzigen); weg alleen als de naam niet meer bij dat vermogen hoort
       match /vermogensnamen/{sleutel} {
         allow read: if isLid(clubId);
-        allow create: if isLid(clubId)
+        allow create: if isBeheerder(clubId)
           && request.resource.data.keys().hasOnly(['vermogenId'])
           && request.resource.data.vermogenId is string
           && request.resource.data.vermogenId.size() > 0
           && request.resource.data.vermogenId.size() <= 100
           && sleutelVan(getAfter(vermogenPad(clubId, request.resource.data.vermogenId)).data.naam) == sleutel;
         allow update: if false;
-        allow delete: if isLid(clubId)
+        allow delete: if isBeheerder(clubId)
           && (!existsAfter(vermogenPad(clubId, resource.data.vermogenId))
               || sleutelVan(getAfter(vermogenPad(clubId, resource.data.vermogenId)).data.naam) != sleutel);
       }

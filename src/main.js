@@ -27,8 +27,11 @@ const SUPPORT_EMAIL = 'support@svn10.nl'
 
 // Alleen PNG, JPG en WebP; geen SVG (CK-052). De app slaat zelf altijd PNG op.
 const LOGO_SOORTEN = ['image/png', 'image/jpeg', 'image/webp']
+// Zelfde grens en patroon als geldigLogo in firestore.rules (P0d)
+const LOGO_MAX_TEKENS = 700000
 function veiligLogo(waarde) {
-  return typeof waarde === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(waarde) ? waarde : ''
+  return typeof waarde === 'string' && waarde.length <= LOGO_MAX_TEKENS
+    && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(waarde) ? waarde : ''
 }
 
 // Zet het clublogo als favicon, of zet het standaard kompas-icoon terug als er geen logo is.
@@ -264,7 +267,10 @@ const LOGO_MAX_BYTES = 10 * 1024 * 1024
 async function leesLogoBestand(file, lees = resizeAfbeelding) {
   if (typeof file?.type !== 'string' || !LOGO_SOORTEN.includes(file.type)) throw { code: 'bestand-onleesbaar' }
   if (!(file.size <= LOGO_MAX_BYTES)) throw { code: 'bestand-te-groot' }
-  try { return await lees(file) } catch { throw { code: 'bestand-onleesbaar' } }
+  let logo
+  try { logo = await lees(file) } catch { throw { code: 'bestand-onleesbaar' } }
+  if (logo.length > LOGO_MAX_TEKENS) throw { code: 'logo-te-groot' }
+  return logo
 }
 
 // ── Club bepalen ──────────────────────────────────────────────────────────────
@@ -280,10 +286,21 @@ async function laadRol(gebruiker) {
   try {
     const snap = await getDoc(doc(db, 'clubs', huidigClubId, 'leden', gebruiker.uid))
     const rol = snap.exists() ? snap.data().rol : null
-    return typeof rol === 'string' && rol.trim() ? rol.trim() : null
+    // Niet trimmen: de regels vergelijken de rol letterlijk (P0d)
+    return typeof rol === 'string' && rol ? rol : null
   } catch {
     return null
   }
+}
+
+const isBeheerder = () => huidigeRol === 'beheerder'
+
+// Guard bovenaan elke beheer-render (P0d): geen beheerder, dan Home in plaats van de beheerpagina
+function geenBeheer(gebruiker) {
+  if (isBeheerder()) return false
+  renderHome(gebruiker)
+  document.title = paginaTitel(navNaam('home'))
+  return true
 }
 
 async function laadClub(gebruiker) {
@@ -343,6 +360,7 @@ const FOUTTEKSTEN = {
   'failed-precondition': BESTAAT_NIET,
   'bestand-onleesbaar': 'Dit bestand kan niet als logo worden gebruikt. Kies een PNG-, JPG- of WebP-bestand.',
   'bestand-te-groot': 'Dit bestand is te groot (maximaal 10 MB).',
+  'logo-te-groot': 'Dit logo is na het verkleinen nog te groot om op te slaan. Kies een eenvoudiger afbeelding.',
   'auth/email-already-in-use': 'Dit e-mailadres wordt al gebruikt door een ander account. Kies een ander adres.',
   'auth/invalid-email': 'Dit is geen geldig e-mailadres. Controleer of er een @ en een punt in staan.',
   'auth/weak-password': 'Dit wachtwoord is te zwak. Gebruik minimaal 8 tekens, liefst met cijfers of leestekens.',
@@ -514,6 +532,11 @@ function enterSlaatOp(container, opslaanKnop) {
 function minFout(waarde, min, leeg = 'Vul dit veld in.') {
   if (!waarde) return leeg
   return waarde.length < min ? `Gebruik minimaal ${min} tekens.` : ''
+}
+// Zelfde grenzen als geldigProfiel in firestore.rules (P0d)
+function maxFout(waarde, max) {
+  const n = [...waarde].length
+  return n > max ? `Gebruik maximaal ${max} tekens. Nu zijn het er ${n}.` : ''
 }
 
 // Terugval voor de focus: de toevoegknop, of het eerste veld van het open formulier als die verborgen is
@@ -1053,6 +1076,12 @@ function renderHome(gebruiker) {
   bindAppShell(gebruiker)
 }
 
+// Kerncijfer als link naar een pagina; mag je daar niet heen (Beheer zonder rol beheerder), dan een vak zonder link
+function cijferHTML(getal, label, nav, filter = '') {
+  if (!magNaar(nav)) return `<div class="cijfer">${getal}<span class="l">${label}</span></div>`
+  return `<a href="#" class="cijfer cijfer-link" data-nav="${nav}"${filter ? ` data-filter="${filter}"` : ''}>${getal}<span class="l">${label}<span aria-hidden="true"> →</span></span></a>`
+}
+
 function renderDomeinenoverzicht(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'domeinenoverzicht', kruimels: [['Home', 'home'], [navNaam('domeinenoverzicht')]], inhoud: `
         <div class="pagina-kop">
@@ -1060,10 +1089,10 @@ function renderDomeinenoverzicht(gebruiker) {
         </div>
 
         <div class="cijfers" aria-label="Kerncijfers">
-          <a href="#" class="cijfer cijfer-link" data-nav="domeinen" data-filter="pijler"><span class="n" id="cijfer-pijlers">–</span><span class="l">Pijlers<span aria-hidden="true"> →</span></span></a>
-          <a href="#" class="cijfer cijfer-link" data-nav="domeinen" data-filter="domein"><span class="n" id="cijfer-domeinen">–</span><span class="l">Ondersteunende domeinen<span aria-hidden="true"> →</span></span></a>
-          <a href="#" class="cijfer cijfer-link" data-nav="domeinen" data-filter="overkoepelend"><span class="n" id="cijfer-overkoepelend">–</span><span class="l">Overkoepelende domeinen<span aria-hidden="true"> →</span></span></a>
-          <a href="#" class="cijfer cijfer-link" data-nav="vermogens"><span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span><span class="l">Vermogens<span aria-hidden="true"> →</span></span></a>
+          ${cijferHTML('<span class="n" id="cijfer-pijlers">–</span>', 'Pijlers', 'domeinen', 'pijler')}
+          ${cijferHTML('<span class="n" id="cijfer-domeinen">–</span>', 'Ondersteunende domeinen', 'domeinen', 'domein')}
+          ${cijferHTML('<span class="n" id="cijfer-overkoepelend">–</span>', 'Overkoepelende domeinen', 'domeinen', 'overkoepelend')}
+          ${cijferHTML('<span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span>', 'Vermogens', 'vermogens')}
         </div>
 
         <div class="sectie" role="region" aria-labelledby="sectie-kop-1">
@@ -1228,9 +1257,8 @@ async function renderPlaat(gebruiker) {
       if (!lijst) return '<span aria-hidden="true">–</span><span class="sr-only">niet geladen</span>'
       return (soort === 'projecten' ? lijst.filter(x => OP_PLAAT.has(x.status)) : lijst).length
     }
-    // Elk kerncijfer is een link naar de beheerpagina (zoals Vermogens op het Domeinenoverzicht)
-    const cijfer = (n, label, nav, filter = '') =>
-      `<a href="#" class="cijfer cijfer-link" data-nav="${nav}"${filter ? ` data-filter="${filter}"` : ''}><span class="n">${n}</span><span class="l">${label}<span aria-hidden="true"> →</span></span></a>`
+    // Elk kerncijfer is een link naar de beheerpagina (zoals Vermogens op het Domeinenoverzicht); zonder Beheer een vak
+    const cijfer = (n, label, nav, filter = '') => cijferHTML(`<span class="n">${n}</span>`, label, nav, filter)
     const cijfers = `
         <div class="cijfers cijfers-5" aria-label="Kerncijfers">
           ${cijfer(pijlers.length, 'Pijlers', 'domeinen', 'pijler')}
@@ -1321,7 +1349,7 @@ const ZIJMENU = [
     { id: 'domeinenoverzicht', naam: 'Domeinenoverzicht', ico: 'blokken' },
     { id: 'vermogens', naam: 'Vermogensoverzicht', ico: 'tegels' },
   ]},
-  { id: 'beheer', kop: 'Beheer', zichtbaar: () => true /* P0d: huidigeRol === 'beheerder' */, items: [
+  { id: 'beheer', kop: 'Beheer', zichtbaar: () => isBeheerder(), items: [
     { id: 'club', naam: 'Club', ico: 'vlag' },
     { id: 'functies', naam: 'Bestuursfuncties', ico: 'persoon' },
     { id: 'commissies', naam: 'Commissies', ico: 'groep' },
@@ -1332,6 +1360,10 @@ const ZIJMENU = [
   ]},
 ]
 const zichtbaar = x => x.zichtbaar ? x.zichtbaar() : true
+// Beheerpagina's (P0d): alleen voor de rol beheerder. Dit is gemak, geen beveiliging; de Firestore-regels
+// weigeren elke schrijfactie op masterdata van iemand die geen beheerder is.
+const BEHEER_PAGINAS = new Set(['beheer', ...ZIJMENU.find(g => g.id === 'beheer').items.map(i => i.id)])
+const magNaar = id => !BEHEER_PAGINAS.has(id) || isBeheerder()
 const PAGINA_NAAM = { beheer: 'Domeinen', account: 'Mijn account' }
 const navNaam = id => ZIJMENU.flatMap(g => g.items).find(i => i.id === id)?.naam || PAGINA_NAAM[id] || id
 
@@ -1353,6 +1385,7 @@ const NAV_DOEL = new Map([
 // Paginawissel door de gebruiker: titel bijwerken en focus naar de nieuwe inhoud (niet bij de eerste render).
 // opties gaan naar de render-functie, bijv. { filter: domeinId } voor Beheer → Vermogens.
 async function navigeer(id, gebruiker, opties = {}) {
+  if (!magNaar(id)) return navigeer('home', gebruiker)
   const doel = NAV_DOEL.get(id)
   if (!doel) return
   sluitPaneel({ focus: false })
@@ -1541,6 +1574,7 @@ function bindAppShell(gebruiker) {
 
 // alsNog: bij "Opnieuw laden" niet tekenen als de gebruiker intussen naar een andere pagina ging
 async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog = null } = {}) {
+  if (geenBeheer(gebruiker)) return
   // Zonder bestuursfuncties kan de lijst niet goed getekend worden: dan een laadfout (CK-048)
   let functies = []
   let functiesFout = null
@@ -2005,6 +2039,7 @@ function vermogenVeldFouten(naamId, domeinId) {
 }
 
 async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
+  if (geenBeheer(gebruiker)) return
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogensbeheer', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('vermogensbeheer')]], inhoud: `
         <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-3">
           <div class="sectie-kop">
@@ -2464,6 +2499,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
 // Eén beheerpagina voor alle soorten; id-voorvoegsel onderdeel- (er is er één tegelijk open)
 
 async function renderOnderdeelBeheer(gebruiker, soort) {
+  if (geenBeheer(gebruiker)) return
   const cfg = SOORT_ONDERDEEL[soort]
   const filterHTML = cfg.status ? `
               <div class="filter-keuze">
@@ -2863,6 +2899,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
 }
 
 async function renderBestuursfunctiesBeheer(gebruiker) {
+  if (geenBeheer(gebruiker)) return
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'functies', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('functies')]], inhoud: `
         <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-5">
           <div class="sectie-kop">
@@ -3129,6 +3166,7 @@ const CLUB_SUCCES = {
 
 // Club (profiel en logo) — tabblad onder Beheer
 function renderClubBeheer(gebruiker, { succes } = {}) {
+  if (geenBeheer(gebruiker)) return
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'club', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('club')]], inhoud: `
         <h1 class="sr-only">Club</h1>
@@ -3140,17 +3178,17 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
             <div class="profiel-form-wrap">
               <div class="form-groep">
                 <label class="form-label" for="profiel-naam">Clubnaam</label>
-                <input class="form-input" id="profiel-naam" type="text" placeholder="Volledige naam van de club" autocomplete="off" value="${esc(huidigProfiel?.naam || '')}">
+                <input class="form-input" id="profiel-naam" type="text" placeholder="Volledige naam van de club" autocomplete="off" maxlength="100" value="${esc(huidigProfiel?.naam || '')}">
                 <span class="form-fout" id="profiel-naam-fout"></span>
               </div>
               <div class="form-groep">
                 <label class="form-label" for="profiel-afkorting">Afkorting</label>
-                <input class="form-input" id="profiel-afkorting" type="text" placeholder="bv. FCE" autocomplete="off" value="${esc(huidigProfiel?.afkorting || '')}">
+                <input class="form-input" id="profiel-afkorting" type="text" placeholder="bv. FCE" autocomplete="off" maxlength="20" value="${esc(huidigProfiel?.afkorting || '')}">
                 <span class="form-fout" id="profiel-afkorting-fout"></span>
               </div>
               <div class="form-groep">
                 <label class="form-label" for="profiel-seizoen">Huidig seizoen</label>
-                <input class="form-input" id="profiel-seizoen" type="text" placeholder="bv. 2026–2027" autocomplete="off" value="${esc(huidigProfiel?.seizoen || '')}">
+                <input class="form-input" id="profiel-seizoen" type="text" placeholder="bv. 2026–2027" autocomplete="off" maxlength="20" value="${esc(huidigProfiel?.seizoen || '')}">
                 <span class="form-fout" id="profiel-seizoen-fout"></span>
               </div>
               <div class="form-rij">
@@ -3238,9 +3276,9 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
     const seizoen = document.getElementById('profiel-seizoen').value.trim()
 
     if (!valideerVelden([
-      ['profiel-naam', 'profiel-naam-fout', minFout(naam, 2)],
-      ['profiel-afkorting', 'profiel-afkorting-fout', minFout(afkorting, 2)],
-      ['profiel-seizoen', 'profiel-seizoen-fout', minFout(seizoen, 4)],
+      ['profiel-naam', 'profiel-naam-fout', minFout(naam, 2) || maxFout(naam, 100)],
+      ['profiel-afkorting', 'profiel-afkorting-fout', minFout(afkorting, 2) || maxFout(afkorting, 20)],
+      ['profiel-seizoen', 'profiel-seizoen-fout', minFout(seizoen, 4) || maxFout(seizoen, 20)],
     ])) return
 
     const velden = { naam, afkorting, seizoen }

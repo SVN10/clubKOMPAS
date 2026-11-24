@@ -376,8 +376,8 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ### Na CK-044 — vervolgpunten (nog te nummeren)
 **Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
 
-- [ ] **Harde eis voor P0d (Beheer alleen voor beheerders):** verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), `commissies` (CK-041), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
-  - [ ] **Aanvulling uit de app-analyse v0.12.1** (`.claude/reports/APP-0.12.1-eindoordeel.md`, M1/M2), in dezelfde regelronde:
+- [x] **Harde eis voor P0d (Beheer alleen voor beheerders):** *gebouwd op `test` (24-11-2026), doc en testlijst: `.claude/docs/P0d.md`; regels nog publiceren (Paul: eerst `npm run p0d:controle -- --droog`, dan `regels:test`, testlijst op tst, dan productie)* verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), `commissies` (CK-041), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+  - [x] **Aanvulling uit de app-analyse v0.12.1** (`.claude/reports/APP-0.12.1-eindoordeel.md`, M1/M2), in dezelfde regelronde:
     - veldcontrole (`hasOnly`, typen, lengtes) op `instellingen`, `bestuursfuncties` en `structuurelementen` (`firestore.rules:192-228`);
     - een maximale lengte voor het logo, en een domeinnaam die niet leeg mag zijn;
     - regeltests voor de P0c-regels: zelf `gebruikers/{uid}` schrijven, zelf `leden/{uid}` aanmaken, je rol ophogen, `clubs/{id}` schrijven en het document van een ander lezen;
@@ -487,7 +487,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 
 **Vervolgpunten na CK-021:**
 - [ ] Afdrukweergave of PDF-export van de plaat.
-- [ ] Leesrechten voor niet-beheerders meenemen bij P0d.
+- [x] Leesrechten voor niet-beheerders meenemen bij P0d. *Lezen blijft voor elk lid; schrijven alleen voor de beheerder (P0d, 24-11-2026).*
 
 ---
 
@@ -517,7 +517,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 **Vervolgpunten na CK-046:**
 - [ ] Keuze voor `bevat` in het domeinformulier (nu zet alleen het inrichtscript het veld)
 - [ ] Bestaan van de bestuursfunctie (eigenaar) afdwingen in de regels, samen met de domeinen
-- [ ] Restrisico P0d: elk lid kan projecten en samenwerkingen schrijven en verwijderen, en `bevat` zetten of weghalen
+- [x] Restrisico P0d: elk lid kan projecten en samenwerkingen schrijven en verwijderen, en `bevat` zetten of weghalen *(opgelost in P0d, 24-11-2026)*
 
 ---
 
@@ -534,7 +534,7 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 
 **Vervolgpunten na CK-041:**
 - [ ] Leden in een commissie: alleen na P0d (`isBeheerder`) en een compliance-controle (AVG)
-- [ ] Restrisico P0d: elk lid kan commissies schrijven en verwijderen
+- [x] Restrisico P0d: elk lid kan commissies schrijven en verwijderen *(opgelost in P0d, 24-11-2026)*
 
 ---
 
@@ -597,7 +597,7 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 **Status:** Codepunten gebouwd op `test` (24-11-2026), nog testen op tst · toegevoegd op 24 november 2026 · stonden in het eindoordeel maar nog niet in de backlog
 
 - [x] Bij 320 px breed en 400 % zoom laat de vaste paginahoogte weinig ruimte over (M16, `src/style.css:781`, WCAG 1.4.10)
-- [x] Het logo mag een SVG zijn. Besloten (Paul, 24-11-2026): SVG weren. De app accepteert en toont alleen PNG, JPG en WebP. De regel in `firestore.rules:18` volgt in de regelronde van P0d
+- [x] Het logo mag een SVG zijn. Besloten (Paul, 24-11-2026): SVG weren. De app accepteert en toont alleen PNG, JPG en WebP. De regel in `geldigLogo` is aangepast in P0d (24-11-2026)
 - [x] Sessies blijven onbeperkt open. Besloten (Paul, 24-11-2026): automatisch uitloggen na 8 uur zonder klikken of typen, ook over tabbladen heen
 - [ ] Firebase-console (Paul): nakijken of zelfregistratie (gebruikers die zelf een account aanmaken) uit staat, in test en productie
 - [x] Hardgecodeerde hex-kleur in de omgevingsbalk via een token laten lopen (`src/style.css:858-860`)
