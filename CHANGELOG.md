@@ -2,6 +2,12 @@
 
 ## [0.13.0] – 2026-11-24
 
+### Beveiliging (P0d: Beheer alleen voor beheerders)
+- Firestore-regels: alleen een lid met `rol: 'beheerder'` mag de clubgegevens wijzigen (profiel, bestuursfuncties, domeinen en `bevat`, vermogens, commissies, projecten en samenwerkingen). Veldcontrole met `hasOnly`, typen en lengtes op profiel, bestuursfuncties en domeinen. Een logo alleen als PNG, JPG of WebP, met een lengtegrens; de omschrijving van een domein maximaal 500 tekens.
+- App: Beheer staat alleen in het zijmenu en is alleen te openen voor een beheerder. Een lid ziet de overzichten, met kerncijfers zonder link.
+- De omgevingsguard staat in `src/omgeving.js` en is getest. Er zijn 30 nieuwe regeltests (130 van 130). Nieuw controlescript: `npm run p0d:controle`.
+- De regels zijn op 24-11-2026 gepubliceerd in test en productie.
+
 ### Toegevoegd
 - Automatisch uitloggen na 8 uur zonder klikken of typen (CK-052). Het tijdstip wordt gedeeld tussen tabbladen; ook een pagina die na 8 uur opnieuw wordt geopend, logt uit. Het inlogscherm zegt waarom.
 
