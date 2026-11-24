@@ -630,10 +630,10 @@ Rapporten: `.claude/reports/APP-0.13.0-beveiliging.md` en `APP-0.13.0-analyse.md
 
 Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m A-6, T-6 en T-7 (zie `APP-0.13.0-analyse.md`).
 
-### CK-057 — Fixpakket uit de gerichte analyse van v0.13.3
-**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route klein (de regels veranderen: regeltests draaien, en Paul publiceert opnieuw) · rapport: `.claude/reports/APP-0.13.3-analyse.md` (geen kritieke punten; CK-056 loste 12 van de 15 punten volledig op)
+### ✅ CK-057 — Fixpakket uit de gerichte analyse van v0.13.3
+**Status:** ✅ Live in v0.13.4 (24-11-2026), regels gepubliceerd in test en productie · route klein (de regels veranderen: regeltests draaien, en Paul publiceert opnieuw) · rapport: `.claude/reports/APP-0.13.3-analyse.md` (geen kritieke punten; CK-056 loste 12 van de 15 punten volledig op)
 
-- [ ] N-4 (procedure, belangrijk): de regels toetsen het hele document. Een oud domein met een afwijkend pictogram of een onzichtbaar teken in de naam is daardoor niet meer te bewerken. Draai in productie `npm run p0d:controle -- --omgeving=productie --droog` (de regels staan daar al) en herstel afwijkingen. Doe dit vóór elke volgende `regels:productie`
+- [x] N-4 (procedure, belangrijk; droge controle in test: alles klopt): de regels toetsen het hele document. Een oud domein met een afwijkend pictogram of een onzichtbaar teken in de naam is daardoor niet meer te bewerken. Draai in productie `npm run p0d:controle -- --omgeving=productie --droog` (de regels staan daar al) en herstel afwijkingen. Doe dit vóór elke volgende `regels:productie`
 - [x] N-2: een overkoepelend domein met `bevat` omzetten naar pijler of ondersteunend geeft "geen toestemming". Haal `bevat` bij die wijziging weg (`deleteField`) (`src/main.js:~1985`, `firestore.rules:233`)
 - [x] N-1: de regex sluit nog niet alles uit: U+2028/2029, U+FEFF, C1 (0080–009F), U+00AD, U+2060–2064 en U+061C komen erdoor. Gebruik `[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]*` in de regels, de app en het controlescript (in de emulator getest)
 - [x] N-5: de melding voor emoji met een ZWJ (zoals 👨‍👩‍👧) noemt dat zo'n emoji niet kan
