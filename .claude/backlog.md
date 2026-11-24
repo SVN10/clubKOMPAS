@@ -539,8 +539,8 @@ Voordat er gegevens van leden, jeugdleden (onder 16) of de vertrouwenspersoon wo
 ## Uit de app-brede kwaliteitsanalyse v0.12.1 (23 november 2026)
 Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoordeel.md`. Met Paul besproken op 23 november 2026. Het P0d-deel (veldcontrole en tests) staat bij de harde eis voor P0d.
 
-### CK-047 — Fixpakket v0.12.2 en beveiligingsheaders
-**Status:** Gebouwd op `test` (23-11-2026), nog testen op tst · route klein
+### ✅ CK-047 — Fixpakket v0.12.2 en beveiligingsheaders
+**Status:** ✅ Live in v0.12.2 (23-11-2026) · route klein
 
 - [x] Rand van invoervelden naar minstens 3:1 contrast (`--border`, `src/style.css:9`). Nu is het 1,48:1 (WCAG 1.4.11)
 - [x] Verkeerde hint "De volgorde wijzig je bij Toon: Alle soorten" aanpassen (`src/main.js:1491`)
@@ -588,5 +588,5 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 **Status:** ✅ Besloten op 23 november 2026 · vastgelegd als besluiten 39–41 in `.claude/specs/CK-046-besluiten.md`
 
 - [x] Kaarten en knoppen blijven vierkant (0–6 px, geen schaduw, lichte rand). De huisstijlregel volgt het ontwerp
-- [x] Opslaan wordt een primaire knop (petrol vlak). Dit wordt gebouwd in CK-047
+- [x] Opslaan wordt een primaire knop (petrol vlak). Gebouwd in CK-047 (v0.12.2)
 - [x] Verwijderen blijft `confirm()` met één vaste tekst. De teksten worden gelijkgetrokken in CK-050
