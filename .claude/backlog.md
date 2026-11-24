@@ -610,8 +610,8 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 ## Uit de app-brede kwaliteitsanalyse v0.13.0 (24 november 2026)
 Rapporten: `.claude/reports/APP-0.13.0-beveiliging.md` en `APP-0.13.0-analyse.md`, eindoordeel in `APP-0.13.0-eindoordeel.md`. Er zijn geen kritieke en geen hoge bevindingen. De AVG-punten (C-2, C-3, C-5) staan bij CK-049.
 
-### CK-056 — Fixpakket v0.13.1
-**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route middel · regels nog publiceren door Paul (`regels:test`, daarna `regels:productie`; eerst `npm run p0d:controle -- --droog`)
+### ✅ CK-056 — Fixpakket v0.13.2
+**Status:** ✅ Live in v0.13.2 (24-11-2026; v0.13.1 was alleen een versieophoging) · route middel · regels gepubliceerd in test; productie: na `npm run p0d:controle -- --omgeving=productie --droog` door Paul `regels:productie`
 
 - [x] T-1: teksten "via Beheer" alleen voor een beheerder; een lid krijgt "Vraag een beheerder …" (`src/main.js:724`, `:1242`, `:1248`)
 - [x] T-2: geen `bindHerlaad` of `enterSlaatOp` met `null` als de gebruiker tijdens het eerste laden wegnavigeert (`src/main.js:1733-1744`, `:3010-3016`)
