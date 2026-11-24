@@ -36,7 +36,7 @@ function koppelLabel(veld, doel) {
   return label.id
 }
 
-// aria-describedby, aria-invalid en disabled van het echte veld doorgeven aan ons veld
+// aria-describedby, aria-invalid, disabled en de foutrand (klasse fout) van het echte veld doorgeven aan ons veld
 function volgAttributen(veld, doel) {
   const zet = () => {
     for (const a of ['aria-describedby', 'aria-invalid']) {
@@ -44,9 +44,10 @@ function volgAttributen(veld, doel) {
       else doel.removeAttribute(a)
     }
     doel.disabled = veld.disabled
+    doel.classList.toggle('fout', veld.classList.contains('fout'))
   }
   zet()
-  new MutationObserver(zet).observe(veld, { attributes: true, attributeFilter: ['aria-describedby', 'aria-invalid', 'disabled'] })
+  new MutationObserver(zet).observe(veld, { attributes: true, attributeFilter: ['aria-describedby', 'aria-invalid', 'disabled', 'class'] })
 }
 
 // ── Keuzelijst ──────────────────────────────────────────────────────────────────
@@ -243,6 +244,7 @@ function verbeterDatum(veld) {
   const kalender = document.createElement('div')
   kalender.className = 'eigen-kalender'
   kalender.setAttribute('role', 'dialog')
+  kalender.tabIndex = -1
   kalender.hidden = true
   veld.before(omhulsel)
   omhulsel.append(veld, tekst, knop, kalender)
@@ -294,6 +296,12 @@ function verbeterDatum(veld) {
   const minDatum = () => vanIso(veld.min)
   const maxDatum = () => vanIso(veld.max)
   const magNiet = d => (minDatum() && d < minDatum()) || (maxDatum() && d > maxDatum())
+  // Focus nooit op een uitgeschakelde dag: die kan geen focus krijgen, en dan werkt Escape niet meer (CK-048)
+  const binnenGrens = d => {
+    if (minDatum() && d < minDatum()) return minDatum()
+    if (maxDatum() && d > maxDatum()) return maxDatum()
+    return d
+  }
 
   function teken() {
     const jaar = toon.getFullYear(), maand = toon.getMonth()
@@ -323,15 +331,18 @@ function verbeterDatum(veld) {
         <tbody>${rijen}</tbody>
       </table>
       <div class="eigen-kal-voet">
-        <button type="button" class="eigen-kal-actie" data-actie="vandaag">Vandaag</button>
+        <button type="button" class="eigen-kal-actie" data-actie="vandaag"${magNiet(vandaag()) ? ' disabled' : ''}>Vandaag</button>
         <button type="button" class="eigen-kal-actie" data-actie="leeg">Leegmaken</button>
       </div>`
   }
-  function focusOp(d) {
+  function focusOp(gewenst) {
+    const d = binnenGrens(gewenst)
     focusDag = d
     if (d.getMonth() !== toon.getMonth() || d.getFullYear() !== toon.getFullYear()) toon = new Date(d.getFullYear(), d.getMonth(), 1)
     teken()
-    kalender.querySelector(`[data-iso="${naarIso(d)}"]`)?.focus()
+    const dag = kalender.querySelector(`[data-iso="${naarIso(d)}"]:not([disabled])`)
+    if (dag) dag.focus()
+    else kalender.focus() // vangnet (bijv. min na max): de kalender zelf houdt de focus, Escape blijft werken
   }
   function open() {
     if (!kalender.hidden) return

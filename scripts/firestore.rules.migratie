@@ -1,3 +1,5 @@
+// WAARSCHUWING: deze regels geven één account lees- en schrijfrecht op de HELE database, van alle clubs.
+// Nooit publiceren buiten een migratie, en direct daarna de echte regels terugzetten (npm run regels:test of regels:productie).
 // TIJDELIJKE overgangsregels voor de P0c-migratie (alleen minuten actief).
 // Vervang <HCA-UID> pas in de console door de echte uid. Nooit de echte uid in dit bestand committen.
 rules_version = '2';

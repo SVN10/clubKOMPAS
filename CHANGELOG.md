@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.13.0] – 2026-11-24
+
+### Toegevoegd
+- Automatisch uitloggen na 8 uur zonder klikken of typen (CK-052). Het tijdstip wordt gedeeld tussen tabbladen; ook een pagina die na 8 uur opnieuw wordt geopend, logt uit. Het inlogscherm zegt waarom.
+
+### Gewijzigd (CK-048: laadfouten en toegankelijke formulieren)
+- Mislukt het laden op het Domeinenoverzicht, in Beheer → Domeinen of in Bestuursfuncties, dan staat er een melding met "Opnieuw laden", net als bij Vermogens. Eén gedeelde helper (`laadfoutHTML`, `bindHerlaad`) voor alle pagina's.
+- Inlogscherm: fouten staan bij het veld zelf, met `aria-invalid` en `aria-describedby`, en de focus gaat naar het veld. De knop blijft focusbaar tijdens het inloggen (`aria-disabled`).
+- Datumkiezer: de focus komt nooit op een uitgeschakelde dag, zodat Escape blijft werken. "Vandaag" is uitgeschakeld als vandaag buiten de grenzen valt.
+- De eigen keuzelijst en de datumkiezer krijgen een rode rand bij een fout.
+
+### Gewijzigd (CK-050: beheertabellen gelijk)
+- Dezelfde teksten in alle beheertabellen: bij verwijderen ("Domein X verwijderen? Dit kan niet ongedaan worden gemaakt."), bij validatie ("Vul een naam in.", "Een naam heeft minimaal 2 tekens."), bij een dubbele naam en bij een lege lijst. Alle validatieteksten eindigen op een punt.
+- Enter in een tekstveld slaat op, nu ook bij Domeinen en Bestuursfuncties. De pijlknoppen heten overal "Omhoog: X" en "Omlaag: X".
+- De omschrijving van een domein is een tekstvak, net als bij projecten, met een maximum van 500 tekens.
+- Elke beheerpagina heeft een h1 en elke sectie is een regio voor de schermlezer. In een smalle tabel blijven de kolomkoppen voor de schermlezer bestaan; de bewerkrij van Domeinen en Bestuursfuncties heeft `role="cell"`.
+- Opgeruimd: `src/counter.js`, `src/assets/`, `public/icons.svg`, een ongebruikte import en ongebruikte CSS. Oudere scripts tonen namen via `veilig()`; `scripts/firestore.rules.migratie` heeft een duidelijke waarschuwing.
+
+### Gewijzigd (CK-052)
+- Bij een lage viewport (onder 500 px hoog, zoals 400 % zoom) staat niets meer vast en scrolt de hele pagina.
+- "+ Toevoegen" heeft dezelfde letterstijl als de andere knoppen.
+- De kleuren van de omgevingsbalk staan als tokens in `:root`.
+
+### Beveiliging
+- Een logo moet een PNG, JPG of WebP zijn; een SVG wordt niet meer geaccepteerd of getoond. De bijbehorende Firestore-regel volgt met P0d.
+
 ## [0.12.2] – 2026-11-23
 
 ### Gewijzigd (CK-047)

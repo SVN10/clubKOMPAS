@@ -7,7 +7,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteField } from 'firebase/firestore'
-import { startScript, vraag, inloggen, zoekClubId, geweigerd, gelukt } from './lib/omgeving.mjs'
+import { startScript, vraag, inloggen, zoekClubId, geweigerd, gelukt, veilig } from './lib/omgeving.mjs'
 
 const FUNCTIES = ['Voorzitter', 'Secretaris', 'Penningmeester', 'Bestuurslid Hockey', 'Bestuurslid Accommodatie', 'Bestuurslid Hospitality']
 
@@ -67,8 +67,8 @@ console.log('\nKoppeling domein → bestuursfunctie:')
 let ontbreekt = 0
 for (const d of alleDomeinen) {
   const f = KOPPELING[d.naam]
-  if (!f) { console.log(`  LET OP: geen koppeling bekend voor "${d.naam}"; ongemoeid gelaten.`); ontbreekt++; continue }
-  console.log(`  ${d.naam} → ${f}${d.verantwoordelijke && d.verantwoordelijke !== f ? `  (was "${d.verantwoordelijke}")` : ''}`)
+  if (!f) { console.log(veilig(`  LET OP: geen koppeling bekend voor "${d.naam}"; ongemoeid gelaten.`)); ontbreekt++; continue }
+  console.log(veilig(`  ${d.naam} → ${f}${d.verantwoordelijke && d.verantwoordelijke !== f ? `  (was "${d.verantwoordelijke}")` : ''}`))
 }
 
 if (DROOG) { console.log('\nDroogtest klaar. Niets geschreven.'); process.exit(0) }

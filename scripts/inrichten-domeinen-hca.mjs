@@ -6,7 +6,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc } from 'firebase/firestore'
-import { startScript, vraag, inloggen, zoekClubId, geweigerd, gelukt } from './lib/omgeving.mjs'
+import { startScript, vraag, inloggen, zoekClubId, geweigerd, gelukt, veilig } from './lib/omgeving.mjs'
 
 // [volgorde, type, naam, eindverantwoordelijke, icoon, omschrijving (alleen voor nieuwe domeinen)]
 const DOMEINEN = [
@@ -68,9 +68,9 @@ for (const [volgorde, type, naam, verantwoordelijke, icoon, omschrijving] of DOM
 console.log(`${plan.length} wijzigingen:`)
 for (const p of plan) {
   const velden = Object.entries(p.data).filter(([k]) => k !== 'naam' && k !== 'omschrijving').map(([k, v]) => `${k}=${v}`).join(', ')
-  console.log(`  ${p.actie === 'toevoegen' ? '+' : '~'} ${p.naam}: ${velden}`)
+  console.log(veilig(`  ${p.actie === 'toevoegen' ? '+' : '~'} ${p.naam}: ${velden}`))
 }
-for (const d of bestaand.values()) console.log(`  LET OP: "${d.data().naam}" staat niet in het Vermogensoverzicht; ongemoeid gelaten.`)
+for (const d of bestaand.values()) console.log(veilig(`  LET OP: "${d.data().naam}" staat niet in het Vermogensoverzicht; ongemoeid gelaten.`))
 
 if (DROOG || plan.length === 0) {
   console.log(DROOG ? '\nDroogtest klaar. Niets geschreven.' : '\nNiets te doen.')

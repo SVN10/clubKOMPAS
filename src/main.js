@@ -10,7 +10,7 @@ import {
 } from './vermogens.js'
 import {
   SOORT_ONDERDEEL, PLAAT_SOORTEN, STATUSSEN, STATUS_LABEL, OP_PLAAT, normaliseerNaam, onderdeelnaamFout, normaliseerOmschrijving,
-  omschrijvingFout, periodeTekst, datumFout, sorteerOnderdelen, naamBezet, laadOnderdelen, voegOnderdeelToe,
+  omschrijvingFout, periodeTekst, datumFout, naamBezet, laadOnderdelen, voegOnderdeelToe,
   bewerkOnderdeel, verwijderOnderdeel,
 } from './onderdelen.js'
 
@@ -25,8 +25,10 @@ let foutPogingen = 0
 // Algemeen SVN10-supportadres (PO-besluit 2). Leeg = zin zonder adres, nooit een lege link.
 const SUPPORT_EMAIL = 'support@svn10.nl'
 
+// Alleen PNG, JPG en WebP; geen SVG (CK-052). De app slaat zelf altijd PNG op.
+const LOGO_SOORTEN = ['image/png', 'image/jpeg', 'image/webp']
 function veiligLogo(waarde) {
-  return typeof waarde === 'string' && waarde.startsWith('data:image/') ? waarde : ''
+  return typeof waarde === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(waarde) ? waarde : ''
 }
 
 // Zet het clublogo als favicon, of zet het standaard kompas-icoon terug als er geen logo is.
@@ -70,6 +72,31 @@ async function resizeAfbeelding(file, maxPx = 300) {
 
 function uitloggen() {
   signOut(auth).catch(e => console.error('Uitloggen mislukt:', e?.code))
+}
+
+// ── Automatisch uitloggen na 8 uur zonder gebruik (CK-052) ──
+// Klikken en typen tellen als gebruik. Het tijdstip staat in localStorage, zodat alle tabbladen het delen
+// en een herladen pagina na 8 uur ook uitlogt. Zonder localStorage telt alleen dit tabblad.
+const STIL_MAX_MS = 8 * 60 * 60 * 1000
+const STIL_SLEUTEL = 'clubkompas-laatst-actief'
+const STIL_MELDING = 'Je bent uitgelogd omdat je 8 uur niets in clubKOMPAS hebt gedaan. Log opnieuw in.'
+let stilUitgelogd = false
+const leesLaatstActief = () => { try { return Number(localStorage.getItem(STIL_SLEUTEL)) || 0 } catch { return 0 } }
+let laatstActief = leesLaatstActief() || Date.now()
+function markeerActief(altijd = false) {
+  const nu = Date.now()
+  if (!altijd && nu - laatstActief < 60_000) return
+  laatstActief = nu
+  try { localStorage.setItem(STIL_SLEUTEL, String(nu)) } catch {}
+}
+const teLangStil = () => Date.now() - Math.max(laatstActief, leesLaatstActief()) > STIL_MAX_MS
+function stilUitloggen() {
+  stilUitgelogd = true
+  signOut(auth).catch(e => { stilUitgelogd = false; console.error('Uitloggen mislukt:', e?.code) })
+}
+function startStilteBewaking() {
+  for (const soort of ['pointerdown', 'keydown', 'click']) document.addEventListener(soort, () => markeerActief(), { capture: true, passive: true })
+  setInterval(() => { if (huidigGebruiker && teLangStil()) stilUitloggen() }, 60_000)
 }
 
 function esc(s) {
@@ -235,7 +262,7 @@ const LOGO_MAX_BYTES = 10 * 1024 * 1024
 
 // Weigert een bestand vóór het inlezen als het geen afbeelding is of groter dan 10 MB
 async function leesLogoBestand(file, lees = resizeAfbeelding) {
-  if (typeof file?.type !== 'string' || !file.type.startsWith('image/')) throw { code: 'bestand-onleesbaar' }
+  if (typeof file?.type !== 'string' || !LOGO_SOORTEN.includes(file.type)) throw { code: 'bestand-onleesbaar' }
   if (!(file.size <= LOGO_MAX_BYTES)) throw { code: 'bestand-te-groot' }
   try { return await lees(file) } catch { throw { code: 'bestand-onleesbaar' } }
 }
@@ -314,7 +341,7 @@ const FOUTTEKSTEN = {
   'auth/too-many-requests': 'Te veel pogingen achter elkaar. Wacht een paar minuten en probeer het opnieuw.',
   'not-found': BESTAAT_NIET,
   'failed-precondition': BESTAAT_NIET,
-  'bestand-onleesbaar': 'Dit bestand kan niet als afbeelding worden gelezen. Kies een JPG- of PNG-bestand.',
+  'bestand-onleesbaar': 'Dit bestand kan niet als logo worden gebruikt. Kies een PNG-, JPG- of WebP-bestand.',
   'bestand-te-groot': 'Dit bestand is te groot (maximaal 10 MB).',
   'auth/email-already-in-use': 'Dit e-mailadres wordt al gebruikt door een ander account. Kies een ander adres.',
   'auth/invalid-email': 'Dit is geen geldig e-mailadres. Controleer of er een @ en een punt in staan.',
@@ -322,7 +349,7 @@ const FOUTTEKSTEN = {
   'auth/wrong-password': WW_KLOPT_NIET,
   'auth/invalid-credential': WW_KLOPT_NIET,
   'auth/operation-not-allowed': 'E-mailwijziging niet toegestaan in dit project.',
-  'dubbele-naam': 'Deze bestuursfunctie bestaat al',
+  'dubbele-naam': 'Er is al een bestuursfunctie met deze naam.',
   aborted: 'Iemand anders wijzigde dit tegelijk. De lijst is bijgewerkt. Kijk of je wijziging nodig is en probeer het zo nodig opnieuw.',
   'vermogen-weg': 'Dit vermogen bestaat niet meer, misschien is het net door iemand anders verwijderd. De lijst is bijgewerkt.',
   'dubbel-project': 'Er is al een project met deze naam.',
@@ -454,9 +481,39 @@ function valideerVelden(regels) {
   return fouten.length === 0
 }
 
-function minFout(waarde, min, leeg = 'Verplicht veld') {
+// ── Gelijke teksten en gedrag in alle beheertabellen (CK-050) ──
+// Zelfde zinnen als de naamregels van vermogens en onderdelen (vermogens.js)
+function naamFout(naam, max = 100) {
+  if (!naam) return 'Vul een naam in.'
+  const n = [...naam].length
+  if (n < 2) return 'Een naam heeft minimaal 2 tekens.'
+  if (n > max) return `Een naam heeft maximaal ${max} tekens. Nu zijn het er ${n}.`
+  return ''
+}
+function omschrijvingVerplichtFout(tekst) {
+  if (!tekst) return 'Vul een omschrijving in.'
+  return [...tekst].length < 2 ? 'Een omschrijving heeft minimaal 2 tekens.' : omschrijvingFout(tekst)
+}
+const KIES_FUNCTIE = 'Kies een bestuursfunctie.'
+// Eén vaste tekst bij verwijderen (besluit 41)
+function bevestigVerwijderen(wat, naam) {
+  return confirm(`${wat}${naam ? ` ${naam}` : ''} verwijderen? Dit kan niet ongedaan worden gemaakt.`)
+}
+// Enter in een tekstveld van een formulier = op Opslaan klikken. Niet in een tekstvak, keuze of datumveld.
+function enterSlaatOp(container, opslaanKnop) {
+  container.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.isComposing) return
+    if (!e.target.matches?.('input.form-input[type="text"]:not(.eigen-datum-tekst), input.form-input:not([type])')) return
+    const knop = opslaanKnop(e.target)
+    if (!knop) return
+    e.preventDefault()
+    knop.click()
+  })
+}
+
+function minFout(waarde, min, leeg = 'Vul dit veld in.') {
   if (!waarde) return leeg
-  return waarde.length < min ? `Minimaal ${min} tekens` : ''
+  return waarde.length < min ? `Gebruik minimaal ${min} tekens.` : ''
 }
 
 // Terugval voor de focus: de toevoegknop, of het eerste veld van het open formulier als die verborgen is
@@ -537,6 +594,27 @@ function toonVermogensBlokkade(el, domein, tekst) {
   link.dataset.filter = domein.id
   link.textContent = `Naar de vermogens van ${domein.naam}`
   el.replaceChildren(tekst, link)
+}
+
+// Laadfout: één melding met "Opnieuw laden", op elke pagina gelijk (CK-048).
+// regelsVoor: in test/ontwikkel bij permission-denied een hint over de Firestore-regels.
+function laadfoutHTML(tekst, knopId, e, regelsVoor = '') {
+  const testHint = regelsVoor && e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
+    ? `<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor ${esc(regelsVoor)} al gepubliceerd?</p>` : ''
+  return `<div class="meldingen"><div class="melding melding-fout" role="alert">${esc(tekst)} Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="${esc(knopId)}">Opnieuw laden</button></div></div>${testHint}`
+}
+
+// Klik op "Opnieuw laden": knop op bezig, dan opnieuw() (geeft true als het gelukt is) en de focus terugzetten
+function bindHerlaad(container, knopId, opnieuw, focusNaGelukt) {
+  container.addEventListener('click', async e => {
+    const knop = e.target.closest(`#${knopId}`)
+    if (!knop || knop.getAttribute('aria-disabled') === 'true') return
+    knop.textContent = 'Bezig...'
+    knop.setAttribute('aria-disabled', 'true')
+    const gelukt = await opnieuw()
+    if (gelukt) focusNaGelukt?.()?.focus()
+    else document.getElementById(knopId)?.focus()
+  })
 }
 
 // Live regions staan er vanaf het tekenen, leeg en zonder witruimte (anders werkt :empty niet)
@@ -657,12 +735,12 @@ function renderInlogscherm() {
         <h1 class="inlog-titel">Inloggen</h1>
         <div class="form-groep">
           <label class="form-label" for="inlog-email">E-mailadres</label>
-          <input class="form-input" id="inlog-email" type="email" placeholder="naam@voorbeeld.nl" autocomplete="email">
+          <input class="form-input" id="inlog-email" type="email" placeholder="naam@voorbeeld.nl" autocomplete="email" aria-describedby="inlog-email-fout inlog-algemeen-fout">
           <span class="form-fout" id="inlog-email-fout"></span>
         </div>
         <div class="form-groep">
           <label class="form-label" for="inlog-wachtwoord">Wachtwoord</label>
-          <input class="form-input" id="inlog-wachtwoord" type="password" placeholder="••••••••" autocomplete="current-password">
+          <input class="form-input" id="inlog-wachtwoord" type="password" placeholder="••••••••" autocomplete="current-password" aria-describedby="inlog-wachtwoord-fout inlog-algemeen-fout">
           <span class="form-fout" id="inlog-wachtwoord-fout"></span>
         </div>
         <div class="form-fout" id="inlog-algemeen-fout" role="alert"></div>
@@ -671,33 +749,36 @@ function renderInlogscherm() {
     </div>
   `
 
+  // Fouten via zetVeldFout (aria-invalid, beschrijving, focus); de algemene fout is een live-region (CK-048)
   document.getElementById('inlog-knop').addEventListener('click', async () => {
+    const knop = document.getElementById('inlog-knop')
+    if (knop.getAttribute('aria-disabled') === 'true') return
     const email = document.getElementById('inlog-email').value.trim()
     const wachtwoord = document.getElementById('inlog-wachtwoord').value
     const algFout = document.getElementById('inlog-algemeen-fout')
-    const emailFout = document.getElementById('inlog-email-fout')
-    const wwFout = document.getElementById('inlog-wachtwoord-fout')
 
-    emailFout.textContent = ''
-    wwFout.textContent = ''
     algFout.textContent = ''
+    if (!valideerVelden([
+      ['inlog-email', 'inlog-email-fout', email ? '' : 'Vul je e-mailadres in.'],
+      ['inlog-wachtwoord', 'inlog-wachtwoord-fout', wachtwoord ? '' : 'Vul je wachtwoord in.'],
+    ])) return
 
-    if (!email) { emailFout.textContent = 'Verplicht veld'; return }
-    if (!wachtwoord) { wwFout.textContent = 'Verplicht veld'; return }
-
-    document.getElementById('inlog-knop').textContent = 'Bezig...'
-    document.getElementById('inlog-knop').disabled = true
+    knop.textContent = 'Bezig...'
+    knop.setAttribute('aria-disabled', 'true')
 
     try {
       await signInWithEmailAndPassword(auth, email, wachtwoord)
     } catch (e) {
-      document.getElementById('inlog-knop').textContent = 'Inloggen'
-      document.getElementById('inlog-knop').disabled = false
+      knop.textContent = 'Inloggen'
+      knop.removeAttribute('aria-disabled')
+      // Fout bij één veld: daar tonen. Combinatie klopt niet: beide velden ongeldig, tekst in de algemene melding.
+      const veldfouten = {
+        'auth/user-not-found': ['inlog-email', 'inlog-email-fout', 'Geen account gevonden met dit e-mailadres.'],
+        'auth/invalid-email': ['inlog-email', 'inlog-email-fout', 'Ongeldig e-mailadres.'],
+        'auth/wrong-password': ['inlog-wachtwoord', 'inlog-wachtwoord-fout', 'Wachtwoord klopt niet.'],
+      }
       const foutcodes = {
         'auth/invalid-credential': 'E-mailadres of wachtwoord klopt niet.',
-        'auth/user-not-found': 'Geen account gevonden met dit e-mailadres.',
-        'auth/wrong-password': 'Wachtwoord klopt niet.',
-        'auth/invalid-email': 'Ongeldig e-mailadres.',
         'auth/too-many-requests': 'Te veel pogingen. Probeer het later opnieuw.',
       }
       const testProject = SOORT === 'test' || SOORT === 'ontwikkel'
@@ -705,7 +786,15 @@ function renderInlogscherm() {
         toonAdresNietToegestaan(algFout, testProject)
         return
       }
-      algFout.textContent = foutcodes[e.code] || 'Inloggen is niet gelukt. Probeer het opnieuw.'
+      if (veldfouten[e.code]) {
+        zetVeldFout(...veldfouten[e.code])
+      } else {
+        algFout.textContent = foutcodes[e.code] || 'Inloggen is niet gelukt. Probeer het opnieuw.'
+        if (e.code === 'auth/invalid-credential') {
+          zetVeldFout('inlog-wachtwoord', 'inlog-wachtwoord-fout', '', false)
+          zetVeldFout('inlog-email', 'inlog-email-fout', '', true)
+        }
+      }
       if (testProject && ['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(e.code)) {
         const hint = document.createElement('span')
         hint.className = 'inlog-test-hint'
@@ -717,6 +806,11 @@ function renderInlogscherm() {
       }
     }
   })
+
+  if (stilUitgelogd) {
+    stilUitgelogd = false
+    document.getElementById('inlog-algemeen-fout').textContent = STIL_MELDING
+  }
 
   document.getElementById('inlog-email').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('inlog-wachtwoord').focus()
@@ -972,9 +1066,9 @@ function renderDomeinenoverzicht(gebruiker) {
           <a href="#" class="cijfer cijfer-link" data-nav="vermogens"><span class="n" id="cijfer-vermogens"><span aria-hidden="true">–</span><span class="sr-only">wordt geladen</span></span><span class="l">Vermogens<span aria-hidden="true"> →</span></span></a>
         </div>
 
-        <div class="sectie">
+        <div class="sectie" role="region" aria-labelledby="sectie-kop-1">
           <div class="sectie-kop">
-            <h2>Domeinen</h2>
+            <h2 id="sectie-kop-1">Domeinen</h2>
           </div>
           <div class="sectie-lijf">
             <p class="vermogens-hint" id="vermogens-hint" role="status"></p>
@@ -986,7 +1080,26 @@ function renderDomeinenoverzicht(gebruiker) {
 
   bindAppShell(gebruiker)
 
-  renderStructuurGrid()
+  const grid = document.getElementById('structuur-grid')
+  const laadGrid = async () => {
+    try {
+      await renderStructuurGrid()
+      return true
+    } catch (e) {
+      console.error('Domeinen laden mislukt:', e?.code)
+      if (!grid.isConnected) return false
+      grid.querySelectorAll('.structuur-dyn').forEach(el => el.remove())
+      const fout = document.createElement('div')
+      fout.className = 'structuur-dyn grid-fout'
+      fout.innerHTML = laadfoutHTML('De domeinen konden niet worden geladen.', 'grid-herlaad', e, 'domeinen')
+      grid.appendChild(fout)
+      const sr = document.querySelector('#cijfer-vermogens .sr-only')
+      if (sr) sr.textContent = 'niet geladen'
+      return false
+    }
+  }
+  bindHerlaad(grid, 'grid-herlaad', laadGrid, () => document.querySelector('.cijfer-link'))
+  laadGrid()
 }
 
 // ── Vermogens: de plaat (CK-021) ──────────────────────────────────────────────
@@ -1055,9 +1168,7 @@ async function renderPlaat(gebruiker) {
 
   function toonLaadfout(e) {
     if (!plaatEl.isConnected) return
-    const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
-      ? '<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor vermogens al gepubliceerd?</p>' : ''
-    plaatEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De plaat kon niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="plaat-herlaad">Opnieuw laden</button></div></div>${testHint}`
+    plaatEl.innerHTML = laadfoutHTML('De plaat kon niet worden geladen.', 'plaat-herlaad', e, 'vermogens')
   }
 
   // onderdelen: { projecten: lijst | null, samenwerkingen: lijst | null }; null = laden mislukt
@@ -1428,13 +1539,22 @@ function bindAppShell(gebruiker) {
   })
 }
 
-async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {}) {
-  const functies = await laadBestuursfuncties()
+// alsNog: bij "Opnieuw laden" niet tekenen als de gebruiker intussen naar een andere pagina ging
+async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog = null } = {}) {
+  // Zonder bestuursfuncties kan de lijst niet goed getekend worden: dan een laadfout (CK-048)
+  let functies = []
+  let functiesFout = null
+  try {
+    functies = await laadBestuursfuncties()
+  } catch (e) {
+    functiesFout = e
+  }
+  if (alsNog && !alsNog.isConnected) return
   const functieNaam = new Map(functies.map(f => [f.id, f.naam]))
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'domeinen', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('domeinen')]], inhoud: `
-        <div class="sectie" data-meldblok>
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-2">
           <div class="sectie-kop">
-            <h2>Domeinen</h2>
+            <h1 id="sectie-kop-2">Domeinen</h1>
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk">
@@ -1468,7 +1588,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
               </div>
               <div class="form-groep">
                 <label class="form-label" for="structuur-omschr">Omschrijving</label>
-                <input class="form-input" id="structuur-omschr" name="omschrijving" type="text" placeholder="Korte omschrijving" autocomplete="off">
+                <textarea class="form-input" id="structuur-omschr" name="omschrijving" rows="3" maxlength="500" placeholder="Korte omschrijving"></textarea>
                 <span class="form-fout" id="structuur-omschr-fout"></span>
               </div>
               <div class="form-groep" id="structuur-verantw-groep">
@@ -1503,18 +1623,38 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
   let actiefFilter = ['alles', 'pijler', 'domein', 'overkoepelend'].includes(filter) ? filter : 'alles'
   let huidigeItems = []
 
+  function toonLaadfout(e) {
+    const lijst = document.getElementById('structuur-lijst')
+    if (!lijst?.isConnected) return
+    console.error('Domeinen laden mislukt:', e?.code)
+    document.querySelector('.beheer-balk').hidden = true
+    document.getElementById('structuur-form').hidden = true
+    const hint = document.getElementById('structuur-volgorde-hint')
+    if (hint) hint.hidden = true
+    lijst.removeAttribute('role')
+    lijst.innerHTML = laadfoutHTML('De domeinen konden niet worden geladen.', 'structuur-herlaad', e, 'domeinen')
+  }
+
   async function laadEnRender() {
     const lijst = document.getElementById('structuur-lijst')
-    if (!lijst) return
-    const items = await laadStructuurelementen()
-    if (!lijst.isConnected) return
+    if (!lijst) return false
+    if (functiesFout) { toonLaadfout(functiesFout); return false }
+    let items
+    try {
+      items = await laadStructuurelementen()
+    } catch (e) {
+      toonLaadfout(e)
+      return false
+    }
+    if (!lijst.isConnected) return false
+    document.querySelector('.beheer-balk').hidden = false
     huidigeItems = items
     const gefilterd = actiefFilter === 'alles' ? items : items.filter(i => i.type === actiefFilter)
     const hint = document.getElementById('structuur-volgorde-hint')
     if (hint) hint.hidden = actiefFilter === 'alles' || gefilterd.length === 0
     if (gefilterd.length === 0) {
       lijst.removeAttribute('role')
-      lijst.innerHTML = `<p class="lijst-leeg">Geen domeinen van deze soort.</p>`
+      lijst.innerHTML = `<p class="lijst-leeg">${items.length === 0 ? 'Nog geen domeinen.' : 'Geen domeinen van deze soort.'}</p>`
       return
     }
     const kanVerplaatsen = actiefFilter === 'alles'
@@ -1558,6 +1698,13 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
 
   await laadEnRender()
 
+  // Opnieuw laden: de hele pagina opnieuw, want ook de bestuursfuncties kunnen ontbroken hebben
+  const lijstNu = document.getElementById('structuur-lijst')
+  bindHerlaad(lijstNu, 'structuur-herlaad', async () => {
+    await renderPijlersDomeinenBeheer(gebruiker, { filter: actiefFilter, alsNog: lijstNu })
+    return !document.getElementById('structuur-herlaad')
+  }, () => document.getElementById('structuur-filter'))
+
   const filterEl = document.getElementById('structuur-filter')
   filterEl.value = actiefFilter
   const filterStatus = document.getElementById('structuur-filter-status')
@@ -1595,6 +1742,8 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
   }
 
   const lijstEl = document.getElementById('structuur-lijst')
+  enterSlaatOp(document.getElementById('structuur-form'), () => document.getElementById('structuur-opslaan'))
+  enterSlaatOp(lijstEl, t => t.closest('.pijler-bewerk-form')?.querySelector('[data-actie="bewerk-opslaan"]'))
   const toevoegKnop = document.getElementById('structuur-toevoegen-knop')
   const terugval = () => zichtbareTerugval(toevoegKnop, document.getElementById('structuur-form'))
   const volgordeStatus = document.getElementById('structuur-volgorde')
@@ -1645,10 +1794,10 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
     const verAntwEl = document.getElementById('structuur-verantw')
     const hashtag = document.getElementById('structuur-hashtag').value.trim()
     if (!valideerVelden([
-      ['structuur-naam', 'structuur-naam-fout', minFout(naamEl.value.trim(), 2)],
+      ['structuur-naam', 'structuur-naam-fout', naamFout(naamEl.value.trim(), 200)],
       ['structuur-hashtag', 'structuur-hashtag-fout', hashtagFout(hashtag)],
-      ['structuur-omschr', 'structuur-omschr-fout', minFout(omschrEl.value.trim(), 2)],
-      ['structuur-verantw', 'structuur-verantw-fout', minFout(verAntwEl.value.trim(), 1, 'Kies een bestuursfunctie')],
+      ['structuur-omschr', 'structuur-omschr-fout', omschrijvingVerplichtFout(omschrEl.value.trim())],
+      ['structuur-verantw', 'structuur-verantw-fout', verAntwEl.value.trim() ? '' : KIES_FUNCTIE],
     ])) return
 
     const item = {
@@ -1703,7 +1852,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
       const vooraf = await aantalVermogens(id)
       if (!knop.isConnected) return
       if (vooraf > 0) { toonVerwijderBlokkade(knop, domein, vooraf); return }
-      if (!confirm('Item verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
+      if (!bevestigVerwijderen('Domein', domein.naam)) return
       let blokkade = 0
       const uitkomst = await metOpslaan(knop, async () => {
         try {
@@ -1730,7 +1879,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
       if (!item) return
       rij.classList.add('bewerken')
       rij.innerHTML = `
-        <div class="pijler-bewerk-form">
+        <div class="pijler-bewerk-form" role="cell">
           <div class="form-groep" role="radiogroup" aria-labelledby="bs-${esc(id)}">
             <span class="form-label" id="bs-${esc(id)}">Soort</span>
             <div class="form-rij soort-keuze">
@@ -1740,17 +1889,17 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
           </div>
           <div class="form-groep">
             <label class="form-label" for="bn-${esc(id)}">Naam</label>
-            <input class="form-input" id="bn-${esc(id)}" value="${esc(item.naam)}" autocomplete="off">
+            <input class="form-input" id="bn-${esc(id)}" type="text" value="${esc(item.naam)}" autocomplete="off" maxlength="200">
             <span class="form-fout" id="bn-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
             <label class="form-label" for="bh-${esc(id)}">#Hashtag</label>
-            <input class="form-input" id="bh-${esc(id)}" value="${esc(item.hashtag || '')}" placeholder="Optioneel, bijv. #HCASpeelt" autocomplete="off">
+            <input class="form-input" id="bh-${esc(id)}" type="text" value="${esc(item.hashtag || '')}" placeholder="Optioneel, bijv. #HCASpeelt" autocomplete="off">
             <span class="form-fout" id="bh-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
             <label class="form-label" for="bo-${esc(id)}">Omschrijving</label>
-            <input class="form-input" id="bo-${esc(id)}" value="${esc(item.omschrijving || '')}" autocomplete="off">
+            <textarea class="form-input" id="bo-${esc(id)}" rows="3" maxlength="500">${esc(item.omschrijving || '')}</textarea>
             <span class="form-fout" id="bo-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep" id="bv-groep-${esc(id)}">
@@ -1779,10 +1928,10 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {})
       const hashtag = document.getElementById(`bh-${id}`)?.value.trim() || ''
       wisSoortBlokkade(id)
       if (!valideerVelden([
-        [`bn-${id}`, `bn-fout-${id}`, minFout(naam, 2)],
+        [`bn-${id}`, `bn-fout-${id}`, naamFout(naam, 200)],
         [`bh-${id}`, `bh-fout-${id}`, hashtagFout(hashtag)],
-        [`bo-${id}`, `bo-fout-${id}`, minFout(omschr, 2)],
-        [`bv-${id}`, `bv-fout-${id}`, minFout(verantw, 1, 'Kies een bestuursfunctie')],
+        [`bo-${id}`, `bo-fout-${id}`, omschrijvingVerplichtFout(omschr || '')],
+        [`bv-${id}`, `bv-fout-${id}`, verantw ? '' : KIES_FUNCTIE],
       ])) return
       const domein = { id, naam: rij.dataset.naam || naam }
       // Naar overkoepelend kan alleen zonder vermogens: eerst vers tellen, dan pas opslaan
@@ -1857,9 +2006,9 @@ function vermogenVeldFouten(naamId, domeinId) {
 
 async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'vermogensbeheer', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('vermogensbeheer')]], inhoud: `
-        <div class="sectie" data-meldblok>
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-3">
           <div class="sectie-kop">
-            <h2>Vermogens</h2>
+            <h1 id="sectie-kop-3">Vermogens</h1>
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk" id="vermogen-balk" hidden>
@@ -2022,9 +2171,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     balk.hidden = true
     balk.append(toevoegKnop)
     form.hidden = true
-    const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
-      ? '<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor vermogens al gepubliceerd?</p>' : ''
-    lijstEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De vermogens konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="vermogen-herlaad">Opnieuw laden</button></div></div>${testHint}`
+    lijstEl.innerHTML = laadfoutHTML('De vermogens konden niet worden geladen.', 'vermogen-herlaad', e, 'vermogens')
   }
 
   async function laadEnRender() {
@@ -2327,9 +2474,9 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
                 </select>
               </div>` : ''
   document.querySelector('#app').innerHTML = appShellHTML({ actief: soort, kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam(soort)]], inhoud: `
-        <div class="sectie" data-meldblok>
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-4">
           <div class="sectie-kop">
-            <h2>${cfg.Meer}</h2>
+            <h1 id="sectie-kop-4">${cfg.Meer}</h1>
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk" id="onderdeel-balk" hidden>${filterHTML}
@@ -2443,8 +2590,8 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
           <span class="cel-status" role="cell">${Object.hasOwn(STATUS_LABEL, x.status) ? `<span class="status-label ${x.status}">${STATUS_LABEL[x.status]}</span>` : leeg('geen status')}</span>` : ''
     // Pijlknoppen alleen in het volledige overzicht (zonder filter); anders weg (Paul, 23-11-2026)
     const pijlen = actiefFilter === 'alle' ? `
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omhoog"${k === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
-            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="${esc(x.naam)} omlaag"${k === n - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>` : ''
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(x.id)}" aria-label="Omhoog: ${esc(x.naam)}"${k === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
+            <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omlaag" data-id="${esc(x.id)}" aria-label="Omlaag: ${esc(x.naam)}"${k === n - 1 ? ' disabled' : ''}>${menuIcoon('pijl-omlaag')}</button>` : ''
     return `
         <div class="structuur-rij beheer-rij ${cfg.status ? 'project-rij' : 'samenwerking-rij'}" role="row" data-id="${esc(x.id)}">
           <span class="cel-nr" role="cell">${plaats}</span>
@@ -2489,9 +2636,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     balk.hidden = true
     form.hidden = true
     toevoegKnop.hidden = false
-    const testHint = e?.code === 'permission-denied' && (SOORT === 'test' || SOORT === 'ontwikkel')
-      ? `<p class="tussen-hint">Testomgeving: zijn de Firestore-regels voor ${cfg.meer} al gepubliceerd?</p>` : ''
-    lijstEl.innerHTML = `<div class="meldingen"><div class="melding melding-fout" role="alert">De ${cfg.meer} konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.<button type="button" class="btn melding-actie" id="onderdeel-herlaad">Opnieuw laden</button></div></div>${testHint}`
+    lijstEl.innerHTML = laadfoutHTML(`De ${cfg.meer} konden niet worden geladen.`, 'onderdeel-herlaad', e, cfg.meer)
   }
 
   async function laadEnRender() {
@@ -2719,9 +2864,9 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
 
 async function renderBestuursfunctiesBeheer(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'functies', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('functies')]], inhoud: `
-        <div class="sectie" data-meldblok>
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-5">
           <div class="sectie-kop">
-            <h2>Bestuursfuncties</h2>
+            <h1 id="sectie-kop-5">Bestuursfuncties</h1>
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk">
@@ -2730,7 +2875,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
             <div class="pijler-form" id="functie-form" hidden>
               <div class="form-groep">
                 <label class="form-label" for="functie-naam">Naam</label>
-                <input class="form-input" id="functie-naam" type="text" placeholder="Bijv. Bestuurslid Hockey" autocomplete="off" aria-describedby="functie-naam-fout">
+                <input class="form-input" id="functie-naam" type="text" placeholder="Bijv. Bestuurslid Hockey" autocomplete="off" maxlength="100" aria-describedby="functie-naam-fout">
                 <span class="form-fout" id="functie-naam-fout"></span>
               </div>
               <div class="form-rij">
@@ -2749,7 +2894,6 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   bindAppShell(gebruiker)
   bindMeldblokken()
 
-  const geldigeNaam = naam => naam.length >= 2 && naam.length <= 100
 
   // Waar een functie eindverantwoordelijke (domeinen) of eigenaar (commissies, projecten, samenwerkingen) van is (CK-046, CK-041)
   // Domeinen moeten laden; commissies, projecten en samenwerkingen fail-soft (null), dan is de telling onvolledig
@@ -2777,9 +2921,24 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 
   async function laadEnRender() {
     const lijst = document.getElementById('functie-lijst')
-    if (!lijst) return
-    const [functies, verwijzers] = await Promise.all([laadBestuursfuncties(), laadVerwijzers()])
-    if (!lijst.isConnected) return
+    if (!lijst) return false
+    const balk = document.querySelector('.beheer-balk')
+    let functies, verwijzers
+    try {
+      [functies, verwijzers] = await Promise.all([laadBestuursfuncties(), laadVerwijzers()])
+    } catch (e) {
+      if (!lijst.isConnected) return false
+      console.error('Bestuursfuncties laden mislukt:', e?.code)
+      balk.hidden = true
+      document.getElementById('functie-form').hidden = true
+      document.getElementById('functie-hint').textContent = ''
+      lijst.removeAttribute('role')
+      lijst.removeAttribute('aria-label')
+      lijst.innerHTML = laadfoutHTML('De bestuursfuncties konden niet worden geladen.', 'functie-herlaad', e, 'bestuursfuncties')
+      return false
+    }
+    if (!lijst.isConnected) return false
+    balk.hidden = false
     const hint = document.getElementById('functie-hint')
     if (hint) hint.textContent = verwijzers.slice(1).every(Boolean) ? '' : ONVOLLEDIG
     if (functies.length === 0) {
@@ -2815,6 +2974,9 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
 
   const lijstEl = document.getElementById('functie-lijst')
   const toevoegKnop = document.getElementById('functie-toevoegen-knop')
+  bindHerlaad(lijstEl, 'functie-herlaad', async () => (await laadEnRender()) !== false, () => toevoegKnop)
+  enterSlaatOp(document.getElementById('functie-form'), () => document.getElementById('functie-opslaan'))
+  enterSlaatOp(lijstEl, t => t.closest('.pijler-bewerk-form')?.querySelector('[data-actie="bewerk-opslaan"]'))
   const sectieOk = document.getElementById('functie-ok')
   const sectieFout = document.getElementById('functie-fout')
   const opslaanKnop = document.getElementById('functie-opslaan')
@@ -2822,7 +2984,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   const naamInput = document.getElementById('functie-naam')
   const terugval = () => zichtbareTerugval(toevoegKnop, document.getElementById('functie-form'))
   const volgordeStatus = document.getElementById('functie-volgorde')
-  const naamRegel = naam => (geldigeNaam(naam) ? '' : naam ? 'Tussen 2 en 100 tekens' : 'Verplicht veld')
+  const naamRegel = naam => naamFout(naam, 100)
 
   const resetForm = () => {
     document.getElementById('functie-form').hidden = true
@@ -2905,8 +3067,8 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
         meldingInBeeld(sectieFout)
         return
       }
-      if (!confirm('Bestuursfunctie verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
       const naam = rij?.querySelector('.cel-naam')?.textContent || ''
+      if (!bevestigVerwijderen('Bestuursfunctie', naam)) return
       const uitkomst = await metOpslaan(knop, () => verwijderBestuursfunctie(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null })
       await laadEnRender().catch(e => console.error(e))
       if (uitkomst === 'ok') {
@@ -2919,10 +3081,10 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       if (!f) return
       rij.classList.add('bewerken')
       rij.innerHTML = `
-        <div class="pijler-bewerk-form">
+        <div class="pijler-bewerk-form" role="cell">
           <div class="form-groep">
             <label class="form-label" for="fn-${esc(id)}">Naam</label>
-            <input class="form-input" id="fn-${esc(id)}" value="${esc(f.naam)}" autocomplete="off" aria-describedby="fn-fout-${esc(id)}">
+            <input class="form-input" id="fn-${esc(id)}" type="text" maxlength="100" value="${esc(f.naam)}" autocomplete="off" aria-describedby="fn-fout-${esc(id)}">
             <span class="form-fout" id="fn-fout-${esc(id)}"></span>
           </div>
           <div class="form-rij">
@@ -2969,9 +3131,10 @@ const CLUB_SUCCES = {
 function renderClubBeheer(gebruiker, { succes } = {}) {
   const logoSrc = veiligLogo(huidigProfiel?.logo)
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'club', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('club')]], inhoud: `
-        <div class="sectie" data-meldblok>
+        <h1 class="sr-only">Club</h1>
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-6">
           <div class="sectie-kop">
-            <h2>Clubprofiel</h2>
+            <h2 id="sectie-kop-6">Clubprofiel</h2>
           </div>
           <div class="sectie-lijf">
             <div class="profiel-form-wrap">
@@ -2998,9 +3161,9 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
           </div>
         </div>
 
-        <div class="sectie" data-meldblok>
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-7">
           <div class="sectie-kop">
-            <h2>Clublogo</h2>
+            <h2 id="sectie-kop-7">Clublogo</h2>
           </div>
           <div class="sectie-lijf">
             <div class="logo-upload-wrap">
@@ -3009,7 +3172,7 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
                 : `<div class="logo-leeg">Nog geen logo geüpload</div>`}
               <div class="form-rij">
                 <button type="button" class="btn" id="logo-kiezen">${logoSrc ? 'Logo wijzigen' : 'Logo uploaden'}</button>
-                <input type="file" id="logo-input" accept="image/*" hidden>
+                <input type="file" id="logo-input" accept="image/png,image/jpeg,image/webp" hidden>
                 ${logoSrc
                   ? `<button class="btn gevaar" id="logo-verwijderen">Verwijderen</button>`
                   : ''}
@@ -3101,9 +3264,9 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
 // Mijn account — bereikbaar via de accountregel in het zijmenu
 function renderMijnAccount(gebruiker) {
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'account', kruimels: [['Home', 'home'], [navNaam('account')]], inhoud: `
-        <div class="sectie">
+        <div class="sectie" role="region" aria-labelledby="sectie-kop-8">
           <div class="sectie-kop">
-            <h2>Mijn account</h2>
+            <h1 id="sectie-kop-8">Mijn account</h1>
           </div>
           <div class="sectie-lijf">
             <div class="profiel-form-wrap">
@@ -3188,8 +3351,8 @@ function renderMijnAccount(gebruiker) {
     const email = document.getElementById('geb-email').value.trim()
     const ww = document.getElementById('geb-email-ww').value
     if (!valideerVelden([
-      ['geb-email', 'geb-email-fout', email ? '' : 'E-mailadres verplicht'],
-      ['geb-email-ww', 'geb-email-ww-fout', ww ? '' : 'Wachtwoord verplicht'],
+      ['geb-email', 'geb-email-fout', email ? '' : 'Vul het nieuwe e-mailadres in.'],
+      ['geb-email-ww', 'geb-email-ww-fout', ww ? '' : 'Vul je wachtwoord in.'],
     ])) return
     const emailVeld = ['geb-email-fout', 'geb-email']
     const wwVeld = ['geb-email-ww-fout', 'geb-email-ww']
@@ -3220,7 +3383,7 @@ function renderMijnAccount(gebruiker) {
     const huidigWw = document.getElementById('geb-huidig-ww').value
     const nieuwWw = document.getElementById('geb-nieuw-ww').value
     if (!valideerVelden([
-      ['geb-huidig-ww', 'geb-huidig-ww-fout', huidigWw ? '' : 'Verplicht veld'],
+      ['geb-huidig-ww', 'geb-huidig-ww-fout', huidigWw ? '' : 'Vul je huidige wachtwoord in.'],
       ['geb-nieuw-ww', 'geb-nieuw-ww-fout', minFout(nieuwWw, 8)],
     ])) return
     const huidigVeld = ['geb-huidig-ww-fout', 'geb-huidig-ww']
@@ -3249,10 +3412,13 @@ if (configFout) {
 } else {
   toonOmgevingsBalk()
   startEigenVelden()   // eigen keuzelijst en datumkiezer in plaats van die van de browser
+  startStilteBewaking()
   onAuthStateChanged(auth, async gebruiker => {
     clearTimeout(laadTimer)
     laadTimer = null
     if (gebruiker) {
+      if (teLangStil()) { stilUitloggen(); return }
+      markeerActief(true)
       huidigGebruiker = gebruiker
       foutPogingen = 0
       laadTimer = setTimeout(renderLaadkaart, 500)

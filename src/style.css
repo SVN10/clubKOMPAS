@@ -35,6 +35,12 @@
   --schaduw-tooltip: 0 2px 6px rgba(0,0,0,.18);
   --schaduw-paneel: 4px 0 16px rgba(0,0,0,.2);
   --dimlaag: rgba(0,0,0,.45);
+  /* Omgevingsbalk: in licht en donker thema gelijk, zodat je de omgeving altijd herkent */
+  --balk-test: #C9CDCD;
+  --balk-ontwikkel: #FF9E16;
+  --balk-productie: #46797B;
+  --balk-tekst-donker: #111212;
+  --balk-tekst-licht: #FFFFFF;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,6 +67,7 @@
   --surface:  #152022;
   --card:     #1B2A2C;
   --border:   #2E4447;
+  --rand-invoer: #668487;
   --petrol:   #7DB1B3;
   --petrol-dark: #2F5658;
   --petrol-vlak: #2F5658;
@@ -147,6 +154,7 @@ body {
   gap: 12px;
   flex-wrap: wrap;
 }
+.sectie-kop h1,
 .sectie-kop h2 {
   font-size: var(--fs-bloknaam);
   line-height: 20px;
@@ -277,9 +285,13 @@ footer {
   color: var(--petrol);
   padding: 12px;
   border-radius: 4px;
+  /* Zelfde letterstijl als .btn (besluit 40, tweede deel, 24-11-2026); vorm en kleur blijven */
   font-family: var(--font);
   font-size: var(--fs-lopend);
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  line-height: 1.2;
   cursor: pointer;
   margin-top: 4px;
   text-align: center;
@@ -481,14 +493,6 @@ footer {
   border-bottom: 1px solid var(--border);
 }
 .structuur-rij:last-child { border-bottom: none; }
-.structuur-rij-info {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  flex: 1;
-  min-width: 0;
-}
 
 /* ── Responsief ── */
 @media (max-width: 700px) {
@@ -497,28 +501,13 @@ footer {
 }
 
 /* ── Domeinen: pictogrammen en volgorde (CK-027) ── */
-.picto-groot { display: block; width: 40px; height: 40px; margin-bottom: 8px; }
 .picto-klein { width: 22px; height: 22px; flex: none; }
 .card-titel { display: flex; align-items: center; gap: 8px; }
-.volgorde-nr {
-  min-width: 22px;
-  font-size: var(--fs-toelichting);
-  font-weight: 700;
-  color: var(--muted);
-  text-align: right;
-}
 .btn-volgorde { min-width: 32px; font-size: var(--fs-lopend); display: inline-flex; align-items: center; justify-content: center; }
 .btn-volgorde:disabled { opacity: .35; cursor: default; }
 .btn-volgorde:disabled:hover { border-color: var(--border); color: inherit; }
 
 /* ── Beheer (CK-028) ── */
-.functie-label {
-  font-size: var(--fs-label);
-  color: var(--petrol);
-  border: 1px solid var(--border);
-  padding: 1px 7px;
-  white-space: nowrap;
-}
 
 /* ── Layoutverbeteringen (CK-029) ── */
 .sr-only {
@@ -800,6 +789,12 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 .app-kolom { overflow-y: auto; }
 .app-kolom > .kruimelpad { flex: none; position: sticky; top: 0; z-index: 2; }   /* blijft staan bij scrollen; z-index onder het clublogo (3) */
 .zijmenu-binnen { position: static; height: 100%; padding-top: 0; }
+/* Lage viewport (bijv. 320 px breed bij 400 % zoom, WCAG 1.4.10): niets staat vast, de hele pagina scrolt (CK-052) */
+@media (max-height: 500px) {
+  body:has(> #app > .app-shell) { height: auto; overflow: visible; }
+  .app-kolom { overflow-y: visible; }
+  .app-kolom > .kruimelpad { position: static; }
+}
 
 /* Zijmenu op een raster van 44px, gelijk aan het kruimelpad: elk kopje en elk item is één rij */
 .zijmenu-kop { display: flex; align-items: center; height: 44px; padding: 0 12px 0 16px; }
@@ -840,7 +835,6 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
     transition: transform .2s ease, visibility 0s linear .2s;
   }
   .zijmenu.open { transform: none; visibility: visible; transition: transform .2s ease, visibility 0s; }
-  .zijmenu-binnen { position: static; height: 100%; padding-top: 0; }
   .zijmenu-paneelkop { display: flex; justify-content: flex-end; border-bottom: 1px solid var(--border); }
   .zijmenu-sluit {
     display: inline-flex; align-items: center; justify-content: center;
@@ -870,9 +864,9 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
 }
 .omgeving-balk strong { font-weight: 700; }
 /* Vaste kleuren, ook in donkere modus, zodat de omgeving altijd herkenbaar is */
-.omgeving-balk--test { background: #C9CDCD; color: #111212; }               /* grijs, zwarte letters */
-.omgeving-balk--ontwikkel { background: #FF9E16; color: #111212; }          /* oranje, zwarte letters */
-.omgeving-balk--productie-lokaal { background: #46797B; color: #FFFFFF; }   /* echte clubdata: petrol met waarschuwingstekst */
+.omgeving-balk--test { background: var(--balk-test); color: var(--balk-tekst-donker); }               /* grijs, zwarte letters */
+.omgeving-balk--ontwikkel { background: var(--balk-ontwikkel); color: var(--balk-tekst-donker); }          /* oranje, zwarte letters */
+.omgeving-balk--productie-lokaal { background: var(--balk-productie); color: var(--balk-tekst-licht); }   /* echte clubdata: petrol met waarschuwingstekst */
 /* In de app-shell staat de balk boven de footer; de losse balk onderaan de body is dan overbodig */
 body:has(> #app > .app-shell) > .omgeving-balk { display: none; }
 body.met-omgeving-balk #app:has(> .inlog-wrap) {
@@ -1005,13 +999,13 @@ a.btn { text-decoration: none; }
   .functie-rij { grid-template-columns: 28px minmax(100px, 1.2fr) minmax(100px, 1fr) 200px; }
 }
 @container (max-width: 660px) {
-  .beheer-rij.beheer-kop.domein-rij { display: none; }
+  .beheer-rij.beheer-kop.domein-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
   .domein-rij { grid-template-columns: 24px 24px 1fr; row-gap: 4px; }
   .domein-rij > :nth-child(4), .domein-rij > :nth-child(5), .domein-rij > :nth-child(6) { grid-column: 3; }
   .domein-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
 }
 @container (max-width: 500px) {
-  .beheer-rij.beheer-kop.functie-rij { display: none; }
+  .beheer-rij.beheer-kop.functie-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
   .functie-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
   .functie-rij > :nth-child(3) { grid-column: 2; }
   .functie-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
@@ -1044,7 +1038,7 @@ a.btn { text-decoration: none; }
 .leeg-blok p { font-size: var(--fs-lopend); line-height: 21px; max-width: 60ch; }
 .leeg-blok .btn-toevoegen { margin-top: 0; padding: 0 16px; min-height: 38px; }
 @container (max-width: 400px) {
-  .beheer-rij.beheer-kop.vermogen-rij { display: none; }
+  .beheer-rij.beheer-kop.vermogen-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
   .vermogen-rij { grid-template-columns: 24px minmax(0, 1fr); row-gap: 4px; }
   .vermogen-rij .cel-acties { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
   .groep-kop { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
@@ -1078,7 +1072,7 @@ a.btn { text-decoration: none; }
 .datum-label { font-size: var(--fs-toelichting); line-height: 18px; color: var(--text); }
 
 @container (max-width: 760px) {
-  .beheer-rij.beheer-kop.project-rij { display: none; }
+  .beheer-rij.beheer-kop.project-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
   .project-rij { grid-template-columns: 24px auto 1fr; row-gap: 6px; column-gap: 10px; }
   .project-rij .cel-project  { grid-column: 2 / -1; }
   .project-rij .cel-status   { grid-column: 2; grid-row: 2; }
@@ -1087,7 +1081,7 @@ a.btn { text-decoration: none; }
   .project-rij .cel-label    { display: inline; }
 }
 @container (max-width: 500px) {
-  .beheer-rij.beheer-kop.samenwerking-rij { display: none; }
+  .beheer-rij.beheer-kop.samenwerking-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
   .samenwerking-rij { grid-template-columns: 24px 1fr; row-gap: 4px; }
   .samenwerking-rij .cel-eigenaar { grid-column: 2; font-size: var(--fs-toelichting); }
   .samenwerking-rij .cel-label { display: inline; }
@@ -1129,7 +1123,6 @@ a.btn { text-decoration: none; }
 }
 
 /* Domeinen: aantal vermogens onder de naam (besluit 16) */
-.cel-domein { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cel-sub { width: fit-content; font-weight: 400; }
 
 /* Home */
@@ -1141,8 +1134,8 @@ a.btn { text-decoration: none; }
 /* Opgeruimde inline stijlen (huisstijl CK-020) */
 .domein-rij .pill { margin-top: 0; }
 .lijst-leeg { color: var(--muted); font-style: italic; font-size: var(--fs-toelichting); }
-.sectie-voet { text-align: right; margin-top: 8px; }
 .grid-leeg { color: var(--muted); }
+.grid-fout { grid-column: 1 / -1; display: block; }
 
 /* Kerncijfers: onder 900px is de inhoud naast het zijmenu te smal voor vier op een rij */
 @media (max-width: 900px) {

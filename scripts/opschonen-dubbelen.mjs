@@ -4,7 +4,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, collection, getDocs, getDoc, doc, deleteDoc } from 'firebase/firestore'
-import { startScript, vraag, inloggen, zoekClubId, geweigerd, gelukt } from './lib/omgeving.mjs'
+import { startScript, vraag, inloggen, zoekClubId, geweigerd, gelukt, veilig } from './lib/omgeving.mjs'
 
 const { omgeving, projectId, firebaseConfig } = await startScript({ droogMogelijk: false })
 const email = await vraag('E-mailadres: ')
@@ -45,7 +45,7 @@ for (const groep of groepen.values()) {
 
 console.log(`${docs.length} items gevonden, ${weg.length} dubbel.`)
 if (weg.length === 0) { console.log('Niets op te ruimen.'); process.exit(0) }
-for (const d of weg) console.log(`  – ${d.data().type}: ${d.data().naam}`)
+for (const d of weg) console.log(veilig(`  – ${d.data().type}: ${d.data().naam}`))
 
 const antwoord = await vraag(`\nDeze ${weg.length} dubbele items verwijderen? Typ "ja": `)
 if (antwoord.trim().toLowerCase() !== 'ja') { console.log('Afgebroken, niets verwijderd.'); process.exit(0) }

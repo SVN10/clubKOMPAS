@@ -381,7 +381,9 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
     - veldcontrole (`hasOnly`, typen, lengtes) op `instellingen`, `bestuursfuncties` en `structuurelementen` (`firestore.rules:192-228`);
     - een maximale lengte voor het logo, en een domeinnaam die niet leeg mag zijn;
     - regeltests voor de P0c-regels: zelf `gebruikers/{uid}` schrijven, zelf `leden/{uid}` aanmaken, je rol ophogen, `clubs/{id}` schrijven en het document van een ander lezen;
-    - een test voor de omgevingsguard in `src/firebase.js`.
+    - een test voor de omgevingsguard in `src/firebase.js`;
+    - het logo alleen als `data:image/(png|jpeg|webp)` in `geldigLogo` (CK-052, besluit van 24-11-2026);
+    - de omschrijving van een domein maximaal 500 tekens, net als in de app sinds v0.13.0.
 - [ ] **Eén `h1` per pagina** (nu alleen Home)
 - [x] **Domeinenlijst te breed** naast het zijmenu (op tst gezien tot ~1080px): opgelost 23 november 2026 met meegevende kolommen en een container query (domeinen stapelen onder 760px lijstbreedte, functies onder 590px)
 - [ ] **Lege strook onder het zijmenu** bij omgevingsbalk na scrollen (beoordelen op tst)
@@ -554,12 +556,12 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [x] `vercel.json` met beveiligingsheaders: CSP, `frame-ancestors`, `nosniff` en `Referrer-Policy`. De CSP eerst op tst testen, ná het lokaal zetten van het lettertype
 
 ### CK-048 — Laadfouten en toegankelijke formulieren
-**Status:** Open · route middel
+**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route middel
 
-- [ ] Een laadfout op Domeinen, Bestuursfuncties en het Domeinenoverzicht toont een melding met "Opnieuw laden", net als Vermogens (`src/main.js:593`, `:988`, `:1558`, `:2813`)
-- [ ] Inlogscherm: fouten via `zetVeldFout` met `aria-invalid`/`aria-describedby` en een live-region (`src/main.js:667-690`)
-- [ ] Datumkiezer: de focus blijft op een geldige dag, en Escape blijft werken (`src/keuzelijst.js:183`, `:226-232`)
-- [ ] Een foutrand op de eigen keuzelijst en de datumkiezer (`src/keuzelijst.js:50-58`)
+- [x] Een laadfout op Domeinen, Bestuursfuncties en het Domeinenoverzicht toont een melding met "Opnieuw laden", net als Vermogens (`src/main.js:593`, `:988`, `:1558`, `:2813`)
+- [x] Inlogscherm: fouten via `zetVeldFout` met `aria-invalid`/`aria-describedby` en een live-region (`src/main.js:667-690`)
+- [x] Datumkiezer: de focus blijft op een geldige dag, en Escape blijft werken (`src/keuzelijst.js:183`, `:226-232`)
+- [x] Een foutrand op de eigen keuzelijst en de datumkiezer (`src/keuzelijst.js:50-58`)
 
 ### CK-049 — AVG-basis vóór ledengegevens
 **Status:** Open · grotendeels zonder code (Paul) · **harde poort vóór ledengegevens, naast P0d**
@@ -575,14 +577,14 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [ ] Daarna een korte privacyverklaring, met een link in de footer van de app
 
 ### CK-050 — Beheertabellen gelijktrekken en opruimen
-**Status:** Open · route middel · later, samen met het opsplitsen van `main.js` (zie `pipeline.md`)
+**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route middel · het opsplitsen van `main.js` blijft apart (zie `pipeline.md`)
 
-- [ ] Dezelfde teksten bij verwijderen, lege toestand en validatie, hetzelfde Enter-gedrag en dezelfde labels op de pijlknoppen in alle beheertabellen (gedeelde helpers)
-- [ ] Region-landmarks (`<section aria-labelledby>`) en een `h1` per beheerpagina (zie ook "Na CK-044")
-- [ ] Kolomkoppen blijven voor de schermlezer bestaan in een smalle tabel; de bewerkrij van Domeinen krijgt `role="cell"`
-- [ ] Kleuren via klassen in plaats van inline `style=` (`SOORT_KLEUR`)
-- [ ] Dode code weg: `src/counter.js`, `src/assets/*`, `public/icons.svg`, de ongebruikte import, `huidigeRol`/`laadRol`, en dode of dubbele CSS
-- [ ] Oudere scripts tonen namen via `veilig()`. `scripts/firestore.rules.migratie` verwijderen of er een waarschuwing in zetten
+- [x] Dezelfde teksten bij verwijderen, lege toestand en validatie, hetzelfde Enter-gedrag en dezelfde labels op de pijlknoppen in alle beheertabellen (gedeelde helpers)
+- [x] Region-landmarks (`<section aria-labelledby>`) en een `h1` per beheerpagina (zie ook "Na CK-044")
+- [x] Kolomkoppen blijven voor de schermlezer bestaan in een smalle tabel; de bewerkrij van Domeinen krijgt `role="cell"`
+- [x] Kleuren via klassen in plaats van inline `style=` (`SOORT_KLEUR`). Was al gedaan in CK-047
+- [x] Dode code weg: `src/counter.js`, `src/assets/*`, `public/icons.svg`, de ongebruikte import, en dode of dubbele CSS. `huidigeRol`/`laadRol` blijven bewust staan: P0d heeft ze nodig voor `zichtbaar()`
+- [x] Oudere scripts tonen namen via `veilig()`. `scripts/firestore.rules.migratie` verwijderen of er een waarschuwing in zetten
 
 ### ✅ CK-051 — Huisstijlbesluiten (Paul)
 **Status:** ✅ Besloten op 23 november 2026 · vastgelegd als besluiten 39–41 in `.claude/specs/CK-046-besluiten.md`
@@ -590,3 +592,14 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [x] Kaarten en knoppen blijven vierkant (0–6 px, geen schaduw, lichte rand). De huisstijlregel volgt het ontwerp
 - [x] Opslaan wordt een primaire knop (petrol vlak). Gebouwd in CK-047 (v0.12.2)
 - [x] Verwijderen blijft `confirm()` met één vaste tekst. De teksten worden gelijkgetrokken in CK-050
+
+### CK-052 — Restpunten uit de analyse v0.12.1
+**Status:** Codepunten gebouwd op `test` (24-11-2026), nog testen op tst · toegevoegd op 24 november 2026 · stonden in het eindoordeel maar nog niet in de backlog
+
+- [x] Bij 320 px breed en 400 % zoom laat de vaste paginahoogte weinig ruimte over (M16, `src/style.css:781`, WCAG 1.4.10)
+- [x] Het logo mag een SVG zijn. Besloten (Paul, 24-11-2026): SVG weren. De app accepteert en toont alleen PNG, JPG en WebP. De regel in `firestore.rules:18` volgt in de regelronde van P0d
+- [x] Sessies blijven onbeperkt open. Besloten (Paul, 24-11-2026): automatisch uitloggen na 8 uur zonder klikken of typen, ook over tabbladen heen
+- [ ] Firebase-console (Paul): nakijken of zelfregistratie (gebruikers die zelf een account aanmaken) uit staat, in test en productie
+- [x] Hardgecodeerde hex-kleur in de omgevingsbalk via een token laten lopen (`src/style.css:858-860`)
+- [x] Besluit 2, tweede deel: `.btn-toevoegen` krijgt dezelfde letterstijl als `.btn` (Paul, 24-11-2026); vorm en kleur blijven
+- [ ] De bundel is 659 kB (Vite waarschuwt boven 500 kB). Kleiner maken bij het opsplitsen van `main.js` (zie `pipeline.md`)

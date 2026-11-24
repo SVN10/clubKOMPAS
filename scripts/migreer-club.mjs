@@ -5,7 +5,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, collection, getDocs, getDoc, doc, writeBatch, serverTimestamp } from 'firebase/firestore'
-import { startScript, vraag, inloggen, stop, waarschuw, gelukt } from './lib/omgeving.mjs'
+import { startScript, vraag, inloggen, stop, waarschuw, gelukt, veilig } from './lib/omgeving.mjs'
 
 const MAX_DOCS = 450
 
@@ -117,7 +117,7 @@ const overig = items.length - pijlers - domeinen
 
 console.log('Samenvatting bron')
 console.log(`  Bron:           clubs/${uid}`)
-console.log(`  Clubnaam:       ${bron.profiel?.naam || '(geen)'}`)
+console.log(veilig(`  Clubnaam:       ${bron.profiel?.naam || '(geen)'}`))
 console.log(`  Pijlers:        ${pijlers}`)
 console.log(`  Domeinen:       ${domeinen}`)
 if (overig) console.log(`  Overig type:    ${overig}`)
