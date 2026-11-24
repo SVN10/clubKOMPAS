@@ -376,7 +376,7 @@ Nu wijst `dev.clubkompas.svn10.nl` naar de **live** app (`svn10-clubkompas`) en 
 ### Na CK-044 — vervolgpunten (nog te nummeren)
 **Status:** Open · uit de kwaliteitscontroles van CK-044 (22 november 2026)
 
-- [x] **Harde eis voor P0d (Beheer alleen voor beheerders):** *gebouwd op `test` (24-11-2026), doc en testlijst: `.claude/docs/P0d.md`; regels nog publiceren (Paul: eerst `npm run p0d:controle -- --droog`, dan `regels:test`, testlijst op tst, dan productie)* verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), `commissies` (CK-041), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
+- [x] **Harde eis voor P0d (Beheer alleen voor beheerders):** *✅ live in v0.13.0 (24-11-2026); regels gepubliceerd in test en productie; doc en testlijst: `.claude/docs/P0d.md`* verbergen in het zijmenu (`zichtbaar()`) is géén beveiliging. Nodig: `isBeheerder(clubId)` op `leden/{uid}.rol` in `firestore.rules` voor schrijven op `instellingen`, `bestuursfuncties`, `structuurelementen`, `vermogens`, `vermogensnamen` (CK-020), `projecten` en `samenwerkingen` (CK-046), `commissies` (CK-041), en voor het zetten of weghalen van `bevat` op structuurelementen; controle in de navigatie (`NAV_DOEL`) én een guard bovenaan elke beheer-render
   - [x] **Aanvulling uit de app-analyse v0.12.1** (`.claude/reports/APP-0.12.1-eindoordeel.md`, M1/M2), in dezelfde regelronde:
     - veldcontrole (`hasOnly`, typen, lengtes) op `instellingen`, `bestuursfuncties` en `structuurelementen` (`firestore.rules:192-228`);
     - een maximale lengte voor het logo, en een domeinnaam die niet leeg mag zijn;
@@ -555,8 +555,8 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [x] Opslaan als primaire knop in elk formulier (besluit 40)
 - [x] `vercel.json` met beveiligingsheaders: CSP, `frame-ancestors`, `nosniff` en `Referrer-Policy`. De CSP eerst op tst testen, ná het lokaal zetten van het lettertype
 
-### CK-048 — Laadfouten en toegankelijke formulieren
-**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route middel
+### ✅ CK-048 — Laadfouten en toegankelijke formulieren
+**Status:** ✅ Live in v0.13.0 (24-11-2026) · route middel
 
 - [x] Een laadfout op Domeinen, Bestuursfuncties en het Domeinenoverzicht toont een melding met "Opnieuw laden", net als Vermogens (`src/main.js:593`, `:988`, `:1558`, `:2813`)
 - [x] Inlogscherm: fouten via `zetVeldFout` met `aria-invalid`/`aria-describedby` en een live-region (`src/main.js:667-690`)
@@ -576,8 +576,8 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [ ] Regio van Firebase Auth noteren (Firestore staat in eur3)
 - [ ] Daarna een korte privacyverklaring, met een link in de footer van de app
 
-### CK-050 — Beheertabellen gelijktrekken en opruimen
-**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route middel · het opsplitsen van `main.js` blijft apart (zie `pipeline.md`)
+### ✅ CK-050 — Beheertabellen gelijktrekken en opruimen
+**Status:** ✅ Live in v0.13.0 (24-11-2026) · route middel · het opsplitsen van `main.js` blijft apart (zie `pipeline.md`)
 
 - [x] Dezelfde teksten bij verwijderen, lege toestand en validatie, hetzelfde Enter-gedrag en dezelfde labels op de pijlknoppen in alle beheertabellen (gedeelde helpers)
 - [x] Region-landmarks (`<section aria-labelledby>`) en een `h1` per beheerpagina (zie ook "Na CK-044")
@@ -594,7 +594,7 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [x] Verwijderen blijft `confirm()` met één vaste tekst. De teksten worden gelijkgetrokken in CK-050
 
 ### CK-052 — Restpunten uit de analyse v0.12.1
-**Status:** Codepunten gebouwd op `test` (24-11-2026), nog testen op tst · toegevoegd op 24 november 2026 · stonden in het eindoordeel maar nog niet in de backlog
+**Status:** Codepunten live in v0.13.0 (24-11-2026); open: console-check en bundelgrootte · toegevoegd op 24 november 2026 · stonden in het eindoordeel maar nog niet in de backlog
 
 - [x] Bij 320 px breed en 400 % zoom laat de vaste paginahoogte weinig ruimte over (M16, `src/style.css:781`, WCAG 1.4.10)
 - [x] Het logo mag een SVG zijn. Besloten (Paul, 24-11-2026): SVG weren. De app accepteert en toont alleen PNG, JPG en WebP. De regel in `geldigLogo` is aangepast in P0d (24-11-2026)
