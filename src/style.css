@@ -828,7 +828,7 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
   .kruimelpad { padding-right: 16px; }
 
   .zijmenu {
-    position: fixed; top: var(--paneel-top, 0px); bottom: 0; left: 0; z-index: 30;
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 30;
     width: 260px; max-width: calc(100vw - 48px);
     box-shadow: var(--schaduw-paneel);
     transform: translateX(-100%); visibility: hidden;
@@ -842,7 +842,7 @@ body:has(> #app > .app-shell) { height: 100dvh; min-height: 0; overflow: hidden;
   }
   .zijmenu-sluit svg { width: 20px; height: 20px; }
   .zijmenu-knop { display: none; }
-  .zijmenu-achtergrond { position: fixed; inset: var(--paneel-top, 0px) 0 0 0; z-index: 20; background: var(--dimlaag); }
+  .zijmenu-achtergrond { position: fixed; inset: 0; z-index: 20; background: var(--dimlaag); }
   body.paneel-open { overflow: hidden; }
 
   footer { flex-direction: column; align-items: center; text-align: center; }

@@ -85,7 +85,7 @@ Ontwerpkeuzes:
 - Waarschuwt (kopieert niet) bij onbekende documenten in `instellingen` en bij de oude collecties `pijlers`/`domeinen`.
 - `--droog` leest en toont alleen de samenvatting.
 - Wachtwoord wordt verborgen ingevoerd en niet via argumenten meegegeven (zichtbaar in proceslijst/shell-history). `scripts/import-hca.mjs` doet dit nu ook zo.
-- Overgangsregels in `scripts/firestore.rules.migratie` bevatten de placeholder `<HCA-UID>`; de echte uid hoort nooit in de repo. Ze geven dat ene account toegang tot de hele database en moeten direct na de migratie vervangen worden door `firestore.rules`.
+- Overgangsregels in `scripts/archief/firestore.rules.migratie` bevatten de placeholder `<HCA-UID>`; de echte uid hoort nooit in de repo. Ze geven dat ene account toegang tot de hele database en moeten direct na de migratie vervangen worden door `firestore.rules`.
 
 Andere scripts: `import-hca.mjs` en `opschonen-dubbelen.mjs` zoeken het clubId op via `gebruikers/{uid}` en stoppen zonder koppeling. `migrate.mjs` is verouderd (oude uid-structuur) en gemarkeerd als niet meer te gebruiken.
 

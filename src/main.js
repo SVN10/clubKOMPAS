@@ -501,8 +501,12 @@ function valideerVelden(regels) {
 
 // ── Gelijke teksten en gedrag in alle beheertabellen (CK-050) ──
 // Zelfde zinnen als de naamregels van vermogens en onderdelen (vermogens.js)
+// Onzichtbare stuur-, nul-breedte- en bidi-tekens: de regels weigeren ze (CK-056)
+const ONZICHTBARE_TEKENS = /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/
+const ONZICHTBAAR_FOUT = 'Er staat een onzichtbaar teken in de naam, bijvoorbeeld uit een gekopieerde tekst. Typ de naam opnieuw.'
 function naamFout(naam, max = 100) {
   if (!naam) return 'Vul een naam in.'
+  if (ONZICHTBARE_TEKENS.test(naam)) return ONZICHTBAAR_FOUT
   const n = [...naam].length
   if (n < 2) return 'Een naam heeft minimaal 2 tekens.'
   if (n > max) return `Een naam heeft maximaal ${max} tekens. Nu zijn het er ${n}.`
@@ -721,7 +725,7 @@ async function renderStructuurGrid() {
   if (items.length === 0) {
     const leeg = document.createElement('p')
     leeg.className = 'structuur-dyn grid-leeg'
-    leeg.textContent = 'Nog geen domeinen. Voeg ze toe via Beheer.'
+    leeg.textContent = isBeheerder() ? 'Nog geen domeinen. Voeg ze toe via Beheer.' : 'Er zijn nog geen domeinen. Vraag een beheerder ze toe te voegen.'
     grid.appendChild(leeg)
     return
   }
@@ -832,7 +836,8 @@ function renderInlogscherm() {
 
   if (stilUitgelogd) {
     stilUitgelogd = false
-    document.getElementById('inlog-algemeen-fout').textContent = STIL_MELDING
+    // Pas na het tekenen vullen: een live-region die al gevuld verschijnt, wordt vaak niet voorgelezen (CK-056)
+    setTimeout(() => { const el = document.getElementById('inlog-algemeen-fout'); if (el) el.textContent = STIL_MELDING }, 150)
   }
 
   document.getElementById('inlog-email').addEventListener('keydown', e => {
@@ -1127,7 +1132,7 @@ function renderDomeinenoverzicht(gebruiker) {
       return false
     }
   }
-  bindHerlaad(grid, 'grid-herlaad', laadGrid, () => document.querySelector('.cijfer-link'))
+  bindHerlaad(grid, 'grid-herlaad', laadGrid, () => document.querySelector('.cijfer-link') || document.getElementById('inhoud'))
   laadGrid()
 }
 
@@ -1239,13 +1244,13 @@ async function renderPlaat(gebruiker) {
       leeg = `
           <div class="leeg-blok">
             <h2>Nog geen domeinen</h2>
-            <p>De plaat toont de pijlers en ondersteunende domeinen van de club met hun vermogens. Die zijn er nog niet; ze worden toegevoegd via Beheer.</p>
+            <p>De plaat toont de pijlers en ondersteunende domeinen van de club met hun vermogens. Die zijn er nog niet; ${isBeheerder() ? 'ze worden toegevoegd via Beheer' : 'een beheerder voegt ze toe'}.</p>
           </div>`
     } else if (!perDomein.size) {
       leeg = `
           <div class="leeg-blok">
             <h2>Nog geen vermogens</h2>
-            <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken. Ze worden toegevoegd via Beheer → Vermogens.</p>
+            <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken. ${isBeheerder() ? 'Ze worden toegevoegd via Beheer → Vermogens' : 'Een beheerder voegt ze toe'}.</p>
           </div>`
     }
     const voetnoot = aantalWees
@@ -1488,7 +1493,6 @@ const PANEEL_INERT = ['.overslaan', '.top-bar', '.app-kolom', 'footer', '.omgevi
 function openPaneel() {
   const nav = document.getElementById('zijmenu')
   if (!nav) return
-  document.querySelector('.app-shell').style.setProperty('--paneel-top', '0px')   // omgevingsbalk staat sinds 23-11-2026 onderaan
   nav.classList.add('open')
   document.querySelector('.zijmenu-achtergrond').hidden = false
   document.querySelector('.menu-knop').setAttribute('aria-expanded', 'true')
@@ -1734,6 +1738,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
 
   // Opnieuw laden: de hele pagina opnieuw, want ook de bestuursfuncties kunnen ontbroken hebben
   const lijstNu = document.getElementById('structuur-lijst')
+  if (!lijstNu?.isConnected) return   // intussen naar een andere pagina gegaan (CK-056)
   bindHerlaad(lijstNu, 'structuur-herlaad', async () => {
     await renderPijlersDomeinenBeheer(gebruiker, { filter: actiefFilter, alsNog: lijstNu })
     return !document.getElementById('structuur-herlaad')
@@ -2375,7 +2380,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
       else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
       if (!v) return
-      if (!confirm(`Vermogen ${v.naam} verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return
+      if (!bevestigVerwijderen('Vermogen', v.naam)) return
       const groep = groepVan(v)
       const k = groep.findIndex(x => x.id === id)
       const uitkomst = await metOpslaan(knop, () => verwijderVermogen(db, clubId, id), {
@@ -2838,7 +2843,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
       if (uitkomst === 'ok') { if (plaats) zetStatus(volgordeStatus, plaats) }
       else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
-      if (!confirm(`${cfg.Enkel} ${x.naam} verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return
+      if (!bevestigVerwijderen(cfg.Enkel, x.naam)) return
       const lijst = getoond()
       const k = lijst.indexOf(x)
       const uitkomst = await metOpslaan(knop, () => verwijderOnderdeel(db, clubId, soort, id), {
@@ -3010,6 +3015,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
   await laadEnRender()
 
   const lijstEl = document.getElementById('functie-lijst')
+  if (!lijstEl?.isConnected) return   // intussen naar een andere pagina gegaan (CK-056)
   const toevoegKnop = document.getElementById('functie-toevoegen-knop')
   bindHerlaad(lijstEl, 'functie-herlaad', async () => (await laadEnRender()) !== false, () => toevoegKnop)
   enterSlaatOp(document.getElementById('functie-form'), () => document.getElementById('functie-opslaan'))
@@ -3257,7 +3263,7 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
   if (verwijderKnop) {
     verwijderKnop.addEventListener('click', async () => {
       if (verwijderKnop.getAttribute('aria-disabled') === 'true') return
-      if (!confirm('Clublogo verwijderen? Dit kan niet ongedaan worden gemaakt.')) return
+      if (!bevestigVerwijderen('Clublogo')) return
       const sessie = profielSessie()
       const uitkomst = await metOpslaan(verwijderKnop, () => sessie.schrijf({ logo: deleteField() }, ({ logo: _weg, ...rest }) => rest), {
         soort: 'logo', fout: logoFout,
@@ -3276,7 +3282,7 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
     const seizoen = document.getElementById('profiel-seizoen').value.trim()
 
     if (!valideerVelden([
-      ['profiel-naam', 'profiel-naam-fout', minFout(naam, 2) || maxFout(naam, 100)],
+      ['profiel-naam', 'profiel-naam-fout', minFout(naam, 2) || maxFout(naam, 100) || (ONZICHTBARE_TEKENS.test(naam) ? ONZICHTBAAR_FOUT : '')],
       ['profiel-afkorting', 'profiel-afkorting-fout', minFout(afkorting, 2) || maxFout(afkorting, 20)],
       ['profiel-seizoen', 'profiel-seizoen-fout', minFout(seizoen, 4) || maxFout(seizoen, 20)],
     ])) return
@@ -3316,7 +3322,7 @@ function renderMijnAccount(gebruiker) {
                   <span class="form-fout" id="geb-naam-fout"></span>
                 </div>
                 <div class="form-rij">
-                  <button class="btn" id="geb-naam-opslaan">Naam opslaan</button>
+                  <button class="btn opslaan" id="geb-naam-opslaan">Naam opslaan</button>
                 </div>
                 ${meldingenHTML('geb-naam-ok', 'geb-naam-statusfout')}
               </div>
@@ -3336,7 +3342,7 @@ function renderMijnAccount(gebruiker) {
                   <span class="form-fout" id="geb-email-ww-fout"></span>
                 </div>
                 <div class="form-rij">
-                  <button class="btn" id="geb-email-opslaan">E-mailadres wijzigen</button>
+                  <button class="btn opslaan" id="geb-email-opslaan">E-mailadres wijzigen</button>
                 </div>
                 ${meldingenHTML('geb-email-ok', 'geb-email-statusfout')}
               </div>
@@ -3355,7 +3361,7 @@ function renderMijnAccount(gebruiker) {
                   <span class="form-fout" id="geb-nieuw-ww-fout"></span>
                 </div>
                 <div class="form-rij">
-                  <button class="btn" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
+                  <button class="btn opslaan" id="geb-ww-opslaan">Wachtwoord wijzigen</button>
                 </div>
                 ${meldingenHTML('geb-ww-ok', 'geb-ww-statusfout')}
               </div>

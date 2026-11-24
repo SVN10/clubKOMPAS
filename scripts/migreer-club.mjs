@@ -69,7 +69,7 @@ try {
   gebruikerSnap = await getDoc(doc(db, 'gebruikers', uid))
   bron = await leesClubdata(db, uid)
 } catch (e) {
-  if (e.code === 'permission-denied') stop(`Firestore weigert het lezen in ${projectId}.`, ['Zijn de overgangsregels (scripts/firestore.rules.migratie) gepubliceerd met de juiste uid?'])
+  if (e.code === 'permission-denied') stop(`Firestore weigert het lezen in ${projectId}.`, ['Zijn de overgangsregels (scripts/archief/firestore.rules.migratie) gepubliceerd met de juiste uid?'])
   stop(`lezen mislukt in ${projectId} (${e.code || e.message}).`)
 }
 
@@ -123,7 +123,7 @@ console.log(`  Domeinen:       ${domeinen}`)
 if (overig) console.log(`  Overig type:    ${overig}`)
 console.log(`  Logo aanwezig:  ${bron.profiel?.logo ? 'ja' : 'nee'}`)
 console.log(`  Doel-clubId:    ${clubId}${hergebruik ? ' (bestaand, uit gebruikers/{uid})' : DROOG ? ' (voorbeeld; bij de echte run wordt een nieuw ID gemaakt)' : ' (nieuw)'}`)
-for (const w of waarschuwingen) console.log(`  LET OP: ${w}`)
+for (const w of waarschuwingen) console.log(veilig(`  LET OP: ${w}`))
 
 const aantalSchrijfacties = 3 + (bron.profiel ? 1 : 0) + bron.structuur.size
 if (aantalSchrijfacties > MAX_DOCS) {
@@ -142,7 +142,7 @@ if (hergebruik && doelHeeftData && doelVerschillen.length === 0 && koppelingComp
 if (hergebruik && doelHeeftData && doelVerschillen.length) {
   console.log('\nWAARSCHUWING: de doelclub bevat al gegevens die afwijken van de bron.')
   console.log('Doorgaan overschrijft deze doeldocumenten met de bronversie (wijzigingen na de migratie gaan dan verloren).')
-  for (const v of doelVerschillen) console.log(`  – ${v}`)
+  for (const v of doelVerschillen) console.log(veilig(`  – ${v}`))
 }
 
 if (DROOG) {
@@ -198,7 +198,7 @@ try {
 
 if (fouten.length) {
   console.log('\nVerschillen gevonden:')
-  for (const f of fouten) console.log(`  – ${f}`)
+  for (const f of fouten) console.log(veilig(`  – ${f}`))
   process.exit(1)
 }
 

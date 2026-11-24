@@ -6,7 +6,7 @@ Gebouwd op 24 november 2026 op branch `test`. Route groot (nieuwe Firestore-rege
 3. `veiligLogo` gebruikt dezelfde volledige regex en lengtegrens als de regels.
 4. `controleer-p0d` houdt het document-id en de data apart.
 
-De vorige regels staan in `scripts/firestore.rules.voor-P0d`.
+De vorige regels staan in `scripts/archief/firestore.rules.voor-P0d`.
 
 P0d is de harde poort vóór een tweede bestuurder en vóór ledengegevens. Tot nu toe mocht elk lid van de club alles in Beheer wijzigen. Nu mag dat alleen iemand met de rol `beheerder`.
 
@@ -67,7 +67,7 @@ De regels gaan altijd vóór de app. Draai de data-controle vóór de regels.
 4. Productie: `npm run p0d:controle -- --omgeving=productie --droog`, dan zonder `--droog` als dat nodig is, tot er "Alles klopt" staat.
 5. `npm run regels:productie`, en daarna de merge naar `main`.
 
-**Terugdraaien:** zet `scripts/firestore.rules.voor-P0d` terug als `firestore.rules` en publiceer opnieuw.
+**Terugdraaien:** zet `scripts/archief/firestore.rules.voor-P0d` terug als `firestore.rules` en publiceer opnieuw.
 
 ## Testlijst voor tst
 Voorbereiding: een tweede testaccount in het testproject, met `gebruikers/{uid}` (`clubId` van de testclub) en `clubs/{clubId}/leden/{uid}` met `rol: 'lid'`. Maak die aan in de Firebase-console van **test**.

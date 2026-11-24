@@ -184,6 +184,16 @@ service cloud.firestore {
     function nietLeeg(v, max) {
       return v is string && v.size() <= max && v.trim().size() > 0;
     }
+    // Geen stuur-, nul-breedte- of bidi-tekens in namen (CK-056): die kunnen een naam vervalsen of uitvoer verstoren
+    function geenStuurtekens(v) {
+      // matches() toetst de hele tekst; een negatieve klasse vangt ook regeleinden (een . in RE2 niet)
+      return v.matches('[^\\x{0000}-\\x{001F}\\x{007F}\\x{200B}-\\x{200F}\\x{202A}-\\x{202E}\\x{2066}-\\x{2069}]*');
+    }
+    // Pictogram: leeg of een sleutel uit de vaste lijst (PICTOGRAMMEN in src/main.js, CK-056)
+    function geldigIcoon(d) {
+      return !('icoon' in d) || d.icoon in ['', 'hcaspeelt', 'hcagroeit', 'hcadoet', 'bestuur', 'leden', 'vrijwilligers',
+          'relaties', 'communicatie', 'financien', 'accommodatie', 'hospitality', 'materiaal', 'digitaal', 'projecten', 'samenwerkingen'];
+    }
     function optioneel(d, veld, max) {
       return !(veld in d) || tekstTot(d[veld], max);
     }
@@ -193,14 +203,14 @@ service cloud.firestore {
     // Clubprofiel: naam, afkorting, seizoen en logo; elk veld mag ontbreken (merge), maar niet leeg zijn
     function geldigProfiel(d) {
       return d.keys().hasOnly(['naam', 'afkorting', 'seizoen', 'logo'])
-        && (!('naam' in d) || nietLeeg(d.naam, 100))
+        && (!('naam' in d) || (nietLeeg(d.naam, 100) && geenStuurtekens(d.naam)))
         && (!('afkorting' in d) || nietLeeg(d.afkorting, 20))
         && (!('seizoen' in d) || nietLeeg(d.seizoen, 20))
         && geldigLogo(d);
     }
     function geldigeBestuursfunctie(d) {
       return d.keys().hasOnly(['naam', 'volgorde'])
-        && d.naam is string && d.naam.trim().size() >= 2 && d.naam.size() <= 100
+        && d.naam is string && d.naam.trim().size() >= 2 && d.naam.size() <= 100 && geenStuurtekens(d.naam)
         && geldigeVolgorde(d);
     }
     // Hashtag: leeg, of # gevolgd door 1-49 tekens zonder spatie of tweede # (zoals hashtagFout in de app)
@@ -212,14 +222,15 @@ service cloud.firestore {
       return d.keys().hasOnly(['type', 'naam', 'hashtag', 'omschrijving', 'bestuursfunctieId', 'icoon',
           'volgorde', 'aantalVermogens', 'laatsteVermogenId', 'bevat'])
         && d.type in ['pijler', 'domein', 'overkoepelend']
-        && nietLeeg(d.naam, 200)
+        && nietLeeg(d.naam, 200) && geenStuurtekens(d.naam)
         && geldigeHashtag(d)
         && optioneel(d, 'omschrijving', 500)
         && optioneel(d, 'bestuursfunctieId', 100)
-        && optioneel(d, 'icoon', 50)
+        && geldigIcoon(d)
         && geldigeVolgorde(d)
         && geldigLaatste(d)
-        && geldigBevat(d);
+        && geldigBevat(d)
+        && (!('bevat' in d) || d.type == 'overkoepelend');   // bevat alleen op een overkoepelend domein (CK-056)
     }
 
     // Wijzer gebruiker → club: alleen eigen document lezen, nooit schrijven vanuit de app

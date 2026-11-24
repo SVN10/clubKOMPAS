@@ -37,13 +37,15 @@ function koppelLabel(veld, doel) {
 }
 
 // aria-describedby, aria-invalid, disabled en de foutrand (klasse fout) van het echte veld doorgeven aan ons veld
-function volgAttributen(veld, doel) {
+// aria = false: alleen disabled volgen (de kalenderknop hoort niet bij de foutmelding, CK-056)
+function volgAttributen(veld, doel, aria = true) {
   const zet = () => {
+    doel.disabled = veld.disabled
+    if (!aria) return
     for (const a of ['aria-describedby', 'aria-invalid']) {
       if (veld.hasAttribute(a)) doel.setAttribute(a, veld.getAttribute(a))
       else doel.removeAttribute(a)
     }
-    doel.disabled = veld.disabled
     doel.classList.toggle('fout', veld.classList.contains('fout'))
   }
   zet()
@@ -258,8 +260,7 @@ function verbeterDatum(veld) {
   knop.setAttribute('aria-label', `${labelTekst} kiezen uit de kalender`)
   kalender.setAttribute('aria-label', `${labelTekst} kiezen`)
   volgAttributen(veld, tekst)
-  volgAttributen(veld, knop)
-  knop.removeAttribute('aria-describedby')
+  volgAttributen(veld, knop, false)
   veld.focus = () => tekst.focus()
 
   let ongeldig = false

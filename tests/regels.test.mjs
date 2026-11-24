@@ -1139,12 +1139,36 @@ describe('P0d: alleen een beheerder schrijft', () => {
     await assertFails(updateDoc(doc(buiten, ...pad('bestuursfuncties', 'vz')), { naam: 'Baas' }))
     await assertFails(setDoc(doc(buiten, ...pad('instellingen', 'profiel')), { naam: 'Overgenomen' }, { merge: true }))
   })
+
+  // CK-056 (L1): alle collecties, zodat een fout in één match-blok een test laat falen
+  test('beheerder van een andere club: geen toevoegen, wijzigen of verwijderen in alle collecties', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'clubs', 'club2', 'leden', 'piet'), { rol: 'beheerder' })
+      await setDoc(doc(a, ...pad('vermogens', 'v1')), { naam: 'Teamindeling', domeinId: 'speelt', volgorde: 1 })
+      await setDoc(doc(a, ...pad('vermogensnamen', 'teamindeling')), { vermogenId: 'v1' })
+    })
+    const gevallen = [
+      ['instellingen', 'profiel', P0D_PROFIEL, { naam: 'Overgenomen' }],
+      ['bestuursfuncties', 'vz', { naam: 'Secretaris', volgorde: 9 }, { naam: 'Baas' }],
+      ['structuurelementen', 'leden', { type: 'pijler', naam: 'Nieuw', volgorde: 9 }, { naam: 'Overgenomen' }],
+      ['vermogens', 'v1', { naam: 'Nieuw', domeinId: 'speelt', volgorde: 9 }, { volgorde: 2 }],
+      ['vermogensnamen', 'teamindeling', { vermogenId: 'v1' }, { vermogenId: 'v2' }],
+      ['projecten', 'p1', P0D_PROJECT, { volgorde: 2 }],
+      ['samenwerkingen', 's1', P0D_SAMEN, { volgorde: 2 }],
+      ['commissies', 'c1', P0D_SAMEN, { volgorde: 2 }],
+    ]
+    for (const [col, id, nieuw, wijziging] of gevallen) {
+      await assertFails(setDoc(doc(buiten, ...pad(col, 'van-buiten')), nieuw), `${col}: toevoegen`)
+      await assertFails(updateDoc(doc(buiten, ...pad(col, id)), wijziging), `${col}: wijzigen`)
+      await assertFails(deleteDoc(doc(buiten, ...pad(col, id))), `${col}: verwijderen`)
+    }
+  })
 })
 
 describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelementen', () => {
   const profiel = () => doc(db, ...pad('instellingen', 'profiel'))
   const domein = (id = 'x') => doc(db, ...pad('structuurelementen', id))
-  const DOMEIN = { type: 'pijler', naam: 'Hockey', hashtag: '#HCASpeelt', omschrijving: 'Alles rond hockey', bestuursfunctieId: 'vz', icoon: 'stick', volgorde: 1 }
+  const DOMEIN = { type: 'pijler', naam: 'Hockey', hashtag: '#HCASpeelt', omschrijving: 'Alles rond hockey', bestuursfunctieId: 'vz', icoon: 'hcaspeelt', volgorde: 1 }
 
   test('clubprofiel: alleen naam, afkorting, seizoen en logo', async () => {
     await assertSucceeds(setDoc(profiel(), P0D_PROFIEL))
@@ -1156,6 +1180,8 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
     await assertFails(setDoc(profiel(), { naam: 'n'.repeat(101) }, { merge: true }))
     await assertFails(setDoc(profiel(), { afkorting: 'a'.repeat(21) }, { merge: true }))
     await assertFails(setDoc(profiel(), { seizoen: 2026 }, { merge: true }))
+    await assertFails(setDoc(profiel(), { naam: 'Hockey Club\u202E' }, { merge: true }))   // bidi-teken (CK-056)
+    await assertSucceeds(setDoc(profiel(), { naam: 'Hockeyclub Ède-Zuid' }, { merge: true }))
   })
 
   test('logo: alleen PNG, JPEG of WebP als base64, met een maximale lengte', async () => {
@@ -1183,12 +1209,16 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
     await assertFails(addDoc(col, { naam: '   ', volgorde: 3 }))
     await assertFails(addDoc(col, { naam: ' x ', volgorde: 3 }))
     await assertFails(addDoc(col, { volgorde: 3 }))
+    await assertFails(addDoc(col, { naam: 'Voorzitter\u202Eresiwe', volgorde: 3 }))   // bidi-teken (CK-056)
+    await assertFails(addDoc(col, { naam: 'Secre\u0007taris', volgorde: 3 }))        // stuurteken
+    await assertFails(addDoc(col, { naam: 'Secre\ntaris\nx', volgorde: 3 }))       // meerdere regeleinden
+    await assertSucceeds(addDoc(col, { naam: 'Penningmeester – Café & Bar', volgorde: 4 }))
     await assertFails(updateDoc(doc(db, ...pad('bestuursfuncties', 'vz')), { email: 'vz@example.com' }))
   })
 
   test('domein: toegestane velden en grenzen', async () => {
     await assertSucceeds(setDoc(domein('a'), DOMEIN))
-    await assertSucceeds(setDoc(domein('b'), { ...DOMEIN, naam: 'x'.repeat(200), omschrijving: 'o'.repeat(500), icoon: 'i'.repeat(50), hashtag: `#${'h'.repeat(49)}` }))
+    await assertSucceeds(setDoc(domein('b'), { ...DOMEIN, naam: 'x'.repeat(200), omschrijving: 'o'.repeat(500), icoon: 'samenwerkingen', hashtag: `#${'h'.repeat(49)}` }))
     await assertSucceeds(setDoc(domein('c'), { ...DOMEIN, hashtag: '' }))
     await assertSucceeds(setDoc(domein('d'), { type: 'overkoepelend', naam: 'Projecten', bevat: 'projecten' }))
   })
@@ -1199,9 +1229,9 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
       { naam: '' }, { naam: '   ' }, { naam: 'x'.repeat(201) }, { naam: 7 },
       { omschrijving: 'o'.repeat(501) }, { omschrijving: 5 },
       { hashtag: 'HCASpeelt' }, { hashtag: '#HCA Speelt' }, { hashtag: '#' }, { hashtag: '#a#b' }, { hashtag: `#${'h'.repeat(50)}` },
-      { icoon: 'i'.repeat(51) }, { bestuursfunctieId: 'b'.repeat(101) }, { bestuursfunctieId: 3 },
+      { icoon: 'i'.repeat(51) }, { icoon: 'stick' }, { icoon: 'HCASpeelt' }, { naam: 'Hockey\u202E' }, { naam: 'Hoc\u200Bkey' }, { naam: 'Hockey\n' }, { naam: 'a\nb\nc' }, { naam: 'Hoc\tkey\r\nclub' }, { bestuursfunctieId: 'b'.repeat(101) }, { bestuursfunctieId: 3 },
       { volgorde: 0 }, { volgorde: 1.5 }, { volgorde: '1' }, { volgorde: 100001 },
-      { type: 'iets' }, { bevat: 'commissies' },
+      { type: 'iets' }, { bevat: 'commissies' }, { bevat: 'projecten' }, { type: 'domein', bevat: 'samenwerkingen' },
     ]
     for (const extra of weiger) await assertFails(setDoc(domein(), { ...DOMEIN, ...extra }), JSON.stringify(extra).slice(0, 60))
     const { naam, ...zonderNaam } = DOMEIN

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.1] – 2026-11-24
+
+### Gewijzigd (CK-056: fixpakket uit de analyse van v0.13.0)
+- Een lid (zonder Beheer) leest bij een lege lijst niet meer dat hij iets "via Beheer" moet toevoegen, maar dat een beheerder dat doet.
+- Mijn account: de drie opslaanknoppen zijn primair (besluit 40). Verwijderen vraagt overal om bevestiging met dezelfde vaste zin, ook bij Vermogens, Projecten, Samenwerkingen, Commissies en het logo.
+- De melding na automatisch uitloggen wordt door een schermlezer voorgelezen. De kalenderknop van de datumkiezer hoort niet meer bij de foutmelding van het veld.
+- Na "Opnieuw laden" op het Domeinenoverzicht blijft de focus ook voor een lid op de pagina. Geen consolefout meer als je tijdens het laden van Domeinen of Bestuursfuncties wegklikt.
+- Een naam met een onzichtbaar teken (bijvoorbeeld uit een gekopieerde tekst) geeft een duidelijke melding.
+
+### Beveiliging
+- Firestore-regels: het pictogram van een domein komt uit de vaste lijst; de namen van het profiel, de bestuursfuncties en de domeinen mogen geen stuur-, nul-breedte- of bidi-tekens bevatten; `bevat` staat alleen op een overkoepelend domein. Er is een test dat een beheerder van een andere club in geen enkele collectie kan schrijven (131 regeltests). `npm run p0d:controle` controleert de nieuwe regels mee.
+- `vercel.json`: `Strict-Transport-Security` en `Permissions-Policy` erbij.
+- Oude regelbestanden staan in `scripts/archief/`, met een waarschuwing. `migreer-club.mjs` toont alle data via `veilig()`.
+
 ## [0.13.0] – 2026-11-24
 
 ### Beveiliging (P0d: Beheer alleen voor beheerders)

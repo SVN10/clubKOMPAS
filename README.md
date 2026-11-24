@@ -286,10 +286,10 @@ Houd tijdens de migratie een kort logboek bij (bijv. in het opleververslag):
 - of de oude regels (stap 0) open waren (`if true` of alleen `request.auth != null`)
 
 ### Stap 0 — Huidige regels veiligstellen (verplicht)
-Kopieer de huidige regels uit de console (Firestore → Regels) naar `scripts/firestore.rules.voor-P0c` en commit dat bestand. Zonder deze kopie is terugdraaien van de regels niet mogelijk.
+Kopieer de huidige regels uit de console (Firestore → Regels) naar `scripts/archief/firestore.rules.voor-P0c` en commit dat bestand. Zonder deze kopie is terugdraaien van de regels niet mogelijk.
 
 ### Stap 1 — Overgangsregels publiceren
-Plak de inhoud van `scripts/firestore.rules.migratie` in de console en vervang daar `<HCA-UID>` door de uid van het HCA-account (Authentication → Gebruikers). Publiceer. Zet de echte uid nooit in een gecommit bestand.
+Plak de inhoud van `scripts/archief/firestore.rules.migratie` in de console en vervang daar `<HCA-UID>` door de uid van het HCA-account (Authentication → Gebruikers). Publiceer. Zet de echte uid nooit in een gecommit bestand.
 
 ### Stap 2 — Migratiescript draaien
 ```bash
@@ -309,7 +309,7 @@ Ga daarna zo snel mogelijk door naar stap 3: de overgangsregels geven het HCA-ac
 Log in als HCA-bestuurder en controleer: clubnaam, logo, favicon, seizoen en alle pijlers en domeinen zijn zichtbaar. Sla één testwijziging op en draai die terug.
 
 ### Terugdraaien
-- Zet de vorige app-versie terug en plak `scripts/firestore.rules.voor-P0c` terug in de console. Alles werkt dan weer op `clubs/{uid}`.
+- Zet de vorige app-versie terug en plak `scripts/archief/firestore.rules.voor-P0c` terug in de console. Alles werkt dan weer op `clubs/{uid}`.
 - De nieuwe documenten (`clubs/{clubId}`, `gebruikers/{uid}`) mogen blijven staan; ze storen de oude versie niet.
 - Wijzigingen die ná de migratie in de nieuwe locatie zijn gedaan, staan niet in de oude locatie en moeten zo nodig met de hand worden nagezet.
 

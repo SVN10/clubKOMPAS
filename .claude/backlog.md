@@ -575,6 +575,9 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [ ] Afweging over een DPIA
 - [ ] Regio van Firebase Auth noteren (Firestore staat in eur3)
 - [ ] Daarna een korte privacyverklaring, met een link in de footer van de app
+- [ ] Procedure voor het toekennen en intrekken van de rol `beheerder` (wie mag dat, wanneer intrekken, vastleggen). Nieuw door P0d (analyse v0.13.0, C-2)
+- [ ] Hulptekst "geen namen of contactgegevens" bij de omschrijvingsvelden (C-3)
+- [ ] De localStorage-sleutel `clubkompas-laatst-actief` (automatisch uitloggen) opnemen in het register (C-5)
 
 ### ✅ CK-050 — Beheertabellen gelijktrekken en opruimen
 **Status:** ✅ Live in v0.13.0 (24-11-2026) · route middel · het opsplitsen van `main.js` blijft apart (zie `pipeline.md`)
@@ -603,3 +606,26 @@ Rapporten: `.claude/reports/APP-0.12.1-*.md`, eindoordeel in `APP-0.12.1-eindoor
 - [x] Hardgecodeerde hex-kleur in de omgevingsbalk via een token laten lopen (`src/style.css:858-860`)
 - [x] Besluit 2, tweede deel: `.btn-toevoegen` krijgt dezelfde letterstijl als `.btn` (Paul, 24-11-2026); vorm en kleur blijven
 - [ ] De bundel is 659 kB (Vite waarschuwt boven 500 kB). Kleiner maken bij het opsplitsen van `main.js` (zie `pipeline.md`)
+
+## Uit de app-brede kwaliteitsanalyse v0.13.0 (24 november 2026)
+Rapporten: `.claude/reports/APP-0.13.0-beveiliging.md` en `APP-0.13.0-analyse.md`, eindoordeel in `APP-0.13.0-eindoordeel.md`. Er zijn geen kritieke en geen hoge bevindingen. De AVG-punten (C-2, C-3, C-5) staan bij CK-049.
+
+### CK-056 — Fixpakket v0.13.1
+**Status:** Gebouwd op `test` (24-11-2026), nog testen op tst · route middel · regels nog publiceren door Paul (`regels:test`, daarna `regels:productie`; eerst `npm run p0d:controle -- --droog`)
+
+- [x] T-1: teksten "via Beheer" alleen voor een beheerder; een lid krijgt "Vraag een beheerder …" (`src/main.js:724`, `:1242`, `:1248`)
+- [x] T-2: geen `bindHerlaad` of `enterSlaatOp` met `null` als de gebruiker tijdens het eerste laden wegnavigeert (`src/main.js:1733-1744`, `:3010-3016`)
+- [x] T-3: na "Opnieuw laden" op het Domeinenoverzicht gaat de focus naar `#inhoud` als er geen kerncijfer-link is (lid) (`src/main.js:1130`)
+- [x] T-5: `bevestigVerwijderen` ook bij Vermogens, onderdelen en het logo (`src/main.js:2378`, `:2841`, `:3260`)
+- [x] A-1: de uitlogmelding na 8 uur pas na het tekenen in de live-region zetten, zodat de schermlezer hem voorleest (`src/main.js:833-836`)
+- [x] A-2: de datumknop krijgt geen `aria-describedby` of `aria-invalid` terug via `volgAttributen` (`src/keuzelijst.js:40-50`, `:261-262`)
+- [x] HS-1: de knoppen in Mijn account worden primair (besluit 40) (`src/main.js:3319`, `:3339`, `:3358`)
+- [x] HS-4: `--paneel-top` niet meer inline zetten (`src/main.js:1491`)
+- [x] Regels L1: test "beheerder van een andere club" voor alle zeven collecties (`tests/regels.test.mjs:1135-1141`)
+- [x] Regels L2: `icoon` alleen uit de vaste lijst; geen stuur-, nul-breedte- of bidi-tekens in de namen van profiel, bestuursfuncties en domeinen (`firestore.rules:194-219`)
+- [x] Regels L3: `bevat` alleen op een overkoepelend domein (`firestore.rules:178-180`)
+- [x] Headers L4: `Permissions-Policy` en `Strict-Transport-Security` in `vercel.json`. `frame-src` en `firebaseio` blijven staan tot een test van inloggen en e-mail wijzigen zonder die twee is gedaan
+- [x] Scripts L8/L9: `firestore.rules.migratie`, `.voor-P0c` en `.voor-P0d` naar `scripts/archief/`; drie regels in `migreer-club.mjs` via `veilig()`
+- [ ] Firebase-console (Paul, L6): zelfregistratie uit, bescherming tegen e-mailenumeratie aan en de API-key beperken. Daarna de aparte melding voor `auth/user-not-found` weghalen (C-4)
+
+Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m A-6, T-6 en T-7 (zie `APP-0.13.0-analyse.md`).

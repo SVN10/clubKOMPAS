@@ -14,6 +14,11 @@ const nietLeeg = (v, max) => tekst(v, max) && v.trim().length > 0
 const isInt = v => Number.isInteger(v)
 const LOGO = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
 const HASHTAG = /^#[^\s#]{1,49}$/
+// CK-056: geen stuur-, nul-breedte- of bidi-tekens in namen; pictogram uit de vaste lijst
+const STUURTEKENS = /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/
+const zonderStuurtekens = v => !STUURTEKENS.test(v)
+export const PICTOGRAMMEN = ['', 'hcaspeelt', 'hcagroeit', 'hcadoet', 'bestuur', 'leden', 'vrijwilligers', 'relaties',
+  'communicatie', 'financien', 'accommodatie', 'hospitality', 'materiaal', 'digitaal', 'projecten', 'samenwerkingen']
 
 function controleer(d, velden, regels) {
   const onbekend = Object.keys(d).filter(k => !velden.includes(k))
@@ -27,7 +32,7 @@ export function geldigLogoTekst(v) {
 
 export function controleerProfiel(d) {
   return controleer(d, PROFIEL_VELDEN, [
-    ['naam', v => nietLeeg(v, 100), 'tekst van 1 tot 100 tekens'],
+    ['naam', v => nietLeeg(v, 100) && zonderStuurtekens(v), 'tekst van 1 tot 100 tekens, zonder onzichtbare tekens'],
     ['afkorting', v => nietLeeg(v, 20), 'tekst van 1 tot 20 tekens'],
     ['seizoen', v => nietLeeg(v, 20), 'tekst van 1 tot 20 tekens'],
     ['logo', geldigLogoTekst, `PNG, JPEG of WebP als base64, max. ${LOGO_MAX_TEKENS} tekens`],
@@ -36,7 +41,7 @@ export function controleerProfiel(d) {
 
 export function controleerBestuursfunctie(d) {
   const r = controleer(d, FUNCTIE_VELDEN, [
-    ['naam', v => typeof v === 'string' && tekens(v.trim()) >= 2 && tekens(v) <= 100, 'tekst van 2 tot 100 tekens, niet alleen spaties'],
+    ['naam', v => typeof v === 'string' && tekens(v.trim()) >= 2 && tekens(v) <= 100 && zonderStuurtekens(v), 'tekst van 2 tot 100 tekens, niet alleen spaties, zonder onzichtbare tekens'],
     ['volgorde', v => isInt(v) && v >= 1 && v <= 100000, 'geheel getal van 1 tot 100000'],
   ])
   if (!('naam' in d)) r.fouten.unshift('naam: ontbreekt')
@@ -46,17 +51,18 @@ export function controleerBestuursfunctie(d) {
 export function controleerDomein(d) {
   const r = controleer(d, DOMEIN_VELDEN, [
     ['type', v => ['pijler', 'domein', 'overkoepelend'].includes(v), 'pijler, domein of overkoepelend'],
-    ['naam', v => nietLeeg(v, 200), 'tekst van 1 tot 200 tekens, niet alleen spaties'],
+    ['naam', v => nietLeeg(v, 200) && zonderStuurtekens(v), 'tekst van 1 tot 200 tekens, niet alleen spaties, zonder onzichtbare tekens'],
     ['hashtag', v => typeof v === 'string' && (v === '' || HASHTAG.test(v)), 'leeg, of # en max. 49 tekens zonder spatie'],
     ['omschrijving', v => tekst(v, 500), 'tekst van max. 500 tekens'],
     ['bestuursfunctieId', v => tekst(v, 100), 'tekst van max. 100 tekens'],
-    ['icoon', v => tekst(v, 50), 'tekst van max. 50 tekens'],
+    ['icoon', v => PICTOGRAMMEN.includes(v), 'leeg of een pictogram uit de vaste lijst'],
     ['volgorde', v => isInt(v) && v >= 1 && v <= 100000, 'geheel getal van 1 tot 100000'],
     ['aantalVermogens', v => isInt(v) && v >= 0, 'geheel getal vanaf 0'],
     ['laatsteVermogenId', v => tekst(v, 100), 'tekst van max. 100 tekens'],
     ['bevat', v => ['projecten', 'samenwerkingen'].includes(v), 'projecten of samenwerkingen'],
   ])
   for (const veld of ['type', 'naam']) if (!(veld in d)) r.fouten.unshift(`${veld}: ontbreekt`)
+  if ('bevat' in d && d.type !== 'overkoepelend') r.fouten.push('bevat: alleen op een overkoepelend domein')
   return r
 }
 
