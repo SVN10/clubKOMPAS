@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.1] – 2026-11-24
+## [0.13.2] – 2026-11-24
 
 ### Gewijzigd (CK-056: fixpakket uit de analyse van v0.13.0)
 - Een lid (zonder Beheer) leest bij een lege lijst niet meer dat hij iets "via Beheer" moet toevoegen, maar dat een beheerder dat doet.
@@ -13,6 +13,10 @@
 - Firestore-regels: het pictogram van een domein komt uit de vaste lijst; de namen van het profiel, de bestuursfuncties en de domeinen mogen geen stuur-, nul-breedte- of bidi-tekens bevatten; `bevat` staat alleen op een overkoepelend domein. Er is een test dat een beheerder van een andere club in geen enkele collectie kan schrijven (131 regeltests). `npm run p0d:controle` controleert de nieuwe regels mee.
 - `vercel.json`: `Strict-Transport-Security` en `Permissions-Policy` erbij.
 - Oude regelbestanden staan in `scripts/archief/`, met een waarschuwing. `migreer-club.mjs` toont alle data via `veilig()`.
+
+## [0.13.1] – 2026-11-24
+
+Alleen het versienummer is opgehoogd; de fixes van CK-056 staan in 0.13.2.
 
 ## [0.13.0] – 2026-11-24
 
