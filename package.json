@@ -14,7 +14,8 @@
     "test:regels": "firebase emulators:exec --only firestore --project demo-clubkompas \"node --test tests/regels.test.mjs\"",
     "vermogens:import": "node scripts/inrichten-vermogens-hca.mjs",
     "vermogens:controle": "node scripts/controleer-vermogens.mjs",
-    "projecten:import": "node scripts/inrichten-projecten-samenwerkingen-hca.mjs"
+    "projecten:import": "node scripts/inrichten-projecten-samenwerkingen-hca.mjs",
+    "uitvoeringen:omzetten": "node scripts/zet-uitvoeringen-om.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

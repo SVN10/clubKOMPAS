@@ -179,25 +179,36 @@ service cloud.firestore {
       return !('bevat' in d) || d.bevat in ['projecten', 'samenwerkingen'];
     }
 
-    // ── Activiteiten (CK-170) ──
+    // ── Activiteiten en uitvoeringen (CK-170, CK-172) ──
     // Precies één vermogen (lijst, zodat later meer kan zonder migratie) en eventueel één commissie; beide
     // moeten bestaan bij het schrijven. Een vermogen of commissie met activiteiten weghalen blokkeert de app.
+    // De datums staan per keer in uitvoeringen (CK-172), niet meer op de activiteit.
     function commissiePad(clubId, id) {
       return /databases/$(database)/documents/clubs/$(clubId)/commissies/$(id);
     }
+    function activiteitPad(clubId, id) {
+      return /databases/$(database)/documents/clubs/$(clubId)/activiteiten/$(id);
+    }
     function geldigeActiviteit(clubId, d) {
-      return d.keys().hasOnly(['naam', 'soort', 'begindatum', 'einddatum', 'vermogenIds', 'commissieId'])
-        && d.keys().hasAll(['naam', 'soort', 'begindatum', 'einddatum', 'vermogenIds', 'commissieId'])
+      return d.keys().hasOnly(['naam', 'soort', 'vermogenIds', 'commissieId'])
+        && d.keys().hasAll(['naam', 'soort', 'vermogenIds', 'commissieId'])
         && geldigeOnderdeelnaam(d.naam)
         && d.soort in ['toernooi', 'clinic', 'evenement', 'bijeenkomst', 'opleiding', 'actie', 'overig']
-        && geldigeDatum(d.begindatum) && d.begindatum != ''
-        && geldigeDatum(d.einddatum)
-        && (d.einddatum == '' || d.einddatum >= d.begindatum)
         && d.vermogenIds is list && d.vermogenIds.size() == 1
         && d.vermogenIds[0] is string && d.vermogenIds[0].size() > 0 && d.vermogenIds[0].size() <= 100
         && exists(vermogenPad(clubId, d.vermogenIds[0]))
         && tekstTot(d.commissieId, 100)
         && (d.commissieId == '' || exists(commissiePad(clubId, d.commissieId)));
+    }
+    // existsAfter: een nieuwe activiteit en haar eerste uitvoering gaan samen in één batch
+    function geldigeUitvoering(clubId, d) {
+      return d.keys().hasOnly(['activiteitId', 'begindatum', 'einddatum'])
+        && d.keys().hasAll(['activiteitId', 'begindatum', 'einddatum'])
+        && d.activiteitId is string && d.activiteitId.size() > 0 && d.activiteitId.size() <= 100
+        && geldigeDatum(d.begindatum) && d.begindatum != ''
+        && geldigeDatum(d.einddatum)
+        && (d.einddatum == '' || d.einddatum >= d.begindatum)
+        && existsAfter(activiteitPad(clubId, d.activiteitId));
     }
 
     // ── Veldcontrole masterdata (P0d) ──
@@ -358,11 +369,20 @@ service cloud.firestore {
         allow create, update: if isBeheerder(clubId) && geldigeSamenwerking(request.resource.data);
       }
 
-      // Activiteiten (CK-170): naam, soort, datum of periode, één vermogen en eventueel een commissie
+      // Activiteiten (CK-170): naam, soort, één vermogen en eventueel een commissie
       match /activiteiten/{id} {
         allow read: if isLid(clubId);
         allow delete: if isBeheerder(clubId);
         allow create, update: if isBeheerder(clubId) && geldigeActiviteit(clubId, request.resource.data);
+      }
+
+      // Uitvoeringen (CK-172): de keren dat een activiteit plaatsvindt; een uitvoering verhuist nooit naar een andere activiteit
+      match /uitvoeringen/{uid} {
+        allow read: if isLid(clubId);
+        allow delete: if isBeheerder(clubId);
+        allow create: if isBeheerder(clubId) && geldigeUitvoering(clubId, request.resource.data);
+        allow update: if isBeheerder(clubId) && geldigeUitvoering(clubId, request.resource.data)
+          && request.resource.data.activiteitId == resource.data.activiteitId;
       }
 
       // Naamdocumenten: alleen aanmaken (nooit wijzigen); weg alleen als de naam niet meer bij dat vermogen hoort

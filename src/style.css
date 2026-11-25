@@ -1089,22 +1089,63 @@ a.btn { text-decoration: none; }
 }
 @media (max-width: 480px) { .form-rij-datums { grid-template-columns: 1fr; } }
 
-/* Activiteiten (CK-170) */
+/* Activiteiten en uitvoeringen (CK-170, CK-172) */
 #activiteit-lijst { container-type: inline-size; }
-.activiteit-rij { grid-template-columns: 28px minmax(140px, 1.4fr) auto minmax(110px, 1fr) minmax(110px, 1fr) 152px; } /* terugval zonder subgrid en tijdens bewerken */
+.activiteit-rij { grid-template-columns: 28px minmax(140px, 1.4fr) auto auto minmax(110px, 1fr) minmax(110px, 1fr) 152px; } /* terugval zonder subgrid en tijdens bewerken */
 .cel-activiteit { min-width: 0; overflow-wrap: anywhere; }
+
+/* Datum achter de naam: komend gewoon, bezig petrol, voorbij en geen gedempt */
+.cel-activiteit .cel-periode.komend  { color: var(--text); }
+.cel-activiteit .cel-periode.bezig   { color: var(--petrol); font-weight: 600; }
+.cel-activiteit .cel-periode.voorbij,
+.cel-activiteit .cel-periode.geen    { color: var(--muted); font-style: italic; }
+
+/* Uitklapknop */
+.btn-uitklap {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px;
+  background: transparent; border: 1px solid var(--border); border-radius: 4px;
+  font: inherit; font-size: var(--fs-toelichting); font-weight: 600; color: var(--petrol);
+  white-space: nowrap; cursor: pointer;
+}
+.btn-uitklap:hover { border-color: var(--petrol); }
+.btn-uitklap:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }
+.uitklap-pijl { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.btn-uitklap[aria-expanded="true"] .uitklap-pijl { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .uitklap-pijl { transition: none; } }
+
+/* Paneel met uitvoeringen: ingesprongen tot de naamkolom (28px + 30px tussenruimte) */
+.uitvoering-paneel[hidden] { display: none; }
+.uitvoering-paneel { margin: 0 0 12px 58px; padding: 12px 16px; background: var(--surface); border-left: 3px solid var(--petrol); }
+.uitvoering-cel { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; --meld-gap: 10px; }
+.uitvoering-kop { font-size: var(--fs-toelichting); line-height: 19px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--petrol); overflow-wrap: anywhere; }
+.uitvoering-balk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.uitvoering-balk .btn-toevoegen { margin-left: 0; }
+.uitvoering-balk [hidden] { display: none; }
+.uitvoering-lijst-houder { width: 100%; }
+.uitvoering-lijst { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 480px; }
+.uitvoering-rij { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 40px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.uitvoering-rij:first-child { border-top: 1px solid var(--border); }
+.uitvoering-rij .cel-acties { margin-left: auto; }
+.uitvoering-rij.bewerken { display: block; padding: 10px 0; }
+.uitvoering-datum { white-space: nowrap; }
+.uitvoering-form { width: 100%; }
+.uitvoering-form[hidden] { display: none; }
 .btn-toevoegen:disabled, .btn.opslaan:disabled { opacity: .5; cursor: not-allowed; }
 .btn-toevoegen:disabled:hover, .beheer-balk .btn-toevoegen:disabled:hover { background: transparent; }
 
 @container (max-width: 760px) {
   .beheer-rij.beheer-kop.activiteit-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
   #activiteit-lijst .beheer-rij.activiteit-rij { grid-template-columns: 24px auto 1fr; row-gap: 6px; column-gap: 10px; }
-  .activiteit-rij .cel-activiteit { grid-column: 2 / -1; }
-  .activiteit-rij .cel-soort      { grid-column: 2; grid-row: 2; }
-  .activiteit-rij .cel-vermogen   { grid-column: 3; grid-row: 2; font-size: var(--fs-toelichting); }
-  .activiteit-rij .cel-commissie  { grid-column: 2 / -1; font-size: var(--fs-toelichting); }
-  .activiteit-rij .cel-acties     { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
-  .activiteit-rij .cel-label      { display: inline; }
+  .activiteit-rij .cel-nr           { grid-column: 1;      grid-row: 1; }
+  .activiteit-rij .cel-activiteit   { grid-column: 2 / -1; grid-row: 1; }
+  .activiteit-rij .cel-activiteit .cel-periode { white-space: normal; } /* mag afbreken: geen horizontale scroll op 320px */
+  .activiteit-rij .cel-soort        { grid-column: 2;      grid-row: 2; }
+  .activiteit-rij .cel-vermogen     { grid-column: 3;      grid-row: 2; font-size: var(--fs-toelichting); }
+  .activiteit-rij .cel-commissie    { grid-column: 2 / -1; grid-row: 3; font-size: var(--fs-toelichting); }
+  .activiteit-rij .cel-uitvoeringen { grid-column: 2 / -1; grid-row: 4; }
+  .activiteit-rij .cel-acties       { grid-column: 1 / -1; grid-row: 5; justify-content: flex-start; flex-wrap: wrap; }
+  .activiteit-rij .cel-label        { display: inline; }
+  .uitvoering-paneel { margin-left: 0; padding: 10px 12px; }
 }
 
 /* CK-046: kolommen in één raster voor de hele tabel (subgrid). Kolommen staan van links
@@ -1117,7 +1158,7 @@ a.btn { text-decoration: none; }
 #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
 #onderdeel-lijst > [role="table"]:has(> .project-rij)      { grid-template-columns: 28px auto auto auto minmax(0, 1fr) 152px; }
 #onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
-#activiteit-lijst > [role="table"]                         { grid-template-columns: 28px auto auto auto auto minmax(0, 1fr) 152px; }
+#activiteit-lijst > [role="table"]                         { grid-template-columns: 28px auto auto auto auto auto minmax(0, 1fr) 152px; }
 @media (max-width: 700px) {
   #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
   #onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
@@ -1176,6 +1217,8 @@ a.btn { text-decoration: none; }
   .filter-keuze select { min-width: 0; width: 100%; height: 44px; }
   .cel-acties .btn-volgorde, .cel-acties .btn-icoon { width: 44px; height: 44px; }
   .cel-acties .btn-icoon.gevaar { margin-left: auto; }
+  .btn-uitklap { min-height: 44px; }
+  .uitvoering-balk .btn, .uitvoering-balk .btn-toevoegen { min-height: 44px; }
 }
 
 /* ── De plaat (CK-021) ── */

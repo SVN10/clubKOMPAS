@@ -14,9 +14,11 @@ import {
   bewerkOnderdeel, verwijderOnderdeel,
 } from './onderdelen.js'
 import {
-  ACTIVITEIT_SOORTEN, ACTIVITEIT_SOORT_LABEL, activiteitSoort, activiteitSoortLabel, activiteitDatumFout, datumTekst,
-  activiteitBezet, laadActiviteiten, laadActiviteitenVanVermogen, telActiviteitenVanCommissie,
+  ACTIVITEIT_SOORTEN, ACTIVITEIT_SOORT_LABEL, activiteitSoort, activiteitSoortLabel, uitvoeringDatumFout, datumTekst,
+  sorteerActiviteiten, activiteitBezet, laadActiviteiten, laadActiviteitenVanVermogen, telActiviteitenVanCommissie,
   voegActiviteitToe, bewerkActiviteit, verwijderActiviteit,
+  vandaagTekst, uitvoeringStand, sorteerUitvoeringen, uitvoeringenPerActiviteit, eerstvolgendeUitvoering,
+  laadUitvoeringen, telUitvoeringenVanActiviteit, voegUitvoeringToe, bewerkUitvoering, verwijderUitvoering,
 } from './activiteiten.js'
 
 let huidigClubId = null
@@ -245,6 +247,7 @@ function vermogenOptiesHTML(vermogens, domeinen, gekozen) {
 
 const vermogensTekst = n => (n === 1 ? '1 vermogen' : `${n} vermogens`)
 const activiteitenTekst = n => (n === 1 ? '1 activiteit' : `${n} activiteiten`)
+const uitvoeringenTekst = n => (n === 1 ? '1 uitvoering' : `${n} uitvoeringen`)
 
 function bestuursfunctieKeuzeHTML(id, huidig, functies) {
   const opties = functies.map(f =>
@@ -360,7 +363,7 @@ function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
 
 const OPSLAAN_TIJDSLIMIET = 15000
 const INLOG_CODES = new Set(['unauthenticated', 'auth/user-token-expired', 'auth/requires-recent-login'])
-const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg', 'commissie-weg', 'activiteit-weg'])
+const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg', 'commissie-weg', 'activiteit-weg', 'uitvoering-weg'])
 const VERBINDING_CODES = new Set(['unavailable', 'deadline-exceeded', 'auth/network-request-failed'])
 const STAART_INVOER = ' Wat je hebt ingevuld, staat er nog.'
 const STAART_LIJST = ' De lijst is niet gewijzigd.'
@@ -394,8 +397,10 @@ const FOUTTEKSTEN = {
   'samenwerking-weg': 'Deze samenwerking bestaat niet meer.',
   'dubbele-commissie': 'Er is al een commissie met deze naam.',
   'commissie-weg': 'Deze commissie bestaat niet meer.',
-  'dubbele-activiteit': 'Er is al een activiteit met deze naam op deze datum.',
+  'dubbele-activiteit': 'Er is al een activiteit met deze naam.',
   'activiteit-weg': 'Deze activiteit bestaat niet meer.',
+  'uitvoering-weg': 'Deze uitvoering bestaat niet meer.',
+  'dubbele-uitvoering': 'Deze activiteit heeft al een uitvoering op deze datum.',
 }
 
 const TIJD_OP_ACCOUNT = {
@@ -2546,8 +2551,12 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   await laadEnRender()
 }
 
-// ── Activiteiten (CK-170) ─────────────────────────────────────────────────────
-// Op datum, zonder ↑ en ↓. Eén vermogen (verplicht) en eventueel een commissie; id-voorvoegsel activiteit-.
+// ── Activiteiten (CK-170) en uitvoeringen (CK-172) ────────────────────────────
+// Eerstvolgend, dan voorbij, dan zonder uitvoering; zonder ↑ en ↓. Eén vermogen (verplicht) en eventueel een
+// commissie; id-voorvoegsel activiteit-. De uitvoeringen klappen per activiteit uit in een paneel (uv-{id}).
+
+const VOLGORDE_SLEUTEL = 'clubkompas-uitvoering-volgorde'
+const leesUitvoeringVolgorde = () => { try { return localStorage.getItem(VOLGORDE_SLEUTEL) === 'nieuw' ? 'nieuw' : 'oud' } catch { return 'oud' } }
 
 async function renderActiviteitenBeheer(gebruiker) {
   if (geenBeheer(gebruiker)) return
@@ -2596,17 +2605,26 @@ async function renderActiviteitenBeheer(gebruiker) {
   let vermogens = null
   let domeinen = null
   let commissies = null
+  let perActiviteit = null
   let actiefFilter = 'alle'
+  let vandaag = vandaagTekst()
+  let volgorde = leesUitvoeringVolgorde()
+  const openPanelen = new Set()
 
   const getoond = () => (actiefFilter === 'alle' ? activiteiten : activiteiten.filter(x => activiteitSoort(x) === actiefFilter))
   const terugval = () => zichtbareTerugval(toevoegKnop, form)
   const potlood = id => lijstEl.querySelector(`[data-actie="bewerk"][data-id="${CSS.escape(id)}"]`)
+  const uvPotlood = uid => lijstEl.querySelector(`[data-actie="uv-bewerk"][data-id="${CSS.escape(uid)}"]`)
+  const paneelVan = id => el(`uv-${id}`)
+  const uvToevoegKnop = id => paneelVan(id)?.querySelector('[data-actie="uv-toevoegen"]')
+  const uitvoeringenVan = id => (perActiviteit?.get(id) || [])
   const leeg = label => `<span class="leeg-streep"><span aria-hidden="true">—</span><span class="sr-only">${label}</span></span>`
   const weg = '<span class="leeg-streep">bestaat niet meer</span>'
   const vermogenVan = x => (Array.isArray(x.vermogenIds) ? x.vermogenIds[0] : '') || ''
-  const idsVoor = id => ({ naam: `an-${id}`, soort: `as-${id}`, vermogen: `av-${id}`, commissie: `ac-${id}`, begin: `ab-${id}`, eind: `ae-${id}` })
+  const idsVoor = id => ({ naam: `an-${id}`, soort: `as-${id}`, vermogen: `av-${id}`, commissie: `ac-${id}` })
   const NIEUW = { naam: 'activiteit-naam', soort: 'activiteit-soort', vermogen: 'activiteit-vermogen', commissie: 'activiteit-commissie', begin: 'activiteit-begin', eind: 'activiteit-eind' }
   const VERMOGEN_WEG = 'Het vermogen van deze activiteit bestaat niet meer. Kies een ander vermogen.'
+  const uvDatum = u => datumTekst(u.begindatum, u.einddatum)
 
   function commissieVeldHTML(ids, w) {
     if (!commissies) {
@@ -2621,14 +2639,33 @@ async function renderActiviteitenBeheer(gebruiker) {
     return `<select class="form-input" id="${esc(ids.commissie)}"${wegHint ? ` aria-describedby="${esc(ids.commissie)}-hint"` : ''}><option value=""${bestaat ? '' : ' selected'}>Geen commissie</option>${opties}</select>${wegHint}`
   }
 
-  function veldenHTML(ids, w) {
+  function datumVeldenHTML(b, e, legend, w) {
+    return `
+              <fieldset class="periode-velden">
+                <legend class="form-label">${esc(legend)}</legend>
+                <div class="form-rij-datums">
+                  <div class="form-groep">
+                    <label class="datum-label" for="${esc(b)}">Begindatum</label>
+                    <input class="form-input" id="${esc(b)}" type="date" value="${esc(w.begindatum)}" aria-describedby="${esc(b)}-fout" data-eind="${esc(e)}">
+                    <span class="form-fout" id="${esc(b)}-fout"></span>
+                  </div>
+                  <div class="form-groep">
+                    <label class="datum-label" for="${esc(e)}">Einddatum (optioneel)</label>
+                    <input class="form-input" id="${esc(e)}" type="date" value="${esc(w.einddatum)}"${w.begindatum ? ` min="${esc(w.begindatum)}"` : ''} aria-describedby="${esc(e)}-fout">
+                    <span class="form-fout" id="${esc(e)}-fout"></span>
+                  </div>
+                </div>
+              </fieldset>`
+  }
+
+  function veldenHTML(ids, w, { metDatum = false } = {}) {
     const vermogenOpties = vermogens
       ? vermogenOptiesHTML(vermogens, domeinen, vermogenVan(w))
       : `<option value="${esc(vermogenVan(w))}" selected>${vermogenVan(w) ? 'Huidig vermogen (niet geladen)' : 'Kies een vermogen'}</option>`
     return `
               <div class="form-groep">
                 <label class="form-label" for="${esc(ids.naam)}">Naam</label>
-                <input class="form-input" id="${esc(ids.naam)}" type="text" value="${esc(w.naam)}" placeholder="Bijv. Clubdag 2027" ${NAAM_VELD_ATTR} aria-describedby="${esc(ids.naam)}-fout" data-naamveld>
+                <input class="form-input" id="${esc(ids.naam)}" type="text" value="${esc(w.naam)}" placeholder="Bijv. Clubdag" ${NAAM_VELD_ATTR} aria-describedby="${esc(ids.naam)}-fout" data-naamveld>
                 <span class="form-fout" id="${esc(ids.naam)}-fout"></span>
               </div>
               <div class="form-groep">
@@ -2644,44 +2681,40 @@ async function renderActiviteitenBeheer(gebruiker) {
               <div class="form-groep">
                 <label class="form-label" for="${esc(ids.commissie)}">Commissie</label>
                 ${commissieVeldHTML(ids, w)}
-              </div>
-              <fieldset class="periode-velden">
-                <legend class="form-label">Datum</legend>
-                <div class="form-rij-datums">
-                  <div class="form-groep">
-                    <label class="datum-label" for="${esc(ids.begin)}">Begindatum</label>
-                    <input class="form-input" id="${esc(ids.begin)}" type="date" value="${esc(w.begindatum)}" aria-describedby="${esc(ids.begin)}-fout" data-eind="${esc(ids.eind)}">
-                    <span class="form-fout" id="${esc(ids.begin)}-fout"></span>
-                  </div>
-                  <div class="form-groep">
-                    <label class="datum-label" for="${esc(ids.eind)}">Einddatum (optioneel)</label>
-                    <input class="form-input" id="${esc(ids.eind)}" type="date" value="${esc(w.einddatum)}"${w.begindatum ? ` min="${esc(w.begindatum)}"` : ''} aria-describedby="${esc(ids.eind)}-fout">
-                    <span class="form-fout" id="${esc(ids.eind)}-fout"></span>
-                  </div>
-                </div>
-              </fieldset>`
+              </div>${metDatum ? datumVeldenHTML(ids.begin, ids.eind, 'Eerste uitvoering', w) : ''}`
   }
 
-  // Invoer lezen en controleren; geeft de velden of null (fouten staan dan bij de velden, focus op de eerste)
-  function leesVelden(ids, bestaand = null) {
+  // Datumvelden lezen en controleren; geeft { begindatum, einddatum } en de regels voor valideerVelden
+  function datumRegels(b, e) {
+    const beginEl = el(b)
+    const eindEl = el(e)
+    const begindatum = beginEl?.value || ''
+    const einddatum = eindEl?.value || ''
+    const d = uitvoeringDatumFout(begindatum, einddatum)
+    return {
+      datums: { begindatum, einddatum },
+      regels: [
+        [b, `${b}-fout`, beginEl?.validity?.badInput ? 'Vul een hele datum in.' : d.begin || ''],
+        [e, `${e}-fout`, eindEl?.validity?.badInput ? 'Vul een hele datum in, of maak het veld leeg.' : d.eind || ''],
+      ],
+    }
+  }
+
+  // Invoer lezen en controleren; geeft { velden, uitvoering } of null (fouten staan dan bij de velden, focus op de eerste)
+  function leesVelden(ids, bestaand = null, { metDatum = false } = {}) {
     const naam = normaliseerNaam(el(ids.naam)?.value)
     const soort = el(ids.soort)?.value || ''
     const vermogenId = el(ids.vermogen)?.value || ''
     const commissieId = commissies ? (el(ids.commissie)?.value || '') : (bestaand?.commissieId || '')
-    const beginEl = el(ids.begin)
-    const eindEl = el(ids.eind)
-    const begindatum = beginEl?.value || ''
-    const einddatum = eindEl?.value || ''
-    const d = activiteitDatumFout(begindatum, einddatum)
     const vermogenOk = vermogens?.some(v => v.id === vermogenId)
+    const datum = metDatum ? datumRegels(ids.begin, ids.eind) : null
     const ok = valideerVelden([
       [ids.naam, `${ids.naam}-fout`, onderdeelnaamFout(naam)],
       [ids.soort, `${ids.soort}-fout`, Object.hasOwn(ACTIVITEIT_SOORT_LABEL, soort) ? '' : 'Kies een soort.'],
       [ids.vermogen, `${ids.vermogen}-fout`, vermogenOk ? '' : 'Kies een vermogen.'],
-      [ids.begin, `${ids.begin}-fout`, beginEl?.validity?.badInput ? 'Vul een hele datum in.' : d.begin || ''],
-      [ids.eind, `${ids.eind}-fout`, eindEl?.validity?.badInput ? 'Vul een hele datum in, of maak het veld leeg.' : d.eind || ''],
+      ...(datum ? datum.regels : []),
     ])
-    return ok ? { naam, soort, begindatum, einddatum, vermogenIds: [vermogenId], commissieId } : null
+    return ok ? { velden: { naam, soort, vermogenIds: [vermogenId], commissieId }, uitvoering: datum?.datums || null } : null
   }
 
   function verwijzingHTML(lijst, id, leegLabel) {
@@ -2691,30 +2724,97 @@ async function renderActiviteitenBeheer(gebruiker) {
     return naam ? esc(naam) : weg
   }
 
+  function periodeHTML(x) {
+    if (!perActiviteit) return ''
+    const { stand, uitvoering } = eerstvolgendeUitvoering(uitvoeringenVan(x.id), vandaag)
+    if (stand === 'geen') return '<span class="cel-periode geen"><span class="sr-only">, </span>Nog geen uitvoering</span>'
+    const datum = esc(uvDatum(uitvoering))
+    if (stand === 'komend') return `<span class="cel-periode komend"><span class="sr-only">, eerstvolgende </span>${datum}</span>`
+    return `<span class="cel-periode ${stand}"><span class="sr-only">, </span>${stand === 'bezig' ? 'bezig' : 'laatst'}: ${datum}</span>`
+  }
+
+  function uitklapHTML(x) {
+    if (!perActiviteit) return leeg('niet geladen')
+    const n = uitvoeringenVan(x.id).length
+    const open = openPanelen.has(x.id)
+    return `<button class="btn-uitklap" type="button" data-actie="uitklap" data-id="${esc(x.id)}" aria-expanded="${open}" aria-controls="uv-${esc(x.id)}">
+              <svg class="uitklap-pijl" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 3 L11 8 L6 13"/></svg>
+              <span>${n ? uitvoeringenTekst(n) : 'Geen uitvoeringen'}</span><span class="sr-only"> van ${esc(x.naam)}</span>
+            </button>`
+  }
+
+  function uitvoeringRijHTML(u) {
+    const stand = uitvoeringStand(u, vandaag)
+    const datum = uvDatum(u)
+    const label = stand === 'voorbij' ? '<span class="status-label afgerond">voorbij</span>'
+      : stand === 'bezig' ? '<span class="status-label lopend">bezig</span>' : ''
+    return `
+          <li class="uitvoering-rij" data-uid="${esc(u.id)}">
+            <span class="uitvoering-datum">${esc(datum)}</span>${label}
+            <div class="kaart-acties cel-acties">
+              ${actieKnopHTML('uv-bewerk', u.id, 'bewerk', `uitvoering ${datum}`)}${actieKnopHTML('uv-verwijder', u.id, 'verwijder', `uitvoering ${datum}`)}
+            </div>
+          </li>`
+  }
+
+  const volgordeTekst = () => (volgorde === 'oud' ? 'Nieuwste eerst' : 'Oudste eerst')
+
+  function uitvoeringLijstHTML(id) {
+    const lijst = sorteerUitvoeringen([...uitvoeringenVan(id)], volgorde)
+    return lijst.length
+      ? `<ul class="uitvoering-lijst" aria-labelledby="uvk-${esc(id)}">${lijst.map(uitvoeringRijHTML).join('')}</ul>`
+      : '<p class="lijst-leeg">Nog geen uitvoeringen. Voeg hierboven de eerste toe.</p>'
+  }
+
+  function paneelInhoudHTML(x) {
+    const id = x.id
+    const n = uitvoeringenVan(id).length
+    return `
+        <div class="uitvoering-cel" role="cell">
+          <h2 class="uitvoering-kop" id="uvk-${esc(id)}">Uitvoeringen van ${esc(x.naam)}</h2>
+          <div class="uitvoering-balk">
+            <button class="btn uitvoering-volgorde" type="button" data-actie="uv-volgorde"${n < 2 ? ' hidden' : ''}>${volgordeTekst()}</button>
+            <button class="btn-toevoegen uitvoering-toevoegen" type="button" data-actie="uv-toevoegen" data-id="${esc(id)}">+ Uitvoering toevoegen</button>
+          </div>
+          <div class="pijler-bewerk-form uitvoering-form" id="uvf-${esc(id)}" hidden></div>
+          ${meldingenHTML(`uv-ok-${id}`, `uv-fout-${id}`)}
+          <div class="sr-only" id="uv-status-${esc(id)}" role="status"></div>
+          <div class="uitvoering-lijst-houder" id="uvl-${esc(id)}">${uitvoeringLijstHTML(id)}</div>
+        </div>`
+  }
+
+  function paneelHTML(x) {
+    return `
+        <div class="uitvoering-paneel" role="row" id="uv-${esc(x.id)}" data-activiteit="${esc(x.id)}"${openPanelen.has(x.id) ? '' : ' hidden'}>${paneelInhoudHTML(x)}
+        </div>`
+  }
+
   function rijHTML(x, plaats) {
-    const datum = datumTekst(x.begindatum, x.einddatum)
     return `
         <div class="structuur-rij beheer-rij activiteit-rij" role="row" data-id="${esc(x.id)}">
           <span class="cel-nr" role="cell">${plaats}</span>
-          <span class="cel-activiteit" role="cell"><span class="cel-naam">${esc(x.naam)}</span>${datum ? `<span class="cel-periode"><span class="sr-only">, datum </span>${esc(datum)}</span>` : ''}</span>
+          <span class="cel-activiteit" role="cell"><span class="cel-naam">${esc(x.naam)}</span>${periodeHTML(x)}</span>
+          <span class="cel-uitvoeringen" role="cell">${uitklapHTML(x)}</span>
           <span class="cel-soort" role="cell"><span class="status-label">${esc(activiteitSoortLabel(x))}</span></span>
           <span class="cel-vermogen" role="cell"><span class="cel-label" aria-hidden="true">Vermogen: </span>${verwijzingHTML(vermogens, vermogenVan(x), 'geen vermogen')}</span>
           <span class="cel-commissie" role="cell"><span class="cel-label" aria-hidden="true">Commissie: </span>${verwijzingHTML(commissies, x.commissieId, 'geen commissie')}</span>
           <div class="kaart-acties cel-acties" role="cell">
             ${actieKnopHTML('bewerk', x.id, 'bewerk', x.naam)}${actieKnopHTML('verwijder', x.id, 'verwijder', x.naam)}
           </div>
-        </div>`
+        </div>${perActiviteit ? paneelHTML(x) : ''}`
   }
 
   function tekenLijst() {
     if (!lijstEl.isConnected) return
+    vandaag = vandaagTekst()
+    sorteerActiviteiten(activiteiten, perActiviteit, vandaag)   // sorteert op de plek: de rijnummers hieronder volgen deze volgorde
     balk.hidden = false
     filterKeuze.hidden = !activiteiten.length
     if (!activiteiten.length) {
       lijstEl.innerHTML = `
         <div class="leeg-blok">
           <h3>Nog geen activiteiten</h3>
-          <p>Een activiteit is iets wat de club op een bepaalde dag organiseert, zoals een toernooi, een clinic of de ALV. Elke activiteit hoort bij een vermogen.</p>
+          <p>Een activiteit is iets wat de club organiseert, zoals een toernooi, een clinic of de ALV. Elke activiteit hoort bij een vermogen en kan vaker plaatsvinden. Elke keer is een uitvoering.</p>
         </div>`
       return
     }
@@ -2726,19 +2826,42 @@ async function renderActiviteitenBeheer(gebruiker) {
     }
     lijstEl.innerHTML = `
           <div role="table" aria-label="Activiteiten">
-            <div class="beheer-rij beheer-kop activiteit-rij" role="row"><span role="columnheader">#</span><span role="columnheader">Activiteit</span><span role="columnheader">Soort</span><span role="columnheader">Vermogen</span><span role="columnheader">Commissie</span><span role="columnheader"><span class="sr-only">Acties</span></span></div>
+            <div class="beheer-rij beheer-kop activiteit-rij" role="row"><span role="columnheader">#</span><span role="columnheader">Activiteit</span><span role="columnheader">Uitvoeringen</span><span role="columnheader">Soort</span><span role="columnheader">Vermogen</span><span role="columnheader">Commissie</span><span role="columnheader"><span class="sr-only">Acties</span></span></div>
             ${lijst.map(x => rijHTML(x, activiteiten.indexOf(x) + 1)).join('')}
           </div>`
+  }
+
+  // Alleen het paneel opnieuw tekenen (volgorde, annuleren); de rest van de lijst blijft staan
+  function tekenPaneel(id) {
+    const paneel = paneelVan(id)
+    const x = activiteiten.find(o => o.id === id)
+    if (paneel && x) paneel.innerHTML = paneelInhoudHTML(x)
+    return paneel
+  }
+
+  // Er is maar één uitvoeringformulier tegelijk open; het open formulier sluit zonder op te slaan
+  function sluitUitvoeringForms() {
+    lijstEl.querySelectorAll('.uitvoering-form:not([hidden])').forEach(f => {
+      f.hidden = true
+      f.innerHTML = ''
+      const knop = f.closest('.uitvoering-paneel')?.querySelector('[data-actie="uv-toevoegen"]')
+      if (knop) knop.hidden = false
+    })
+    lijstEl.querySelectorAll('.uitvoering-rij.bewerken').forEach(li => {
+      const id = li.closest('.uitvoering-paneel')?.dataset.activiteit
+      if (id) tekenPaneel(id)
+    })
   }
 
   function toonHint() {
     toevoegKnop.disabled = !vermogens?.length
     if (toevoegKnop.disabled) toevoegKnop.setAttribute('aria-describedby', 'activiteit-hint')
     else toevoegKnop.removeAttribute('aria-describedby')
-    if (!vermogens) hint.textContent = 'De vermogens konden niet worden geladen. Toevoegen en opslaan kan nu niet. Herlaad de pagina.'
-    else if (!vermogens.length) hint.innerHTML = 'Maak eerst een vermogen aan in <a href="#" class="tussen-link" data-nav="vermogensbeheer">Beheer → Vermogens</a>. Daarna kun je activiteiten toevoegen.'
-    else if (!domeinen) hint.textContent = 'De domeinen konden niet worden geladen. De vermogens staan daarom op naam, zonder domein.'
-    else hint.textContent = ''
+    const uitvoeringZin = perActiviteit ? '' : 'De uitvoeringen konden niet worden geladen. De activiteiten staan daarom op naam, zonder datums. Herlaad de pagina.'
+    if (!vermogens) hint.textContent = ['De vermogens konden niet worden geladen. Toevoegen en opslaan kan nu niet. Herlaad de pagina.', uitvoeringZin].filter(Boolean).join(' ')
+    else if (!vermogens.length) hint.innerHTML = `Maak eerst een vermogen aan in <a href="#" class="tussen-link" data-nav="vermogensbeheer">Beheer → Vermogens</a>. Daarna kun je activiteiten toevoegen.${uitvoeringZin ? ` ${esc(uitvoeringZin)}` : ''}`
+    else if (!domeinen) hint.textContent = ['De domeinen konden niet worden geladen. De vermogens staan daarom op naam, zonder domein.', uitvoeringZin].filter(Boolean).join(' ')
+    else hint.textContent = uitvoeringZin
   }
 
   function toonLaadfout(e) {
@@ -2751,7 +2874,7 @@ async function renderActiviteitenBeheer(gebruiker) {
   }
 
   async function laadEnRender() {
-    const bijzaken = Promise.allSettled([laadVermogens(db, clubId), laadStructuurelementen(), laadOnderdelen(db, clubId, 'commissies')])
+    const bijzaken = Promise.allSettled([laadVermogens(db, clubId), laadStructuurelementen(), laadOnderdelen(db, clubId, 'commissies'), laadUitvoeringen(db, clubId)])
     try {
       activiteiten = await laadActiviteiten(db, clubId)
     } catch (e) {
@@ -2759,14 +2882,17 @@ async function renderActiviteitenBeheer(gebruiker) {
       toonLaadfout(e)
       return false
     }
-    const [v, d, c] = await bijzaken
+    const [v, d, c, u] = await bijzaken
     if (!lijstEl.isConnected) return false
-    for (const [naam, u] of [['Vermogens', v], ['Domeinen', d], ['Commissies', c]]) {
-      if (u.status === 'rejected') console.error(`${naam} laden mislukt:`, u.reason?.code)
+    for (const [naam, r] of [['Vermogens', v], ['Domeinen', d], ['Commissies', c], ['Uitvoeringen', u]]) {
+      if (r.status === 'rejected') console.error(`${naam} laden mislukt:`, r.reason?.code)
     }
     vermogens = v.status === 'fulfilled' ? v.value : null
     domeinen = d.status === 'fulfilled' ? d.value : null
     commissies = c.status === 'fulfilled' ? c.value : null
+    perActiviteit = u.status === 'fulfilled' ? uitvoeringenPerActiviteit(u.value) : null
+    const bestaand = new Set(activiteiten.map(x => x.id))
+    for (const id of [...openPanelen]) if (!bestaand.has(id)) openPanelen.delete(id)
     toonHint()
     tekenLijst()
     return true
@@ -2792,7 +2918,7 @@ async function renderActiviteitenBeheer(gebruiker) {
     const ids = idsVoor(id)
     rij.classList.add('bewerken')
     rij.innerHTML = `
-        <div class="pijler-bewerk-form activiteit-bewerk" role="cell">${veldenHTML(ids, { ...x, soort: activiteitSoort(x), einddatum: x.einddatum || '', commissieId: x.commissieId || '' })}
+        <div class="pijler-bewerk-form activiteit-bewerk" role="cell">${veldenHTML(ids, { ...x, soort: activiteitSoort(x), commissieId: x.commissieId || '' })}
           <div class="form-rij">
             <button class="btn opslaan" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}"${vermogens ? '' : ' disabled'}>Opslaan</button>
             <button class="btn" type="button" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
@@ -2807,7 +2933,7 @@ async function renderActiviteitenBeheer(gebruiker) {
 
   const dubbelFout = ids => ({ 'dubbele-activiteit': [`${ids.naam}-fout`, ids.naam] })
   async function controleerDubbel(velden, eigenId = null) {
-    if (activiteitBezet(await laadActiviteiten(db, clubId), velden.naam, velden.begindatum, eigenId)) throw { code: 'dubbele-activiteit' }
+    if (activiteitBezet(await laadActiviteiten(db, clubId), velden.naam, eigenId)) throw { code: 'dubbele-activiteit' }
   }
 
   // Begindatum gekozen: einddatum niet eerder laten kiezen (hulp in de kiezer; de controle zit in leesVelden)
@@ -2825,7 +2951,7 @@ async function renderActiviteitenBeheer(gebruiker) {
   toevoegKnop.addEventListener('click', () => {
     if (!vermogens?.length) return
     const soort = Object.hasOwn(ACTIVITEIT_SOORT_LABEL, actiefFilter) ? actiefFilter : ''
-    form.innerHTML = `${veldenHTML(NIEUW, { naam: '', soort, vermogenIds: [], commissieId: '', begindatum: '', einddatum: '' })}
+    form.innerHTML = `${veldenHTML(NIEUW, { naam: '', soort, vermogenIds: [], commissieId: '', begindatum: '', einddatum: '' }, { metDatum: true })}
               <div class="form-rij">
                 <button class="btn opslaan" type="button" id="activiteit-opslaan">Opslaan</button>
                 <button class="btn" type="button" id="activiteit-annuleer">Annuleren</button>
@@ -2846,12 +2972,13 @@ async function renderActiviteitenBeheer(gebruiker) {
       return
     }
     if (knop.id !== 'activiteit-opslaan') return
-    const velden = leesVelden(NIEUW)
-    if (!velden) return
+    const invoer = leesVelden(NIEUW, null, { metDatum: true })
+    if (!invoer) return
+    const { velden, uitvoering } = invoer
     let nieuwId = ''
     const uitkomst = await metOpslaan(knop, async () => {
       await controleerDubbel(velden)
-      nieuwId = (await voegActiviteitToe(db, clubId, velden)).id
+      nieuwId = (await voegActiviteitToe(db, clubId, velden, uitvoering)).id
     }, { soort: 'formulier-lijst', fout: el('activiteit-form-fout'), veldFouten: dubbelFout(NIEUW) })
     if (uitkomst !== 'ok' || !lijstEl.isConnected) return
     sluitForm()
@@ -2872,6 +2999,225 @@ async function renderActiviteitenBeheer(gebruiker) {
     tekenLijst()
     meldFilter()
   })
+
+  // ── Uitvoeringen (CK-172) ──
+  function uvFormHTML({ b, e, fout, legend, w, uid = '' }) {
+    const metUid = uid ? ` data-uid="${esc(uid)}"` : ''
+    return `${datumVeldenHTML(b, e, legend, w)}
+          <div class="form-rij">
+            <button class="btn opslaan" type="button" data-actie="uv-opslaan"${metUid}>Opslaan</button>
+            <button class="btn" type="button" data-actie="uv-annuleer"${metUid}>Annuleren</button>
+          </div>
+          ${meldingenHTML(null, fout)}`
+  }
+
+  // Paneelmelding na het opnieuw tekenen; de sectiemeldingen gaan weg
+  function paneelMelding(id, ok, tekst) {
+    sectieOk.textContent = ''
+    sectieFout.textContent = ''
+    const doel = el(ok ? `uv-ok-${id}` : `uv-fout-${id}`)
+    if (!doel) return
+    if (ok) toonOk(doel, tekst)
+    else doel.textContent = tekst
+    meldingInBeeld(doel)
+  }
+
+  function activiteitWeg() {
+    terugval()?.focus()
+    sectieOk.textContent = ''
+    sectieFout.textContent = FOUTTEKSTEN['activiteit-weg']
+    meldingInBeeld(sectieFout)
+  }
+
+  // Na een uitvoeringactie die 'weg' gaf: activiteit weg → sectiemelding, uitvoering weg → paneelmelding
+  async function naWeg(id, code) {
+    await laadEnRender()
+    if (code === 'activiteit-weg' || !paneelVan(id)) { activiteitWeg(); return }
+    uvToevoegKnop(id)?.focus()
+    paneelMelding(id, false, FOUTTEKSTEN['uitvoering-weg'])
+  }
+
+  async function uitvoeringActie(knop, actie) {
+    const paneel = knop.closest('.uitvoering-paneel')
+    const id = paneel?.dataset.activiteit
+    const x = activiteiten.find(o => o.id === id)
+    if (!paneel || !x) return
+    const uid = knop.dataset.uid || knop.dataset.id || ''
+
+    if (actie === 'uv-volgorde') {
+      volgorde = volgorde === 'oud' ? 'nieuw' : 'oud'
+      try { localStorage.setItem(VOLGORDE_SLEUTEL, volgorde) } catch {}
+      // Alleen de lijsten; een open formulier en de paneelmeldingen blijven staan. Een lijst met een uitvoering in bewerkstand blijft zoals hij is.
+      lijstEl.querySelectorAll('.uitvoering-paneel').forEach(p => {
+        const k = p.querySelector('[data-actie="uv-volgorde"]')
+        if (k) k.textContent = volgordeTekst()
+        const houder = el(`uvl-${p.dataset.activiteit}`)
+        if (houder && !houder.querySelector('.uitvoering-rij.bewerken')) houder.innerHTML = uitvoeringLijstHTML(p.dataset.activiteit)
+      })
+      zetStatus(el(`uv-status-${id}`), volgorde === 'nieuw' ? 'Nieuwste uitvoering bovenaan.' : 'Oudste uitvoering bovenaan.')
+      return
+    }
+
+    if (actie === 'uv-toevoegen') {
+      sluitUitvoeringForms()
+      const f = el(`uvf-${id}`)
+      const t = uvToevoegKnop(id)
+      if (!f || !t) return
+      f.innerHTML = uvFormHTML({ b: `unb-${id}`, e: `une-${id}`, fout: `uvf-fout-${id}`, legend: 'Nieuwe uitvoering', w: { begindatum: '', einddatum: '' } })
+      f.hidden = false
+      t.hidden = true
+      el(`unb-${id}`)?.focus()
+      return
+    }
+
+    const u = uitvoeringenVan(id).find(o => o.id === uid)
+
+    if (actie === 'uv-annuleer') {
+      if (uid) {
+        tekenPaneel(id)
+        ;(uvPotlood(uid) || uvToevoegKnop(id))?.focus()
+      } else {
+        const f = el(`uvf-${id}`)
+        f.hidden = true
+        f.innerHTML = ''
+        const t = uvToevoegKnop(id)
+        if (t) { t.hidden = false; t.focus() }
+      }
+      return
+    }
+
+    if (actie === 'uv-bewerk') {
+      if (!u) return
+      sluitUitvoeringForms()
+      const li = paneelVan(id)?.querySelector(`.uitvoering-rij[data-uid="${CSS.escape(uid)}"]`)
+      if (!li) return
+      li.classList.add('bewerken')
+      li.innerHTML = uvFormHTML({ b: `ub-${uid}`, e: `ue-${uid}`, fout: `ubf-fout-${uid}`, legend: `Uitvoering ${uvDatum(u)}`, w: { begindatum: u.begindatum || '', einddatum: u.einddatum || '' }, uid })
+      el(`ub-${uid}`)?.focus()
+      return
+    }
+
+    if (actie === 'uv-verwijder') {
+      if (!u) return
+      const datum = uvDatum(u)
+      if (!confirm(`Uitvoering ${datum} van ${x.naam} verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return
+      const getoondeLijst = [...paneel.querySelectorAll('.uitvoering-rij')].map(li => li.dataset.uid)
+      const k = getoondeLijst.indexOf(uid)
+      let code = null
+      const uitkomst = await metOpslaan(knop, async () => {
+        try { await verwijderUitvoering(db, clubId, uid) } catch (e) { code = e?.code; throw e }
+      }, { soort: 'lijstactie', lijst: lijstEl, fout: el(`uv-fout-${id}`), bezig: null })
+      if (!lijstEl.isConnected) return
+      if (uitkomst === 'fout') { focusInLijst(lijstEl, 'uv-verwijder', uid, uvToevoegKnop(id)); return }
+      if (uitkomst === 'weg') { await naWeg(id, code); return }
+      await laadEnRender()
+      if (!paneelVan(id)) { activiteitWeg(); return }
+      const buur = uvPotlood(getoondeLijst[k + 1] || '') || uvPotlood(getoondeLijst[k - 1] || '')
+      ;(buur || uvToevoegKnop(id))?.focus()
+      paneelMelding(id, true, `Uitvoering ${datum} van ${x.naam} verwijderd.`)
+      return
+    }
+
+    if (actie === 'uv-opslaan') {
+      const [b, e, foutId] = uid ? [`ub-${uid}`, `ue-${uid}`, `ubf-fout-${uid}`] : [`unb-${id}`, `une-${id}`, `uvf-fout-${id}`]
+      const { datums, regels } = datumRegels(b, e)
+      if (!valideerVelden(regels)) return
+      if (uid && u && datums.begindatum === (u.begindatum || '') && datums.einddatum === (u.einddatum || '')) {
+        tekenPaneel(id)
+        uvPotlood(uid)?.focus()
+        return
+      }
+      let code = null
+      let doelUid = uid
+      const uitkomst = await metOpslaan(knop, async () => {
+        try {
+          if (uid) await bewerkUitvoering(db, clubId, uid, datums)
+          else doelUid = (await voegUitvoeringToe(db, clubId, id, datums)).id
+        } catch (err) { code = err?.code; throw err }
+      }, { soort: 'formulier-lijst', fout: el(foutId), weg: el(`uv-fout-${id}`), veldFouten: { 'dubbele-uitvoering': [`${b}-fout`, b] } })
+      if (!lijstEl.isConnected || uitkomst === 'fout') return
+      if (uitkomst === 'weg') { await naWeg(id, code); return }
+      await laadEnRender()
+      if (!paneelVan(id)) { activiteitWeg(); return }
+      ;(uvPotlood(doelUid) || uvToevoegKnop(id))?.focus()
+      const datum = datumTekst(datums.begindatum, datums.einddatum)
+      paneelMelding(id, true, uid ? `Uitvoering ${datum} opgeslagen.` : `Uitvoering ${datum} toegevoegd aan ${x.naam}.`)
+    }
+  }
+
+  function klapUit(knop) {
+    const id = knop.dataset.id
+    const paneel = paneelVan(id)
+    if (!paneel) return
+    const open = knop.getAttribute('aria-expanded') !== 'true'
+    if (!open) {
+      if (paneel.querySelector('.uitvoering-rij.bewerken')) tekenPaneel(id)
+      else {
+        const f = el(`uvf-${id}`)
+        if (f && !f.hidden) {
+          f.hidden = true
+          f.innerHTML = ''
+          const t = uvToevoegKnop(id)
+          if (t) t.hidden = false
+        }
+      }
+    }
+    knop.setAttribute('aria-expanded', String(open))
+    paneel.hidden = !open
+    if (open) openPanelen.add(id)
+    else openPanelen.delete(id)
+  }
+
+  async function verwijderActiviteitMetUitvoeringen(knop, x) {
+    const id = x.id
+    knop.setAttribute('aria-disabled', 'true')
+    let n
+    try {
+      n = await metTijdslimiet(telUitvoeringenVanActiviteit(db, clubId, id))
+    } catch (e) {
+      console.error('Uitvoeringen tellen mislukt:', e?.code)
+      knop.removeAttribute('aria-disabled')
+      sectieOk.textContent = ''
+      sectieFout.textContent = `Activiteit ${x.naam} kan nu niet worden verwijderd: de uitvoeringen konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.`
+      knop.focus()
+      meldingInBeeld(sectieFout)
+      return
+    }
+    knop.removeAttribute('aria-disabled')
+    if (n > 499) {
+      sectieOk.textContent = ''
+      sectieFout.textContent = `Activiteit ${x.naam} heeft te veel uitvoeringen om in één keer te verwijderen.`
+      knop.focus()
+      meldingInBeeld(sectieFout)
+      return
+    }
+    const vraagTekst = n
+      ? `Activiteit ${x.naam} en ${uitvoeringenTekst(n)} verwijderen? Dit kan niet ongedaan worden gemaakt.`
+      : `Activiteit ${x.naam} verwijderen? Dit kan niet ongedaan worden gemaakt.`
+    if (!confirm(vraagTekst)) return
+    const lijst = getoond()
+    const k = lijst.indexOf(x)
+    let verwijderd = 0
+    let code = null
+    const uitkomst = await metOpslaan(knop, async () => {
+      try { verwijderd = await verwijderActiviteit(db, clubId, id) } catch (e) { code = e?.code; throw e }
+    }, { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null })
+    if (uitkomst !== 'fout') openPanelen.delete(id)
+    await laadEnRender()
+    if (uitkomst === 'ok') {
+      const buur = potlood(lijst[k + 1]?.id || '') || potlood(lijst[k - 1]?.id || '')
+      ;(buur || terugval())?.focus()
+      toonOk(sectieOk, verwijderd ? `Activiteit ${x.naam} en ${uitvoeringenTekst(verwijderd)} verwijderd.` : `Activiteit ${x.naam} verwijderd.`)
+      meldingInBeeld(sectieOk)
+    } else if (uitkomst === 'weg') {
+      terugval()?.focus()
+      meldingInBeeld(sectieFout)
+    } else {
+      if (code === 'te-veel-uitvoeringen') sectieFout.textContent = `Activiteit ${x.naam} heeft te veel uitvoeringen om in één keer te verwijderen.`
+      focusInLijst(lijstEl, 'verwijder', id, terugval())
+      meldingInBeeld(sectieFout)
+    }
+  }
 
   // ── Rijacties ──
   lijstEl.addEventListener('change', bijBegin)
@@ -2895,29 +3241,13 @@ async function renderActiviteitenBeheer(gebruiker) {
     if (!knop) return
     if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true' || knop.disabled) return
     const { actie, id } = knop.dataset
+    if (actie === 'uitklap') { klapUit(knop); return }
+    if (actie.startsWith('uv-')) { await uitvoeringActie(knop, actie); return }
     const x = activiteiten.find(o => o.id === id)
     if (!x) return
 
     if (actie === 'verwijder') {
-      if (!bevestigVerwijderen('Activiteit', x.naam)) return
-      const lijst = getoond()
-      const k = lijst.indexOf(x)
-      const uitkomst = await metOpslaan(knop, () => verwijderActiviteit(db, clubId, id), {
-        soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null,
-      })
-      await laadEnRender()
-      if (uitkomst === 'ok') {
-        const buur = potlood(lijst[k + 1]?.id || '') || potlood(lijst[k - 1]?.id || '')
-        ;(buur || terugval())?.focus()
-        toonOk(sectieOk, `Activiteit ${x.naam} verwijderd.`)
-        meldingInBeeld(sectieOk)
-      } else if (uitkomst === 'weg') {
-        terugval()?.focus()
-        meldingInBeeld(sectieFout)
-      } else {
-        focusInLijst(lijstEl, 'verwijder', id, terugval())
-        meldingInBeeld(sectieFout)
-      }
+      await verwijderActiviteitMetUitvoeringen(knop, x)
     } else if (actie === 'bewerk') {
       if (openBewerk(id)) el(idsVoor(id).naam)?.focus()
     } else if (actie === 'bewerk-annuleer') {
@@ -2925,12 +3255,13 @@ async function renderActiviteitenBeheer(gebruiker) {
       ;(potlood(id) || terugval())?.focus()
     } else if (actie === 'bewerk-opslaan') {
       const ids = idsVoor(id)
-      const velden = leesVelden(ids, x)
-      if (!velden) return
-      const oud = { naam: x.naam, soort: x.soort, begindatum: x.begindatum, einddatum: x.einddatum ?? '', vermogenId: vermogenVan(x), commissieId: x.commissieId ?? '' }
-      const nieuw = { ...velden, vermogenId: velden.vermogenIds[0] }
-      delete nieuw.vermogenIds
-      if (Object.keys(oud).every(k => oud[k] === nieuw[k]) && x.vermogenIds?.length === 1) {
+      const invoer = leesVelden(ids, x)
+      if (!invoer) return
+      const { velden } = invoer
+      const oud = { naam: x.naam, soort: x.soort, vermogenId: vermogenVan(x), commissieId: x.commissieId ?? '' }
+      const nieuw = { naam: velden.naam, soort: velden.soort, vermogenId: velden.vermogenIds[0], commissieId: velden.commissieId }
+      const oudeDatums = 'begindatum' in x || 'einddatum' in x
+      if (Object.keys(oud).every(k => oud[k] === nieuw[k]) && x.vermogenIds?.length === 1 && !oudeDatums) {
         tekenLijst()
         potlood(id)?.focus()
         return

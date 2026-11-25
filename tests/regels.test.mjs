@@ -22,7 +22,11 @@ import {
   ACTIVITEIT_SOORTEN, ACTIVITEIT_SOORT_LABEL, activiteitSoortLabel, activiteitVelden, geldigeActiviteit, activiteitDatumFout,
   datumTekst, sorteerActiviteiten, activiteitBezet, laadActiviteiten, laadActiviteitenVanVermogen, telActiviteitenVanCommissie,
   voegActiviteitToe, bewerkActiviteit, verwijderActiviteit,
+  uitvoeringVelden, geldigeUitvoering, uitvoeringDatumFout, vandaagTekst, uitvoeringStand, sorteerUitvoeringen, uitvoeringenPerActiviteit,
+  eerstvolgendeUitvoering, uitvoeringBezet, laadUitvoeringen, laadUitvoeringenVanActiviteit, telUitvoeringenVanActiviteit,
+  voegUitvoeringToe, bewerkUitvoering, verwijderUitvoering,
 } from '../src/activiteiten.js'
+import { planOmzetting, BLOKKEREND } from '../scripts/lib/uitvoeringen-omzetten.mjs'
 
 const CLUB = 'club1'
 // De bronlijst (CK-020-bron-vermogensoverzicht.md) bevat 58 namen (13 + 45), bevestigd tegen het HCA-overzicht v1.4.
@@ -1429,8 +1433,21 @@ describe('omgevingsguard', () => {
   })
 })
 
-// ── Activiteiten (CK-170) ──
-const ACTIVITEIT = { naam: 'Clubdag 2027', soort: 'evenement', begindatum: '2027-06-12', einddatum: '', vermogenIds: ['v1'], commissieId: '' }
+
+// ── Activiteiten (CK-170) en uitvoeringen (CK-172) ──
+const ACTIVITEIT = { naam: 'Clubdag 2027', soort: 'evenement', vermogenIds: ['v1'], commissieId: '' }
+const UITVOERING = { begindatum: '2027-06-12', einddatum: '' }
+
+const gemeenschappelijk = async () => {
+  await admin(async a => {
+    await setDoc(doc(a, 'gebruikers', 'kees'), { clubId: CLUB })
+    await setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'lid' })
+    await setDoc(doc(a, ...pad('vermogens', 'v1')), { naam: 'Teamindeling', domeinId: 'speelt', volgorde: 1 })
+    await setDoc(doc(a, ...pad('vermogens', 'v2')), { naam: 'Ledenwerving', domeinId: 'leden', volgorde: 1 })
+    await setDoc(doc(a, ...pad('commissies', 'c1')), { naam: 'Activiteitencommissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+  })
+  return env.authenticatedContext('kees').firestore()
+}
 
 describe('CK-170 activiteiten: app-functies', () => {
   test('soorten en labels', () => {
@@ -1446,48 +1463,35 @@ describe('CK-170 activiteiten: app-functies', () => {
     assert.equal(datumTekst('2026-12-30', '2027-01-02'), '30 dec 2026 – 2 jan 2027')
     assert.equal(datumTekst('', ''), '')
   })
-  test('activiteitDatumFout: begin verplicht, eind niet vóór begin, eind leeg mag', () => {
-    assert.deepEqual(activiteitDatumFout('', ''), { begin: 'Vul een begindatum in.' })
-    assert.deepEqual(activiteitDatumFout('2027-03-12', '2027-03-11'), { eind: 'De einddatum ligt vóór de begindatum.' })
-    assert.deepEqual(activiteitDatumFout('2027-03-12', ''), {})
-    assert.deepEqual(activiteitDatumFout('2027-03-12', '2027-03-12'), {})
-    assert.equal(activiteitDatumFout('2027-13-01', '').begin, 'Vul een hele datum in.')
+  test('uitvoeringDatumFout (en de oude naam activiteitDatumFout): begin verplicht, eind niet vóór begin, eind leeg mag', () => {
+    assert.equal(activiteitDatumFout, uitvoeringDatumFout)
+    assert.deepEqual(uitvoeringDatumFout('', ''), { begin: 'Vul een begindatum in.' })
+    assert.deepEqual(uitvoeringDatumFout('2027-03-12', '2027-03-11'), { eind: 'De einddatum ligt vóór de begindatum.' })
+    assert.deepEqual(uitvoeringDatumFout('2027-03-12', ''), {})
+    assert.deepEqual(uitvoeringDatumFout('2027-03-12', '2027-03-12'), {})
+    assert.equal(uitvoeringDatumFout('2027-13-01', '').begin, 'Vul een hele datum in.')
   })
-  test('sorteren op begindatum, einddatum (leeg eerst) en naam; dubbel alleen op dezelfde begindatum', () => {
-    const l = [
-      { id: 'a', naam: 'B', begindatum: '2027-03-12', einddatum: '2027-03-14' },
-      { id: 'b', naam: 'Z', begindatum: '2027-03-12', einddatum: '' },
-      { id: 'c', naam: 'A', begindatum: '2027-03-12', einddatum: '2027-03-14' },
-      { id: 'd', naam: 'C', begindatum: '2026-12-30', einddatum: '' },
-    ]
-    assert.deepEqual(sorteerActiviteiten(l).map(x => x.id), ['d', 'b', 'c', 'a'])
-    assert.ok(activiteitBezet(l, 'z', '2027-03-12'))
-    assert.ok(!activiteitBezet(l, 'Z', '2027-03-13'))
-    assert.ok(!activiteitBezet(l, 'Z', '2027-03-12', 'b'))
+  test('activiteitBezet: op de hele club, hoofdletters en spaties tellen niet, eigen id telt niet', () => {
+    const l = [{ id: 'a', naam: 'Clubdag 2027' }, { id: 'b', naam: 'ALV' }]
+    assert.ok(activiteitBezet(l, 'clubdag  2027 '))
+    assert.ok(activiteitBezet(l, 'CLUBDAG 2027', 'x'))
+    assert.ok(activiteitBezet(l, 'alv'))
+    assert.ok(!activiteitBezet(l, 'ALV', 'b'))
+    assert.ok(!activiteitBezet(l, 'Clubdag 2028'))
+    assert.ok(!activiteitBezet([], 'Clubdag 2027'))
   })
-  test('activiteitBezet: hoofdletters en spaties tellen niet, lege lijst is vrij', () => {
-    const l = [{ id: 'a', naam: 'Clubdag 2027', begindatum: '2027-06-12' }]
-    assert.ok(activiteitBezet(l, 'clubdag  2027 ', '2027-06-12'))
-    assert.ok(activiteitBezet(l, 'CLUBDAG 2027', '2027-06-12', 'x'))
-    assert.ok(!activiteitBezet(l, 'Clubdag 2027', '2028-06-12'))
-    assert.ok(!activiteitBezet([], 'Clubdag 2027', '2027-06-12'))
+  test('sorteerActiviteiten zonder uitvoeringen: op naam met nl-volgorde', () => {
+    const l = [{ id: 'a', naam: 'Één' }, { id: 'b', naam: 'Echt' }, { id: 'c', naam: 'Oud' }, { id: 'd', naam: 'ALV' }]
+    assert.deepEqual(sorteerActiviteiten(l).map(x => x.id), ['d', 'b', 'a', 'c'])
   })
-  test('sorteerActiviteiten: ontbrekende datums vooraan, naam met nl-volgorde', () => {
-    const l = [
-      { id: 'a', naam: 'Één', begindatum: '2027-01-01', einddatum: '' },
-      { id: 'b', naam: 'Echt', begindatum: '2027-01-01' },
-      { id: 'c', naam: 'Oud' },
-      { id: 'd', naam: 'Later', begindatum: '2027-01-01', einddatum: '2027-01-03' },
-    ]
-    assert.deepEqual(sorteerActiviteiten(l).map(x => x.id), ['c', 'b', 'a', 'd'])
-  })
-  test('activiteitVelden en de spiegel van de regels', () => {
-    assert.deepEqual(activiteitVelden({ naam: 'X y', soort: 'actie', begindatum: '2027-01-01', vermogenIds: ['v1'] }),
-      { naam: 'X y', soort: 'actie', begindatum: '2027-01-01', einddatum: '', vermogenIds: ['v1'], commissieId: '' })
+  test('activiteitVelden en de spiegel van de regels: vier velden, geen datums', () => {
+    assert.deepEqual(activiteitVelden({ naam: 'X y', soort: 'actie', vermogenIds: ['v1'], begindatum: '2027-01-01' }),
+      { naam: 'X y', soort: 'actie', vermogenIds: ['v1'], commissieId: '' })
     assert.ok(geldigeActiviteit(ACTIVITEIT))
+    assert.ok(geldigeActiviteit({ id: 'a1', ...ACTIVITEIT }))
     assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, omschrijving: '' }))
+    assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, begindatum: '2027-06-12' }))
     assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, vermogenIds: [] }))
-    assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, begindatum: '' }))
     assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, soort: 'feest' }))
   })
 })
@@ -1495,31 +1499,29 @@ describe('CK-170 activiteiten: app-functies', () => {
 describe('CK-170 activiteiten: regels', () => {
   let kees
   const r = (fs, id = 'a1') => doc(fs, ...pad('activiteiten', id))
-  beforeEach(async () => {
-    await admin(async a => {
-      await setDoc(doc(a, 'gebruikers', 'kees'), { clubId: CLUB })
-      await setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'lid' })
-      await setDoc(doc(a, ...pad('vermogens', 'v1')), { naam: 'Teamindeling', domeinId: 'speelt', volgorde: 1 })
-      await setDoc(doc(a, ...pad('vermogens', 'v2')), { naam: 'Ledenwerving', domeinId: 'leden', volgorde: 1 })
-      await setDoc(doc(a, ...pad('commissies', 'c1')), { naam: 'Activiteitencommissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
-    })
-    kees = env.authenticatedContext('kees').firestore()
-  })
+  beforeEach(async () => { kees = await gemeenschappelijk() })
 
   test('beheerder: aanmaken, bewerken en verwijderen via de app-functies', async () => {
     const { id } = await assertSucceeds(voegActiviteitToe(db, CLUB, ACTIVITEIT))
     assert.deepEqual(await lees('activiteiten', id), ACTIVITEIT)
-    const nieuw = { ...ACTIVITEIT, soort: 'toernooi', einddatum: '2027-06-14', vermogenIds: ['v2'], commissieId: 'c1' }
+    const nieuw = { ...ACTIVITEIT, soort: 'toernooi', vermogenIds: ['v2'], commissieId: 'c1' }
     await assertSucceeds(bewerkActiviteit(db, CLUB, id, nieuw))
     assert.deepEqual(await lees('activiteiten', id), nieuw)
     assert.equal((await laadActiviteiten(db, CLUB)).length, 1)
     assert.equal((await laadActiviteitenVanVermogen(db, CLUB, 'v2')).length, 1)
     assert.equal((await laadActiviteitenVanVermogen(db, CLUB, 'v1')).length, 0)
     assert.equal(await telActiviteitenVanCommissie(db, CLUB, 'c1'), 1)
-    await assertSucceeds(verwijderActiviteit(db, CLUB, id))
+    assert.equal(await assertSucceeds(verwijderActiviteit(db, CLUB, id)), 0)
     assert.equal((await fout(verwijderActiviteit(db, CLUB, id))).code, 'activiteit-weg')
     assert.equal((await fout(bewerkActiviteit(db, CLUB, id, ACTIVITEIT))).code, 'activiteit-weg')
     assert.equal(await telActiviteitenVanCommissie(db, CLUB, 'c1'), 0)
+  })
+
+  test('bewerken van een oud document met datums: de datums gaan mee weg', async () => {
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'a1')), { ...ACTIVITEIT, begindatum: '2027-06-12', einddatum: '' }))
+    await assertFails(updateDoc(r(db), { naam: 'Clubdag 2028' }))
+    await assertSucceeds(bewerkActiviteit(db, CLUB, 'a1', { ...ACTIVITEIT, naam: 'Clubdag 2028' }))
+    assert.deepEqual(await lees('activiteiten', 'a1'), { ...ACTIVITEIT, naam: 'Clubdag 2028' })
   })
 
   test('lid zonder beheerrol leest, maar schrijft niet; niet-lid leest niet', async () => {
@@ -1536,9 +1538,12 @@ describe('CK-170 activiteiten: regels', () => {
     await assertFails(deleteDoc(r(buiten)))
   })
 
-  test('extra of ontbrekend veld: geweigerd', async () => {
+  test('extra of ontbrekend veld: geweigerd, ook begindatum of einddatum', async () => {
     await assertFails(setDoc(r(db), { ...ACTIVITEIT, omschrijving: 'Met Jan en Piet' }))
     await assertFails(setDoc(r(db), { ...ACTIVITEIT, volgorde: 1 }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, begindatum: '2027-06-12' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, einddatum: '' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, begindatum: '2027-06-12', einddatum: '' }))
     for (const veld of Object.keys(ACTIVITEIT)) {
       const { [veld]: _, ...zonder } = ACTIVITEIT
       await assertFails(setDoc(r(db), zonder))
@@ -1549,17 +1554,6 @@ describe('CK-170 activiteiten: regels', () => {
   test('soort: alleen de vaste lijst', async () => {
     for (const soort of ['feest', '', 'Toernooi', 1]) await assertFails(setDoc(r(db), { ...ACTIVITEIT, soort }))
     for (const [soort] of ACTIVITEIT_SOORTEN) await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, soort }))
-  })
-
-  test('datum: begin verplicht, vast formaat, eind niet vóór begin', async () => {
-    await assertFails(setDoc(r(db), { ...ACTIVITEIT, begindatum: '' }))
-    for (const d of ['12-06-2027', '2027-6-12', '2027-13-01', '2027-06-32', '2027-06-12T10:00', 20270612]) {
-      await assertFails(setDoc(r(db), { ...ACTIVITEIT, begindatum: d }))
-      await assertFails(setDoc(r(db), { ...ACTIVITEIT, einddatum: d }))
-    }
-    await assertFails(setDoc(r(db), { ...ACTIVITEIT, einddatum: '2027-06-11' }))
-    await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, einddatum: '2027-06-12' }))
-    await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, einddatum: '2027-06-14' }))
   })
 
   test('vermogenIds: precies één bestaand vermogen in een lijst', async () => {
@@ -1613,7 +1607,7 @@ describe('CK-170 activiteiten: regels', () => {
     for (const veld of Object.keys(ACTIVITEIT)) await assertFails(updateDoc(r(db), { [veld]: deleteField() }))
     await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['v1', null] }))
     await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: [null] }))
-    await assertSucceeds(updateDoc(r(db), { einddatum: '2027-06-13' }))
+    await assertSucceeds(updateDoc(r(db), { commissieId: 'c1' }))
   })
 
   test('andere club: geen verwijzing naar een vermogen of commissie van club1', async () => {
@@ -1623,5 +1617,355 @@ describe('CK-170 activiteiten: regels', () => {
     })
     await assertFails(setDoc(doc(db, 'clubs', 'club2', 'activiteiten', 'a1'), ACTIVITEIT))
     await assertFails(setDoc(doc(db, 'clubs', 'club2', 'activiteiten', 'a1'), { ...ACTIVITEIT, vermogenIds: ['../../club1/vermogens/v1'] }))
+  })
+})
+
+describe('CK-172 uitvoeringen: pure functies', () => {
+  const VANDAAG = '2026-11-25'
+  const u = (id, begindatum, einddatum = '', activiteitId = 'a1') => ({ id, activiteitId, begindatum, einddatum })
+
+  test('vandaagTekst: de lokale datum, met voorloopnullen, zonder UTC', () => {
+    assert.equal(vandaagTekst(new Date(2026, 10, 25, 23, 59)), '2026-11-25')
+    assert.equal(vandaagTekst(new Date(2027, 0, 1, 0, 1)), '2027-01-01')
+    assert.equal(vandaagTekst(new Date(2027, 2, 9, 12)), '2027-03-09')
+    assert.match(vandaagTekst(), /^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  test('uitvoeringStand: de grens op vandaag', () => {
+    assert.equal(uitvoeringStand(u('x', VANDAAG), VANDAAG), 'bezig')
+    assert.equal(uitvoeringStand(u('x', '2026-11-24'), VANDAAG), 'voorbij')
+    assert.equal(uitvoeringStand(u('x', '2026-11-26'), VANDAAG), 'komend')
+    assert.equal(uitvoeringStand(u('x', '2026-11-20', VANDAAG), VANDAAG), 'bezig')
+    assert.equal(uitvoeringStand(u('x', '2026-11-20', '2026-11-24'), VANDAAG), 'voorbij')
+  })
+
+  test('eerstvolgendeUitvoering: bezig, komend, voorbij en geen', () => {
+    assert.deepEqual(eerstvolgendeUitvoering([], VANDAAG), { stand: 'geen', uitvoering: null })
+    assert.deepEqual(eerstvolgendeUitvoering(undefined, VANDAAG), { stand: 'geen', uitvoering: null })
+    const bezig = eerstvolgendeUitvoering([u('k', '2027-03-12'), u('b', '2026-11-24', '2026-11-26'), u('v', '2026-02-03')], VANDAAG)
+    assert.deepEqual([bezig.stand, bezig.uitvoering.id], ['bezig', 'b'])
+    const vandaag = eerstvolgendeUitvoering([u('k', '2027-03-12'), u('d', VANDAAG)], VANDAAG)
+    assert.deepEqual([vandaag.stand, vandaag.uitvoering.id], ['bezig', 'd'])
+    const komend = eerstvolgendeUitvoering([u('k2', '2027-06-17'), u('k1', '2027-03-12'), u('v', '2026-02-03')], VANDAAG)
+    assert.deepEqual([komend.stand, komend.uitvoering.id], ['komend', 'k1'])
+    const morgen = eerstvolgendeUitvoering([u('m', '2026-11-26')], VANDAAG)
+    assert.equal(morgen.stand, 'komend')
+    const voorbij = eerstvolgendeUitvoering([u('v1', '2026-02-03'), u('v2', '2026-10-01', '2026-10-03'), u('gisteren', '2026-11-24')], VANDAAG)
+    assert.deepEqual([voorbij.stand, voorbij.uitvoering.id], ['voorbij', 'gisteren'])
+    const ongeldig = eerstvolgendeUitvoering([u('x', ''), u('y', '2027-3-1')], VANDAAG)
+    assert.equal(ongeldig.stand, 'geen')
+  })
+
+  test('sorteerUitvoeringen: begindatum, einddatum, id; richting nieuw is precies andersom', () => {
+    const l = () => [u('c', '2027-03-12', '2027-03-14'), u('a', '2026-02-03'), u('b', '2027-03-12'), u('d', '2027-03-12', '2027-03-14')]
+    assert.deepEqual(sorteerUitvoeringen(l()).map(x => x.id), ['a', 'b', 'c', 'd'])
+    assert.deepEqual(sorteerUitvoeringen(l(), 'oud').map(x => x.id), ['a', 'b', 'c', 'd'])
+    assert.deepEqual(sorteerUitvoeringen(l(), 'nieuw').map(x => x.id), ['d', 'c', 'b', 'a'])
+    assert.deepEqual(sorteerUitvoeringen(l(), 'onzin').map(x => x.id), ['a', 'b', 'c', 'd'])
+  })
+
+  test('uitvoeringenPerActiviteit: een Map op activiteitId, elke lijst op datum', () => {
+    const per = uitvoeringenPerActiviteit([u('2', '2027-03-12', '', 'a1'), u('1', '2026-02-03', '', 'a1'), u('3', '2027-01-01', '', 'a2')])
+    assert.deepEqual([...per.keys()].sort(), ['a1', 'a2'])
+    assert.deepEqual(per.get('a1').map(x => x.id), ['1', '2'])
+    assert.equal(per.get('a3'), undefined)
+  })
+
+  test('sorteerActiviteiten met uitvoeringen: bezig/komend op datum, dan voorbij (recent eerst), dan geen op naam', () => {
+    const acts = [
+      { id: 'kerst', naam: 'Kerstborrel' },
+      { id: 'jeugd', naam: 'Jeugdclinic' },
+      { id: 'alv', naam: 'ALV' },
+      { id: 'clubdag', naam: 'Clubdag' },
+      { id: 'oud', naam: 'Oud toernooi' },
+      { id: 'b', naam: 'Borrel' },
+      { id: 'a', naam: 'Aperitief' },
+      { id: 'zz', naam: 'Zomerkamp' },
+    ]
+    const per = uitvoeringenPerActiviteit([
+      u('1', '2026-02-03', '', 'alv'), u('2', '2027-03-12', '', 'alv'),
+      u('3', '2026-11-24', '2026-11-26', 'clubdag'),
+      u('4', '2026-10-03', '', 'jeugd'),
+      u('5', '2025-05-01', '', 'oud'),
+      u('6', '2027-03-12', '', 'b'), u('7', '2027-03-12', '', 'a'),
+    ])
+    assert.deepEqual(sorteerActiviteiten(acts, per, VANDAAG).map(x => x.id), ['clubdag', 'alv', 'a', 'b', 'jeugd', 'oud', 'kerst', 'zz'])
+  })
+
+  test('uitvoeringBezet: dezelfde begindatum bij een andere uitvoering', () => {
+    const l = [u('1', '2027-03-12', '2027-03-14'), u('2', '2027-06-17')]
+    assert.ok(uitvoeringBezet(l, '2027-03-12'))
+    assert.ok(!uitvoeringBezet(l, '2027-03-12', '1'))
+    assert.ok(!uitvoeringBezet(l, '2027-03-13'))
+    assert.ok(!uitvoeringBezet([], '2027-03-12'))
+  })
+
+  test('uitvoeringVelden en de spiegel van de regels', () => {
+    assert.deepEqual(uitvoeringVelden({ activiteitId: 'a1', begindatum: '2027-03-12' }), { activiteitId: 'a1', begindatum: '2027-03-12', einddatum: '' })
+    const g = { activiteitId: 'a1', ...UITVOERING }
+    assert.ok(geldigeUitvoering(g))
+    assert.ok(geldigeUitvoering({ id: 'u1', ...g }))
+    assert.ok(!geldigeUitvoering({ ...g, status: 'gepland' }))
+    assert.ok(!geldigeUitvoering({ ...g, begindatum: '' }))
+    assert.ok(!geldigeUitvoering({ ...g, einddatum: '2027-06-11' }))
+    assert.ok(!geldigeUitvoering({ ...g, activiteitId: '' }))
+    assert.ok(!geldigeUitvoering({ ...g, activiteitId: 'x'.repeat(101) }))
+  })
+})
+
+describe('CK-172 uitvoeringen: omzetscript (plan)', () => {
+  const V = [{ id: 'v1' }]
+  const C = [{ id: 'c1' }]
+  test('oude datums worden één uitvoering met het id van de activiteit; nieuwe activiteiten blijven ongemoeid', () => {
+    const { omzetten, afwijkingen } = planOmzetting({
+      activiteiten: [
+        { id: 'a1', ...ACTIVITEIT, begindatum: '2027-03-12', einddatum: '2027-03-14' },
+        { id: 'a2', ...ACTIVITEIT, naam: 'ALV', begindatum: '2027-06-01', einddatum: '' },
+        { id: 'a3', ...ACTIVITEIT, naam: 'Nieuw' },
+      ],
+      uitvoeringen: [],
+      vermogens: V,
+      commissies: C,
+    })
+    assert.deepEqual(afwijkingen, [])
+    assert.deepEqual(omzetten.map(o => [o.activiteitId, o.datum, o.uitvoering, o.velden]), [
+      ['a1', '12 – 14 mrt 2027', { activiteitId: 'a1', begindatum: '2027-03-12', einddatum: '2027-03-14' }, ['begindatum', 'einddatum']],
+      ['a2', '1 jun 2027', { activiteitId: 'a2', begindatum: '2027-06-01', einddatum: '' }, ['begindatum', 'einddatum']],
+    ])
+  })
+  test('bestaat de uitvoering al: alleen de oude velden weg (tweede keer draaien maakt geen dubbele)', () => {
+    const { omzetten } = planOmzetting({
+      activiteiten: [{ id: 'a1', ...ACTIVITEIT, begindatum: '2027-03-12' }],
+      uitvoeringen: [{ id: 'a1', activiteitId: 'a1', begindatum: '2027-03-12', einddatum: '' }],
+    })
+    assert.deepEqual(omzetten.map(o => [o.uitvoering, o.velden]), [[null, ['begindatum']]])
+    const tweede = planOmzetting({ activiteiten: [{ id: 'a1', ...ACTIVITEIT }], uitvoeringen: [{ id: 'a1', activiteitId: 'a1', begindatum: '2027-03-12', einddatum: '' }] })
+    assert.deepEqual(tweede, { omzetten: [], afwijkingen: [] })
+  })
+  test('bestaande uitvoering met hetzelfde id maar een andere activiteit of andere datums: overgeslagen en blokkerend', () => {
+    const { omzetten, afwijkingen } = planOmzetting({
+      activiteiten: [
+        { id: 'a1', ...ACTIVITEIT, naam: 'Andere activiteit', begindatum: '2027-03-12' },
+        { id: 'a2', ...ACTIVITEIT, naam: 'Andere begindatum', begindatum: '2027-03-12' },
+        { id: 'a3', ...ACTIVITEIT, naam: 'Andere einddatum', begindatum: '2027-03-12', einddatum: '2027-03-14' },
+        { id: 'a4', ...ACTIVITEIT, naam: 'Klopt', begindatum: '2027-03-12', einddatum: '2027-03-14' },
+      ],
+      uitvoeringen: [
+        { id: 'a1', activiteitId: 'a9', begindatum: '2027-03-12', einddatum: '' },
+        { id: 'a2', activiteitId: 'a2', begindatum: '2027-03-13', einddatum: '' },
+        { id: 'a3', activiteitId: 'a3', begindatum: '2027-03-12', einddatum: '' },
+        { id: 'a4', activiteitId: 'a4', begindatum: '2027-03-12', einddatum: '2027-03-14' },
+      ],
+    })
+    assert.deepEqual(omzetten.map(o => [o.activiteitId, o.uitvoering]), [['a4', null]])
+    const overgeslagen = afwijkingen.filter(a => a.soort === 'bestaande-uitvoering')
+    assert.deepEqual(overgeslagen.map(a => a.activiteitId), ['a1', 'a2', 'a3'])
+    assert.ok(overgeslagen.every(a => BLOKKEREND.has(a.soort)))
+  })
+  test('ongeldige datums en verdwenen verwijzingen: overgeslagen en gemeld', () => {
+    const { omzetten, afwijkingen } = planOmzetting({
+      activiteiten: [
+        { id: 'leeg', ...ACTIVITEIT, naam: 'Leeg', begindatum: '', einddatum: '' },
+        { id: 'fout', ...ACTIVITEIT, naam: 'Fout', begindatum: '2027-3-1', einddatum: '' },
+        { id: 'alleen-eind', ...ACTIVITEIT, naam: 'Alleen eind', einddatum: '2027-03-01' },
+        { id: 'omgekeerd', ...ACTIVITEIT, naam: 'Omgekeerd', begindatum: '2027-03-12', einddatum: '2027-03-11' },
+        { id: 'vermogen', ...ACTIVITEIT, naam: 'Vermogen weg', vermogenIds: ['weg'], begindatum: '2027-03-12' },
+        { id: 'commissie', ...ACTIVITEIT, naam: 'Commissie weg', commissieId: 'weg', begindatum: '2027-03-12' },
+        { id: 'extra', ...ACTIVITEIT, naam: 'Met extra', volgorde: 1, begindatum: '2027-03-12' },
+      ],
+      uitvoeringen: [],
+      vermogens: V,
+      commissies: C,
+    })
+    assert.deepEqual(omzetten, [])
+    assert.deepEqual(afwijkingen.map(a => [a.activiteitId, a.soort]), [
+      ['leeg', 'datum'], ['fout', 'datum'], ['alleen-eind', 'datum'], ['omgekeerd', 'datum'],
+      ['vermogen', 'regels'], ['commissie', 'regels'], ['extra', 'regels'],
+    ])
+    assert.ok(afwijkingen.every(a => BLOKKEREND.has(a.soort)))
+  })
+  test('dubbele namen en uitvoeringen zonder activiteit: alleen gemeld, het omzetten gaat door', () => {
+    const { omzetten, afwijkingen } = planOmzetting({
+      activiteiten: [
+        { id: 'a1', ...ACTIVITEIT, naam: 'ALV', begindatum: '2026-03-01' },
+        { id: 'a2', ...ACTIVITEIT, naam: 'alv', begindatum: '2026-10-01' },
+      ],
+      uitvoeringen: [{ id: 'u9', activiteitId: 'weg', begindatum: '2027-01-01', einddatum: '' }],
+    })
+    assert.equal(omzetten.length, 2)
+    assert.deepEqual(afwijkingen.map(a => a.soort), ['dubbele-naam', 'wees'])
+    assert.ok(afwijkingen.every(a => !BLOKKEREND.has(a.soort)))
+    assert.match(afwijkingen[0].tekst, /a1, a2/)
+  })
+})
+
+describe('CK-172 uitvoeringen: regels', () => {
+  let kees
+  const ru = (fs, uid = 'u1') => doc(fs, ...pad('uitvoeringen', uid))
+  const ra = (fs, id = 'a1') => doc(fs, ...pad('activiteiten', id))
+  const GELDIG = { activiteitId: 'a1', ...UITVOERING }
+  beforeEach(async () => {
+    kees = await gemeenschappelijk()
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'a1')), ACTIVITEIT))
+  })
+
+  test('beheerder: aanmaken, bewerken, laden, tellen en verwijderen via de app-functies', async () => {
+    const { id: uid } = await assertSucceeds(voegUitvoeringToe(db, CLUB, 'a1', UITVOERING))
+    assert.deepEqual(await lees('uitvoeringen', uid), GELDIG)
+    await assertSucceeds(voegUitvoeringToe(db, CLUB, 'a1', { begindatum: '2027-03-12', einddatum: '2027-03-14' }))
+    assert.equal((await fout(voegUitvoeringToe(db, CLUB, 'a1', { begindatum: '2027-03-12', einddatum: '' }))).code, 'dubbele-uitvoering')
+    await assertSucceeds(bewerkUitvoering(db, CLUB, uid, { begindatum: '2027-06-13', einddatum: '2027-06-14' }))
+    assert.deepEqual(await lees('uitvoeringen', uid), { activiteitId: 'a1', begindatum: '2027-06-13', einddatum: '2027-06-14' })
+    await assertSucceeds(bewerkUitvoering(db, CLUB, uid, { begindatum: '2027-06-13', einddatum: '' }))
+    assert.equal((await fout(bewerkUitvoering(db, CLUB, uid, { begindatum: '2027-03-12', einddatum: '' }))).code, 'dubbele-uitvoering')
+    assert.deepEqual((await laadUitvoeringenVanActiviteit(db, CLUB, 'a1')).map(u => u.begindatum), ['2027-03-12', '2027-06-13'])
+    assert.equal((await laadUitvoeringen(db, CLUB)).length, 2)
+    assert.equal(await telUitvoeringenVanActiviteit(db, CLUB, 'a1'), 2)
+    await assertSucceeds(verwijderUitvoering(db, CLUB, uid))
+    assert.equal((await fout(verwijderUitvoering(db, CLUB, uid))).code, 'uitvoering-weg')
+    assert.equal((await fout(bewerkUitvoering(db, CLUB, uid, UITVOERING))).code, 'uitvoering-weg')
+    assert.equal((await fout(voegUitvoeringToe(db, CLUB, 'bestaat-niet', UITVOERING))).code, 'activiteit-weg')
+    assert.equal(await telUitvoeringenVanActiviteit(db, CLUB, 'a1'), 1)
+  })
+
+  test('nieuwe activiteit met haar eerste uitvoering in één batch: lukt, en allebei of geen van beide', async () => {
+    const { id, uitvoeringId } = await assertSucceeds(voegActiviteitToe(db, CLUB, { ...ACTIVITEIT, naam: 'ALV' }, { begindatum: '2027-03-12', einddatum: '' }))
+    assert.deepEqual(await lees('activiteiten', id), { ...ACTIVITEIT, naam: 'ALV' })
+    assert.deepEqual(await lees('uitvoeringen', uitvoeringId), { activiteitId: id, begindatum: '2027-03-12', einddatum: '' })
+    await assertFails(voegActiviteitToe(db, CLUB, { ...ACTIVITEIT, naam: 'Kapot' }, { begindatum: '2027-03-12', einddatum: '2027-03-11' }))
+    await assertFails(voegActiviteitToe(db, CLUB, { ...ACTIVITEIT, naam: 'Kapot', vermogenIds: ['weg'] }, UITVOERING))
+    assert.equal(await aantal('activiteiten'), 2)
+    assert.equal(await aantal('uitvoeringen'), 1)
+  })
+
+  test('verwijderen van een activiteit neemt alle uitvoeringen mee en geeft het echte aantal', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, ...pad('activiteiten', 'a2')), { ...ACTIVITEIT, naam: 'Andere' })
+      for (const [uid, act, d] of [['u1', 'a1', '2026-02-03'], ['u2', 'a1', '2027-03-12'], ['u3', 'a1', '2027-06-17'], ['u4', 'a2', '2027-01-01']]) {
+        await setDoc(doc(a, ...pad('uitvoeringen', uid)), { activiteitId: act, begindatum: d, einddatum: '' })
+      }
+    })
+    assert.equal(await assertSucceeds(verwijderActiviteit(db, CLUB, 'a1')), 3)
+    assert.equal(await lees('activiteiten', 'a1'), null)
+    assert.equal(await aantal('uitvoeringen'), 1)
+    assert.equal((await lees('uitvoeringen', 'u4')).activiteitId, 'a2')
+  })
+
+  test('batch: activiteit verwijderen en tegelijk een uitvoering daarvoor aanmaken: geweigerd', async () => {
+    const b = writeBatch(db)
+    b.delete(ra(db))
+    b.set(ru(db, 'u9'), GELDIG)
+    await assertFails(b.commit())
+    assert.deepEqual(await lees('activiteiten', 'a1'), ACTIVITEIT)
+  })
+
+  test('batch: activiteit met al haar uitvoeringen verwijderen: lukt', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, ...pad('uitvoeringen', 'u1')), GELDIG)
+      await setDoc(doc(a, ...pad('uitvoeringen', 'u2')), { ...GELDIG, begindatum: '2027-07-01' })
+    })
+    const b = writeBatch(db)
+    b.delete(ru(db, 'u1'))
+    b.delete(ru(db, 'u2'))
+    b.delete(ra(db))
+    await assertSucceeds(b.commit())
+    assert.equal(await aantal('uitvoeringen'), 0)
+  })
+
+  test('lid zonder beheerrol leest, maar schrijft niet; niet-lid leest niet en schrijft niet', async () => {
+    await admin(a => setDoc(doc(a, ...pad('uitvoeringen', 'u1')), GELDIG))
+    await assertSucceeds(getDocs(collection(kees, ...pad('uitvoeringen'))))
+    await assertSucceeds(getDoc(ru(kees)))
+    await assertFails(addDoc(collection(kees, ...pad('uitvoeringen')), GELDIG))
+    await assertFails(setDoc(ru(kees, 'u2'), GELDIG))
+    await assertFails(updateDoc(ru(kees), { begindatum: '2027-06-13' }))
+    await assertFails(deleteDoc(ru(kees)))
+    await assertFails(getDocs(collection(buiten, ...pad('uitvoeringen'))))
+    await assertFails(getDoc(ru(buiten)))
+    await assertFails(setDoc(ru(buiten, 'u3'), GELDIG))
+    await assertFails(updateDoc(ru(buiten), { begindatum: '2027-06-13' }))
+    await assertFails(deleteDoc(ru(buiten)))
+  })
+
+  test('extra of ontbrekend veld: geweigerd', async () => {
+    for (const extra of [{ status: 'gepland' }, { locatie: 'Veld 1' }, { clubId: CLUB }, { naam: 'ALV' }]) {
+      await assertFails(setDoc(ru(db), { ...GELDIG, ...extra }))
+    }
+    for (const veld of Object.keys(GELDIG)) {
+      const { [veld]: _, ...zonder } = GELDIG
+      await assertFails(setDoc(ru(db), zonder))
+    }
+    await assertSucceeds(setDoc(ru(db), GELDIG))
+    const { deleteField } = await import('firebase/firestore')
+    for (const veld of Object.keys(GELDIG)) await assertFails(updateDoc(ru(db), { [veld]: deleteField() }))
+    await assertFails(updateDoc(ru(db), { status: 'gepland' }))
+  })
+
+  test('activiteitId: moet bestaan in dezelfde club, 1-100 tekens, een string', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'clubs', 'club2', 'activiteiten', 'a9'), ACTIVITEIT)
+      await setDoc(doc(a, ...pad('activiteiten', 'a1', 'sub', 'x')), { iets: 1 })
+    })
+    for (const activiteitId of ['bestaat-niet', '', 'x'.repeat(101), 1, null, ['a1'], '../../club2/activiteiten/a9', 'a9', 'a1/sub/x']) {
+      await assertFails(setDoc(ru(db), { ...GELDIG, activiteitId }))
+    }
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'x'.repeat(100))), ACTIVITEIT))
+    await assertSucceeds(setDoc(ru(db), { ...GELDIG, activiteitId: 'x'.repeat(100) }))
+  })
+
+  test('andere club: een beheerder van club1 schrijft niet in club2, ook niet naar een activiteit van club1', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'clubs', 'club2'), { naam: 'Andere club' })
+      await setDoc(doc(a, 'clubs', 'club2', 'activiteiten', 'a1'), ACTIVITEIT)
+    })
+    await assertFails(setDoc(doc(db, 'clubs', 'club2', 'uitvoeringen', 'u1'), GELDIG))
+    await assertFails(getDocs(collection(db, 'clubs', 'club2', 'uitvoeringen')))
+  })
+
+  test('een update die activiteitId wijzigt: geweigerd, ook naar een bestaande activiteit', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, ...pad('activiteiten', 'a2')), { ...ACTIVITEIT, naam: 'Andere' })
+      await setDoc(doc(a, ...pad('uitvoeringen', 'u1')), GELDIG)
+    })
+    await assertFails(updateDoc(ru(db), { activiteitId: 'a2' }))
+    await assertFails(setDoc(ru(db), { ...GELDIG, activiteitId: 'a2' }))
+    await assertSucceeds(updateDoc(ru(db), { begindatum: '2027-06-10' }))
+  })
+
+  test('datums: begin verplicht, vast formaat, eind niet vóór begin', async () => {
+    await assertFails(setDoc(ru(db), { ...GELDIG, begindatum: '' }))
+    for (const d of ['2027-3-1', '12-03-2027', '2027-13-01', '2027-06-32', '2027-06-12T10:00', 20270612, null]) {
+      await assertFails(setDoc(ru(db), { ...GELDIG, begindatum: d }))
+      await assertFails(setDoc(ru(db), { ...GELDIG, einddatum: d }))
+    }
+    await assertFails(setDoc(ru(db), { ...GELDIG, einddatum: '2027-06-11' }))
+    await assertSucceeds(setDoc(ru(db), { ...GELDIG, einddatum: '2027-06-12' }))
+    await assertSucceeds(setDoc(ru(db), { ...GELDIG, einddatum: '2027-06-14' }))
+    await assertFails(updateDoc(ru(db), { begindatum: '2027-06-15' }))
+  })
+
+  test('een uitvoering bij een activiteit die intussen weg is: bewerken geeft activiteit-weg, verwijderen lukt', async () => {
+    await admin(a => setDoc(doc(a, ...pad('uitvoeringen', 'u1')), GELDIG))
+    await admin(a => deleteDoc(doc(a, ...pad('activiteiten', 'a1'))))
+    assert.equal((await fout(bewerkUitvoering(db, CLUB, 'u1', { begindatum: '2027-06-13', einddatum: '' }))).code, 'activiteit-weg')
+    await assertFails(updateDoc(ru(db), { begindatum: '2027-06-13' }))
+    await assertSucceeds(verwijderUitvoering(db, CLUB, 'u1'))
+  })
+
+  test('het omzetscript schrijft volgens de regels: uitvoering en oude velden weg in één batch', async () => {
+    const { deleteField } = await import('firebase/firestore')
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'oud')), { ...ACTIVITEIT, naam: 'Oude clubdag', begindatum: '2027-03-12', einddatum: '2027-03-14' }))
+    const lijst = async naam => admin(async a => (await getDocs(collection(a, ...pad(naam)))).docs.map(d => ({ id: d.id, ...d.data() })))
+    const plan = planOmzetting({ activiteiten: await lijst('activiteiten'), uitvoeringen: await lijst('uitvoeringen') })
+    assert.equal(plan.omzetten.length, 1)
+    for (const o of plan.omzetten) {
+      const b = writeBatch(db)
+      if (o.uitvoering) b.set(doc(db, ...pad('uitvoeringen', o.activiteitId)), o.uitvoering)
+      b.update(doc(db, ...pad('activiteiten', o.activiteitId)), Object.fromEntries(o.velden.map(k => [k, deleteField()])))
+      await assertSucceeds(b.commit())
+    }
+    assert.deepEqual(await lees('activiteiten', 'oud'), { ...ACTIVITEIT, naam: 'Oude clubdag' })
+    assert.deepEqual(await lees('uitvoeringen', 'oud'), { activiteitId: 'oud', begindatum: '2027-03-12', einddatum: '2027-03-14' })
+    assert.deepEqual(planOmzetting({ activiteiten: await lijst('activiteiten'), uitvoeringen: await lijst('uitvoeringen') }), { omzetten: [], afwijkingen: [] })
   })
 })
