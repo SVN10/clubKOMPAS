@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0] – 2026-11-25
+
+### Gewijzigd (CK-174: uitvoeringen beheren in het formulier van de activiteit)
+- De uitvoeringen van een activiteit beheer je nu in het formulier van de activiteit zelf. Het uitklapdeel in de lijst is weg. In het blok "Uitvoeringen" staat elke uitvoering op een eigen regel, met begindatum, einddatum, het label voorbij of bezig, en een prullenbak. Met "+ Uitvoering toevoegen" maak je een nieuwe regel. De knop Nieuwste eerst / Oudste eerst staat boven de regels.
+- Opslaan bewaart de activiteit en alle uitvoeringen in één keer. Annuleren draait alles terug. Haal je opgeslagen uitvoeringen weg, dan vraagt de app één keer om bevestiging. Een lege regel en twee uitvoeringen op dezelfde dag geven een foutmelding.
+- De regels zijn niet veranderd. 194 regeltests.
+
 ## [0.15.0] – 2026-11-25
 
 ### Toegevoegd (CK-172: uitvoeringen van een activiteit)
