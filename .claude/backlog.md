@@ -683,6 +683,18 @@ Dit is een afspraak voor het model, geen bouwwerk:
 - **Werkproces** (P2 Workflows, CK-053–055; F0, CK-150–152): een vaste reeks stappen die begint bij een gebeurtenis, zoals een lid inschrijven of uitschrijven, of een vrijwilliger aanmelden. Een werkproces heeft geen datum en staat dus niet in de planner. Het hoort bij een vermogen, zoals Ledenadministratie.
 - **Termijn**: een vaste datum die bij een werkproces hoort, zoals de uiterste opzegdatum of het moment dat de contributie wordt geïnd. Een termijn is een activiteit van de soort "Termijn", met één uitvoering. Zo staat hij in de planner. Bij P2 koppel je later een termijn aan het werkproces, bijvoorbeeld "Uiterste opzegdatum" aan "Lid uitschrijven".
 
+### CK-174 — Uitvoeringen beheren in het formulier van de activiteit
+**Status:** gebouwd op 25 november 2026 en nog te testen op tst · route middel (er veranderen geen regels en er is geen nieuw datamodel) · docs: `.claude/docs/CK-174.md` · spec: `.claude/specs/CK-174-uitvoeringen-in-formulier.md`
+
+- [x] Het blok Uitvoeringen staat in het formulier voor een nieuwe activiteit en in het bewerkformulier. Daar staan ook de volgordeknop en één Opslaan, die alles in één batch bewaart. Annuleren draait alles terug.
+- [x] Het uitklappaneel is weg.
+- [x] Haal je opgeslagen uitvoeringen weg, dan vraagt de app één bevestiging.
+- [x] Een lege regel geeft een fout.
+- [x] 194 regeltests zijn groen.
+- [ ] Paul: test op tst, met 11 of meer uitvoeringen tegelijk opslaan, 320 px en VoiceOver.
+
+---
+
 ### CK-173 — Soort "Termijn" voor activiteiten
 **Status:** nog in te plannen · route klein tot middel (de vaste lijst in de regels en in de app verandert, maar er komt geen nieuw datamodel)
 

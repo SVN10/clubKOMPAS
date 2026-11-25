@@ -228,6 +228,22 @@ function leesTekst(t) {
   return d.getDate() === +m[1] && d.getMonth() === +m[2] - 1 ? naarIso(d) : null
 }
 
+function datumLabelTekst(veld) {
+  const label = veld.id ? document.querySelector(`label[for="${CSS.escape(veld.id)}"]`) : null
+  return label ? label.textContent.trim() : (veld.getAttribute('aria-label') || 'datum')
+}
+function zetDatumLabels(veld, knop, kalender) {
+  const labelTekst = datumLabelTekst(veld)
+  knop?.setAttribute('aria-label', `${labelTekst} kiezen uit de kalender`)
+  kalender?.setAttribute('aria-label', `${labelTekst} kiezen`)
+}
+
+// Het label van een datumveld is veranderd (zoals een nieuw nummer): de kalenderknop en de kalender volgen
+export function werkDatumLabelBij(veld) {
+  const omhulsel = veld?.dataset?.eigen ? veld.closest('.eigen-datum') : null
+  if (omhulsel) zetDatumLabels(veld, omhulsel.querySelector(':scope > .eigen-datum-knop'), omhulsel.querySelector(':scope > .eigen-kalender'))
+}
+
 function verbeterDatum(veld) {
   veld.dataset.eigen = '1'
   const omhulsel = document.createElement('div')
@@ -255,10 +271,8 @@ function verbeterDatum(veld) {
   veld.setAttribute('aria-hidden', 'true')
 
   const labelId = koppelLabel(veld, tekst)
-  const labelTekst = labelId ? document.getElementById(labelId).textContent.trim() : (veld.getAttribute('aria-label') || 'datum')
   if (labelId) tekst.setAttribute('aria-labelledby', labelId)
-  knop.setAttribute('aria-label', `${labelTekst} kiezen uit de kalender`)
-  kalender.setAttribute('aria-label', `${labelTekst} kiezen`)
+  zetDatumLabels(veld, knop, kalender)
   volgAttributen(veld, tekst)
   volgAttributen(veld, knop, false)
   veld.focus = () => tekst.focus()

@@ -3,7 +3,7 @@
 // de verwijderblokkade bij vermogens en commissies, de regeltests en later de vermogenskaart en de plaat.
 
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, deleteField, query, where, getCountFromServer, writeBatch,
+  collection, doc, getDoc, getDocs, deleteField, query, where, getCountFromServer, writeBatch,
 } from 'firebase/firestore'
 import { geldigeOnderdeelnaam, geldigeDatum, naamBezet } from './onderdelen.js'
 
@@ -212,20 +212,9 @@ export async function voegActiviteitToe(db, clubId, data, eersteUitvoering = nul
   return { id: ref.id, uitvoeringId }
 }
 
-// Eerst lezen: op een verdwenen document geven de regels permission-denied, niet not-found.
-// De oude datumvelden (van vóór CK-172) gaan bij bewerken mee weg, anders weigeren de regels.
+// Alleen de activiteit (de uitvoeringen blijven zoals ze zijn); de oude datumvelden gaan mee weg
 export async function bewerkActiviteit(db, clubId, id, data) {
-  const ref = activiteitRef(db, clubId, id)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) throw { code: 'activiteit-weg' }
-  const oud = snap.data()
-  const weg = Object.fromEntries(['begindatum', 'einddatum'].filter(k => k in oud).map(k => [k, deleteField()]))
-  try {
-    await updateDoc(ref, { ...activiteitVelden(data), ...weg })
-  } catch (e) {
-    if (e?.code === 'not-found') throw { code: 'activiteit-weg' }
-    throw e
-  }
+  await bewaarActiviteit(db, clubId, { id, velden: data, oud: null })
 }
 
 // Verwijdert de activiteit met al haar uitvoeringen in één batch; geeft het aantal verwijderde uitvoeringen
@@ -241,54 +230,142 @@ export async function verwijderActiviteit(db, clubId, id) {
   return uitvoeringen.length
 }
 
-async function activiteitBestaat(db, clubId, activiteitId) {
-  if (!kortId(activiteitId) || !(await getDoc(activiteitRef(db, clubId, activiteitId))).exists()) throw { code: 'activiteit-weg' }
-}
+// ── Uitvoeringen in het formulier van de activiteit (CK-174) ──
 
-async function controleerUitvoeringVrij(db, clubId, activiteitId, begindatum, eigenId = null) {
-  if (uitvoeringBezet(await laadUitvoeringenVanActiviteit(db, clubId, activiteitId), begindatum, eigenId)) throw { code: 'dubbele-uitvoering' }
-}
+const BEGIN_LEEG = 'Vul een begindatum in, of haal deze uitvoering weg.'
+const BEGIN_HALF = 'Vul een hele datum in.'
+const EIND_HALF = 'Vul een hele datum in, of maak het veld leeg.'
+const EIND_VOOR_BEGIN = 'De einddatum ligt vóór de begindatum.'
 
-// Weigeren de regels (existsAfter) omdat de activiteit intussen weg is, dan activiteit-weg
-async function schrijfUitvoering(db, clubId, activiteitId, schrijf) {
-  try {
-    return await schrijf()
-  } catch (e) {
-    if (e?.code === 'permission-denied') {
-      const snap = await getDoc(activiteitRef(db, clubId, activiteitId)).catch(() => null)
-      if (snap && !snap.exists()) throw { code: 'activiteit-weg' }
+// Fouten per regel, in de volgorde van het formulier: [{ begin?, eind? }].
+// regels: [{ sleutel, begindatum, einddatum, beginHalf, eindHalf }] (half = validity.badInput in de datumkiezer).
+// Een dubbele begindatum is een fout bij de lagere regel, met het nummer van de eerste regel met die datum.
+export function uitvoeringRegelFouten(regels) {
+  const eerste = new Map()
+  return regels.map((r, i) => {
+    const fout = {}
+    const begin = tekst(r.begindatum)
+    const eind = tekst(r.einddatum)
+    if (r.beginHalf) fout.begin = BEGIN_HALF
+    else if (!begin) fout.begin = BEGIN_LEEG
+    else if (!geldigeDatum(begin)) fout.begin = BEGIN_HALF
+    if (r.eindHalf || !geldigeDatum(eind)) fout.eind = EIND_HALF
+    if (!fout.begin && !fout.eind && eind && eind < begin) fout.eind = EIND_VOOR_BEGIN
+    if (!fout.begin) {
+      if (eerste.has(begin)) fout.begin = `Deze begindatum staat al bij uitvoering ${eerste.get(begin)}.`
+      else eerste.set(begin, i + 1)
     }
-    throw e
+    return fout
+  })
+}
+
+// Verschil tussen de stand bij het openen (oud: [{ id, begindatum, einddatum }]) en de regels bij opslaan
+// ([{ sleutel, id (uid of ''), begindatum, einddatum }]). Ongewijzigde regels staan er niet in.
+// Een id dat niet in oud staat (of twee keer voorkomt), wordt een nieuwe regel.
+export function uitvoeringWijzigingen(oud, regels) {
+  const perId = new Map((oud || []).map(u => [u.id, u]))
+  const gezien = new Set()
+  const nieuw = []
+  const gewijzigd = []
+  for (const r of regels || []) {
+    const begindatum = tekst(r.begindatum)
+    const einddatum = tekst(r.einddatum)
+    const o = r.id ? perId.get(r.id) : null
+    if (!o || gezien.has(r.id)) { nieuw.push({ sleutel: r.sleutel, begindatum, einddatum }); continue }
+    gezien.add(r.id)
+    if (tekst(o.begindatum) !== begindatum || tekst(o.einddatum) !== einddatum) gewijzigd.push({ id: r.id, sleutel: r.sleutel, begindatum, einddatum })
   }
+  return { nieuw, gewijzigd, weg: [...perId.keys()].filter(id => !gezien.has(id)) }
 }
 
-export async function voegUitvoeringToe(db, clubId, activiteitId, data) {
-  await activiteitBestaat(db, clubId, activiteitId)
-  const velden = uitvoeringVelden({ ...data, activiteitId })
-  await controleerUitvoeringVrij(db, clubId, activiteitId, velden.begindatum)
-  const ref = await schrijfUitvoering(db, clubId, activiteitId, () => addDoc(uitvoeringKolom(db, clubId), velden))
-  return { id: ref.id }
+// Eindstand na de wijzigingen, tegen de vers gelezen uitvoeringen van deze activiteit.
+// intussenWeg: gewijzigd, maar niet meer in vers. wegAlWeg: weggehaald en al verwijderd (overslaan).
+// dubbel: een nieuwe of gewijzigde regel op de begindatum van een uitvoering die blijft staan en die
+// deze wijzigingen niet raken (de dubbels binnen het formulier vangt uitvoeringRegelFouten al af).
+export function controleerUitvoeringEindstand(vers, { nieuw = [], gewijzigd = [], weg = [] }) {
+  const versIds = new Set(vers.map(u => u.id))
+  const geraakt = new Set([...weg, ...gewijzigd.map(g => g.id)])
+  const blijft = new Set(vers.filter(u => !geraakt.has(u.id)).map(u => u.begindatum))
+  const intussenWeg = gewijzigd.filter(g => !versIds.has(g.id)).map(g => g.sleutel)
+  const wegAlWeg = weg.filter(id => !versIds.has(id))
+  const dubbel = [...nieuw, ...gewijzigd.filter(g => versIds.has(g.id))].filter(r => blijft.has(r.begindatum)).map(r => r.sleutel)
+  return { dubbel, intussenWeg, wegAlWeg }
 }
 
-// activiteitId komt uit het bestaande document: een uitvoering verhuist nooit
-export async function bewerkUitvoering(db, clubId, uid, data) {
-  const ref = uitvoeringRef(db, clubId, uid)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) throw { code: 'uitvoering-weg' }
-  const { activiteitId } = snap.data()
-  await activiteitBestaat(db, clubId, activiteitId)
-  const velden = uitvoeringVelden({ ...data, activiteitId })
-  await controleerUitvoeringVrij(db, clubId, activiteitId, velden.begindatum, uid)
-  try {
-    await schrijfUitvoering(db, clubId, activiteitId, () => updateDoc(ref, velden))
-  } catch (e) {
-    if (e?.code === 'not-found') throw { code: 'uitvoering-weg' }
-    throw e
+// "1 uitvoering toegevoegd, 1 verwijderd"; '' als alles 0 is
+export function uitvoeringWijzigingTekst({ toegevoegd = 0, gewijzigd = 0, verwijderd = 0 }) {
+  return [[toegevoegd, 'toegevoegd'], [gewijzigd, 'gewijzigd'], [verwijderd, 'verwijderd']]
+    .filter(([n]) => n > 0)
+    .map(([n, woord], i) => `${i === 0 ? (n === 1 ? '1 uitvoering' : `${n} uitvoeringen`) : n} ${woord}`)
+    .join(', ')
+}
+
+const zelfdeVelden = (a, b) => a.naam === b.naam && a.soort === b.soort && a.commissieId === (b.commissieId ?? '')
+  && Array.isArray(b.vermogenIds) && b.vermogenIds.length === a.vermogenIds.length && a.vermogenIds.every((v, i) => v === b.vermogenIds[i])
+
+// De activiteit en alle wijzigingen aan haar uitvoeringen in één batch: alles of niets.
+// id = null: nieuwe activiteit. oud = null: de uitvoeringen waren niet geladen, alleen de activiteit opslaan.
+// Geeft { id, nieuweIds, toegevoegd, gewijzigd, verwijderd } met de echte aantallen.
+export async function bewaarActiviteit(db, clubId, { id = null, velden, oud = [], regels = [] }) {
+  const nieuweActiviteit = !id
+  const ref = nieuweActiviteit ? doc(kolom(db, clubId)) : activiteitRef(db, clubId, id)
+  const activiteitId = ref.id
+  const data = activiteitVelden(velden)
+  const wijzigingen = oud === null ? { nieuw: [], gewijzigd: [], weg: [] } : uitvoeringWijzigingen(nieuweActiviteit ? [] : oud, regels)
+
+  // Eerst lezen: op een verdwenen document geven de regels permission-denied, niet not-found
+  async function controleer() {
+    if (nieuweActiviteit) return { bestaand: null, weg: [] }
+    const snap = await getDoc(ref)
+    if (!snap.exists()) throw { code: 'activiteit-weg' }
+    let weg = wijzigingen.weg
+    if (wijzigingen.nieuw.length || wijzigingen.gewijzigd.length || weg.length) {
+      const c = controleerUitvoeringEindstand(await laadUitvoeringenVanActiviteit(db, clubId, activiteitId), wijzigingen)
+      if (c.intussenWeg.length) throw { code: 'uitvoering-intussen-weg', sleutels: c.intussenWeg }
+      if (c.dubbel.length) throw { code: 'dubbele-uitvoering-vers', sleutels: c.dubbel }
+      weg = weg.filter(uid => !c.wegAlWeg.includes(uid))
+    }
+    return { bestaand: snap.data(), weg }
   }
-}
 
-export async function verwijderUitvoering(db, clubId, uid) {
-  const ref = uitvoeringRef(db, clubId, uid)
-  if (!(await getDoc(ref)).exists()) throw { code: 'uitvoering-weg' }
-  await deleteDoc(ref)
+  const { bestaand, weg } = await controleer()
+  const { nieuw, gewijzigd } = wijzigingen
+  if (nieuw.length + gewijzigd.length + weg.length > MAX_UITVOERINGEN_MEE) throw { code: 'te-veel-uitvoeringen' }
+
+  const batch = writeBatch(db)
+  let schrijfacties = 0
+  if (nieuweActiviteit) {
+    batch.set(ref, data)
+    schrijfacties++
+  } else {
+    const oudeDatums = ['begindatum', 'einddatum'].filter(k => k in bestaand)
+    if (oudeDatums.length || !zelfdeVelden(data, bestaand)) {
+      batch.update(ref, { ...data, ...Object.fromEntries(oudeDatums.map(k => [k, deleteField()])) })
+      schrijfacties++
+    }
+  }
+  const nieuweIds = []
+  for (const n of nieuw) {
+    const uRef = doc(uitvoeringKolom(db, clubId))
+    nieuweIds.push(uRef.id)
+    batch.set(uRef, uitvoeringVelden({ activiteitId, begindatum: n.begindatum, einddatum: n.einddatum }))
+  }
+  for (const g of gewijzigd) batch.update(uitvoeringRef(db, clubId, g.id), uitvoeringVelden({ activiteitId, begindatum: g.begindatum, einddatum: g.einddatum }))
+  for (const uid of weg) batch.delete(uitvoeringRef(db, clubId, uid))
+  schrijfacties += nieuw.length + gewijzigd.length + weg.length
+
+  if (schrijfacties) {
+    try {
+      await batch.commit()
+    } catch (e) {
+      // Iets verdween tussen het lezen en de commit: opnieuw controleren geeft de juiste code
+      if (e?.code === 'not-found' || e?.code === 'permission-denied') {
+        let opnieuw = null
+        try { await controleer() } catch (c) { opnieuw = c }
+        if (typeof opnieuw?.code === 'string' && ['activiteit-weg', 'uitvoering-intussen-weg', 'dubbele-uitvoering-vers'].includes(opnieuw.code)) throw opnieuw
+      }
+      throw e
+    }
+  }
+  return { id: activiteitId, nieuweIds, toegevoegd: nieuw.length, gewijzigd: gewijzigd.length, verwijderd: weg.length }
 }

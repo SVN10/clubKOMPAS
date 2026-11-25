@@ -24,7 +24,7 @@ import {
   voegActiviteitToe, bewerkActiviteit, verwijderActiviteit,
   uitvoeringVelden, geldigeUitvoering, uitvoeringDatumFout, vandaagTekst, uitvoeringStand, sorteerUitvoeringen, uitvoeringenPerActiviteit,
   eerstvolgendeUitvoering, uitvoeringBezet, laadUitvoeringen, laadUitvoeringenVanActiviteit, telUitvoeringenVanActiviteit,
-  voegUitvoeringToe, bewerkUitvoering, verwijderUitvoering,
+  uitvoeringRegelFouten, uitvoeringWijzigingen, controleerUitvoeringEindstand, uitvoeringWijzigingTekst, bewaarActiviteit,
 } from '../src/activiteiten.js'
 import { planOmzetting, BLOKKEREND } from '../scripts/lib/uitvoeringen-omzetten.mjs'
 
@@ -1809,22 +1809,25 @@ describe('CK-172 uitvoeringen: regels', () => {
     await admin(a => setDoc(doc(a, ...pad('activiteiten', 'a1')), ACTIVITEIT))
   })
 
-  test('beheerder: aanmaken, bewerken, laden, tellen en verwijderen via de app-functies', async () => {
-    const { id: uid } = await assertSucceeds(voegUitvoeringToe(db, CLUB, 'a1', UITVOERING))
+  test('beheerder: aanmaken, bewerken, laden, tellen en verwijderen via bewaarActiviteit', async () => {
+    const r1 = await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: [], regels: [{ sleutel: 'n1', id: '', ...UITVOERING }] }))
+    const uid = r1.nieuweIds[0]
     assert.deepEqual(await lees('uitvoeringen', uid), GELDIG)
-    await assertSucceeds(voegUitvoeringToe(db, CLUB, 'a1', { begindatum: '2027-03-12', einddatum: '2027-03-14' }))
-    assert.equal((await fout(voegUitvoeringToe(db, CLUB, 'a1', { begindatum: '2027-03-12', einddatum: '' }))).code, 'dubbele-uitvoering')
-    await assertSucceeds(bewerkUitvoering(db, CLUB, uid, { begindatum: '2027-06-13', einddatum: '2027-06-14' }))
+    const oud1 = await laadUitvoeringenVanActiviteit(db, CLUB, 'a1')
+    await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: oud1, regels: [{ sleutel: uid, id: uid, ...UITVOERING }, { sleutel: 'n2', id: '', begindatum: '2027-03-12', einddatum: '2027-03-14' }] }))
+    const oud2 = await laadUitvoeringenVanActiviteit(db, CLUB, 'a1')
+    const ander = oud2.find(u => u.id !== uid)
+    const regels = [{ sleutel: uid, id: uid, begindatum: '2027-06-13', einddatum: '2027-06-14' }, { sleutel: ander.id, id: ander.id, begindatum: ander.begindatum, einddatum: ander.einddatum }]
+    assert.deepEqual(await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: oud2, regels })),
+      { id: 'a1', nieuweIds: [], toegevoegd: 0, gewijzigd: 1, verwijderd: 0 })
     assert.deepEqual(await lees('uitvoeringen', uid), { activiteitId: 'a1', begindatum: '2027-06-13', einddatum: '2027-06-14' })
-    await assertSucceeds(bewerkUitvoering(db, CLUB, uid, { begindatum: '2027-06-13', einddatum: '' }))
-    assert.equal((await fout(bewerkUitvoering(db, CLUB, uid, { begindatum: '2027-03-12', einddatum: '' }))).code, 'dubbele-uitvoering')
     assert.deepEqual((await laadUitvoeringenVanActiviteit(db, CLUB, 'a1')).map(u => u.begindatum), ['2027-03-12', '2027-06-13'])
     assert.equal((await laadUitvoeringen(db, CLUB)).length, 2)
     assert.equal(await telUitvoeringenVanActiviteit(db, CLUB, 'a1'), 2)
-    await assertSucceeds(verwijderUitvoering(db, CLUB, uid))
-    assert.equal((await fout(verwijderUitvoering(db, CLUB, uid))).code, 'uitvoering-weg')
-    assert.equal((await fout(bewerkUitvoering(db, CLUB, uid, UITVOERING))).code, 'uitvoering-weg')
-    assert.equal((await fout(voegUitvoeringToe(db, CLUB, 'bestaat-niet', UITVOERING))).code, 'activiteit-weg')
+    const oud3 = await laadUitvoeringenVanActiviteit(db, CLUB, 'a1')
+    assert.equal((await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: oud3, regels: regels.slice(1) }))).verwijderd, 1)
+    assert.equal(await lees('uitvoeringen', uid), null)
+    assert.equal((await fout(bewaarActiviteit(db, CLUB, { id: 'bestaat-niet', velden: ACTIVITEIT, oud: [], regels: [{ sleutel: 'n', id: '', ...UITVOERING }] }))).code, 'activiteit-weg')
     assert.equal(await telUitvoeringenVanActiviteit(db, CLUB, 'a1'), 1)
   })
 
@@ -1947,9 +1950,10 @@ describe('CK-172 uitvoeringen: regels', () => {
   test('een uitvoering bij een activiteit die intussen weg is: bewerken geeft activiteit-weg, verwijderen lukt', async () => {
     await admin(a => setDoc(doc(a, ...pad('uitvoeringen', 'u1')), GELDIG))
     await admin(a => deleteDoc(doc(a, ...pad('activiteiten', 'a1'))))
-    assert.equal((await fout(bewerkUitvoering(db, CLUB, 'u1', { begindatum: '2027-06-13', einddatum: '' }))).code, 'activiteit-weg')
+    const oud = [{ id: 'u1', ...GELDIG }]
+    assert.equal((await fout(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud, regels: [{ sleutel: 'u1', id: 'u1', begindatum: '2027-06-13', einddatum: '' }] }))).code, 'activiteit-weg')
     await assertFails(updateDoc(ru(db), { begindatum: '2027-06-13' }))
-    await assertSucceeds(verwijderUitvoering(db, CLUB, 'u1'))
+    await assertSucceeds(deleteDoc(ru(db)))
   })
 
   test('het omzetscript schrijft volgens de regels: uitvoering en oude velden weg in één batch', async () => {
@@ -1967,5 +1971,237 @@ describe('CK-172 uitvoeringen: regels', () => {
     assert.deepEqual(await lees('activiteiten', 'oud'), { ...ACTIVITEIT, naam: 'Oude clubdag' })
     assert.deepEqual(await lees('uitvoeringen', 'oud'), { activiteitId: 'oud', begindatum: '2027-03-12', einddatum: '2027-03-14' })
     assert.deepEqual(planOmzetting({ activiteiten: await lijst('activiteiten'), uitvoeringen: await lijst('uitvoeringen') }), { omzetten: [], afwijkingen: [] })
+  })
+})
+
+describe('CK-174 uitvoeringen in het formulier: pure functies', () => {
+  const r = (sleutel, begindatum, einddatum = '', extra = {}) => ({ sleutel, begindatum, einddatum, beginHalf: false, eindHalf: false, ...extra })
+  const LEEG = 'Vul een begindatum in, of haal deze uitvoering weg.'
+
+  test('uitvoeringRegelFouten: leeg, half, einde vóór begin, einde gelijk aan begin', () => {
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '')]), [{ begin: LEEG }])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '', '', { beginHalf: true })]), [{ begin: 'Vul een hele datum in.' }])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-03-12', '', { eindHalf: true })]), [{ eind: 'Vul een hele datum in, of maak het veld leeg.' }])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-03-12', '2027-03-11')]), [{ eind: 'De einddatum ligt vóór de begindatum.' }])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-03-12', '2027-03-12')]), [{}])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-3-1')]), [{ begin: 'Vul een hele datum in.' }])
+    assert.deepEqual(uitvoeringRegelFouten([]), [])
+  })
+
+  test('uitvoeringRegelFouten: dubbel bij de lagere regel met het nummer van de hogere; drie gelijke; omgeruild; lege regel', () => {
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-03-12'), r('b', '2027-06-01'), r('c', '2027-03-12', '2027-03-14')]),
+      [{}, {}, { begin: 'Deze begindatum staat al bij uitvoering 1.' }])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-03-12'), r('b', '2027-03-12'), r('c', '2027-03-12')]),
+      [{}, { begin: 'Deze begindatum staat al bij uitvoering 1.' }, { begin: 'Deze begindatum staat al bij uitvoering 1.' }])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-06-01'), r('b', '2027-03-12')]), [{}, {}])
+    assert.deepEqual(uitvoeringRegelFouten([r('a', '2027-03-12'), r('b', '')]), [{}, { begin: LEEG }])
+  })
+
+  const OUD = [{ id: 'u1', begindatum: '2027-03-12', einddatum: '' }, { id: 'u2', begindatum: '2027-06-01', einddatum: '2027-06-02' }]
+  const zo = (u, extra = {}) => ({ sleutel: u.id, id: u.id, begindatum: u.begindatum, einddatum: u.einddatum, ...extra })
+
+  test('uitvoeringWijzigingen: niets, alleen de einddatum, leeg en undefined gelijk', () => {
+    assert.deepEqual(uitvoeringWijzigingen(OUD, OUD.map(u => zo(u))), { nieuw: [], gewijzigd: [], weg: [] })
+    assert.deepEqual(uitvoeringWijzigingen(OUD, [zo(OUD[0], { einddatum: '2027-03-13' }), zo(OUD[1])]),
+      { nieuw: [], gewijzigd: [{ id: 'u1', sleutel: 'u1', begindatum: '2027-03-12', einddatum: '2027-03-13' }], weg: [] })
+    assert.deepEqual(uitvoeringWijzigingen([{ id: 'u1', begindatum: '2027-03-12' }], [zo(OUD[0], { einddatum: undefined })]), { nieuw: [], gewijzigd: [], weg: [] })
+    assert.deepEqual(uitvoeringWijzigingen([{ id: 'u1', begindatum: '2027-03-12', einddatum: '' }], [{ sleutel: 'u1', id: 'u1', begindatum: '2027-03-12' }]), { nieuw: [], gewijzigd: [], weg: [] })
+  })
+
+  test('uitvoeringWijzigingen: nieuw, gewijzigd en weg samen; alles weg; onbekend id wordt nieuw', () => {
+    assert.deepEqual(uitvoeringWijzigingen(OUD, [zo(OUD[1], { begindatum: '2027-05-31' }), { sleutel: 'n1', id: '', begindatum: '2027-09-01', einddatum: '' }]), {
+      nieuw: [{ sleutel: 'n1', begindatum: '2027-09-01', einddatum: '' }],
+      gewijzigd: [{ id: 'u2', sleutel: 'u2', begindatum: '2027-05-31', einddatum: '2027-06-02' }],
+      weg: ['u1'],
+    })
+    assert.deepEqual(uitvoeringWijzigingen(OUD, []), { nieuw: [], gewijzigd: [], weg: ['u1', 'u2'] })
+    assert.deepEqual(uitvoeringWijzigingen(OUD, [...OUD.map(u => zo(u)), { sleutel: 'x', id: 'onbekend', begindatum: '2027-01-01', einddatum: '' }]),
+      { nieuw: [{ sleutel: 'x', begindatum: '2027-01-01', einddatum: '' }], gewijzigd: [], weg: [] })
+    assert.deepEqual(uitvoeringWijzigingen([], [{ sleutel: 'n1', id: '', begindatum: '2027-01-01', einddatum: '' }]).nieuw.length, 1)
+  })
+
+  test('controleerUitvoeringEindstand: intussen weg, al weg, dubbel met een ander, vrijgekomen datum', () => {
+    const vers = [{ id: 'u1', begindatum: '2027-03-12', einddatum: '' }, { id: 'u3', begindatum: '2027-09-01', einddatum: '' }]
+    assert.deepEqual(controleerUitvoeringEindstand(vers, { nieuw: [], gewijzigd: [{ id: 'u2', sleutel: 'u2', begindatum: '2027-06-05', einddatum: '' }], weg: [] }),
+      { dubbel: [], intussenWeg: ['u2'], wegAlWeg: [] })
+    assert.deepEqual(controleerUitvoeringEindstand(vers, { nieuw: [], gewijzigd: [], weg: ['u2', 'u1'] }), { dubbel: [], intussenWeg: [], wegAlWeg: ['u2'] })
+    assert.deepEqual(controleerUitvoeringEindstand(vers, { nieuw: [{ sleutel: 'n1', begindatum: '2027-09-01', einddatum: '' }], gewijzigd: [], weg: [] }),
+      { dubbel: ['n1'], intussenWeg: [], wegAlWeg: [] })
+    assert.deepEqual(controleerUitvoeringEindstand(vers, {
+      nieuw: [{ sleutel: 'n1', begindatum: '2027-03-12', einddatum: '' }],
+      gewijzigd: [{ id: 'u1', sleutel: 'u1', begindatum: '2027-04-01', einddatum: '' }],
+      weg: [],
+    }), { dubbel: [], intussenWeg: [], wegAlWeg: [] })
+    assert.deepEqual(controleerUitvoeringEindstand(vers, { nieuw: [{ sleutel: 'n1', begindatum: '2027-09-01', einddatum: '' }], gewijzigd: [], weg: ['u3'] }),
+      { dubbel: [], intussenWeg: [], wegAlWeg: [] })
+  })
+
+  test('uitvoeringWijzigingTekst: alle combinaties van 0 en 1, het meervoud, alles 0', () => {
+    const t = (toegevoegd, gewijzigd, verwijderd) => uitvoeringWijzigingTekst({ toegevoegd, gewijzigd, verwijderd })
+    assert.equal(t(0, 0, 0), '')
+    assert.equal(t(1, 0, 0), '1 uitvoering toegevoegd')
+    assert.equal(t(0, 1, 0), '1 uitvoering gewijzigd')
+    assert.equal(t(0, 0, 1), '1 uitvoering verwijderd')
+    assert.equal(t(1, 1, 0), '1 uitvoering toegevoegd, 1 gewijzigd')
+    assert.equal(t(1, 0, 1), '1 uitvoering toegevoegd, 1 verwijderd')
+    assert.equal(t(0, 1, 1), '1 uitvoering gewijzigd, 1 verwijderd')
+    assert.equal(t(1, 1, 1), '1 uitvoering toegevoegd, 1 gewijzigd, 1 verwijderd')
+    assert.equal(t(0, 2, 0), '2 uitvoeringen gewijzigd')
+    assert.equal(t(3, 2, 4), '3 uitvoeringen toegevoegd, 2 gewijzigd, 4 verwijderd')
+  })
+})
+
+describe('CK-174 bewaarActiviteit: regels', () => {
+  const ra = (fs, id = 'a1') => doc(fs, ...pad('activiteiten', id))
+  const uitvoeringenVan = async id => admin(async a => (await getDocs(collection(a, ...pad('uitvoeringen')))).docs
+    .map(d => ({ id: d.id, ...d.data() })).filter(u => u.activiteitId === id).sort((x, y) => x.begindatum.localeCompare(y.begindatum)))
+  const zet = (uid, begindatum, einddatum = '', activiteitId = 'a1') => admin(a => setDoc(doc(a, ...pad('uitvoeringen', uid)), { activiteitId, begindatum, einddatum }))
+  const regel = (u, extra = {}) => ({ sleutel: u.id, id: u.id, begindatum: u.begindatum, einddatum: u.einddatum, ...extra })
+  const nieuweRegel = (sleutel, begindatum, einddatum = '') => ({ sleutel, id: '', begindatum, einddatum })
+  const datum = (i, jaar = 2027) => { const d = new Date(Date.UTC(jaar, 0, 1 + i)); return d.toISOString().slice(0, 10) }
+  const stand = async () => ({ activiteiten: await aantal('activiteiten'), uitvoeringen: await uitvoeringenVan('a1') })
+
+  beforeEach(async () => {
+    await gemeenschappelijk()
+    await admin(a => setDoc(ra(a), ACTIVITEIT))
+  })
+
+  test('nieuw zonder uitvoering, met 1 en met 3: allemaal met het juiste activiteitId', async () => {
+    const r0 = await assertSucceeds(bewaarActiviteit(db, CLUB, { velden: { ...ACTIVITEIT, naam: 'Nul' }, regels: [] }))
+    assert.deepEqual([r0.toegevoegd, r0.nieuweIds], [0, []])
+    assert.deepEqual(await lees('activiteiten', r0.id), { ...ACTIVITEIT, naam: 'Nul' })
+    const r1 = await assertSucceeds(bewaarActiviteit(db, CLUB, { velden: { ...ACTIVITEIT, naam: 'Een' }, regels: [nieuweRegel('n1', '2027-03-12')] }))
+    assert.deepEqual(await lees('uitvoeringen', r1.nieuweIds[0]), { activiteitId: r1.id, begindatum: '2027-03-12', einddatum: '' })
+    const r3 = await assertSucceeds(bewaarActiviteit(db, CLUB, {
+      velden: { ...ACTIVITEIT, naam: 'Drie' },
+      regels: [nieuweRegel('n1', '2027-03-12'), nieuweRegel('n2', '2027-04-12', '2027-04-13'), nieuweRegel('n3', '2027-05-12')],
+    }))
+    assert.equal(r3.toegevoegd, 3)
+    assert.deepEqual((await uitvoeringenVan(r3.id)).map(u => [u.begindatum, u.einddatum]), [['2027-03-12', ''], ['2027-04-12', '2027-04-13'], ['2027-05-12', '']])
+    assert.equal(await aantal('uitvoeringen'), 4)
+  })
+
+  test('bewerken met nieuw, gewijzigd en weg samen', async () => {
+    await zet('u1', '2027-03-12')
+    await zet('u2', '2027-06-01')
+    const oud = await uitvoeringenVan('a1')
+    const nieuw = { ...ACTIVITEIT, naam: 'ALV', commissieId: 'c1' }
+    const uit = await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: nieuw, oud, regels: [regel(oud[1], { einddatum: '2027-06-02' }), nieuweRegel('n1', '2027-03-12')] }))
+    assert.deepEqual([uit.toegevoegd, uit.gewijzigd, uit.verwijderd], [1, 1, 1])
+    assert.deepEqual(await lees('activiteiten', 'a1'), nieuw)
+    assert.equal(await lees('uitvoeringen', 'u1'), null)
+    assert.deepEqual(await lees('uitvoeringen', 'u2'), { activiteitId: 'a1', begindatum: '2027-06-01', einddatum: '2027-06-02' })
+    assert.deepEqual(await lees('uitvoeringen', uit.nieuweIds[0]), { activiteitId: 'a1', begindatum: '2027-03-12', einddatum: '' })
+  })
+
+  test('alleen uitvoeringen (de activiteit wordt niet geschreven) en alleen de activiteit', async () => {
+    await zet('u1', '2027-03-12')
+    const oud = await uitvoeringenVan('a1')
+    // Zonder schrijfrecht op de activiteit (vermogen weg) zou een update geweigerd worden: dus wordt ze niet geschreven
+    await admin(a => deleteDoc(doc(a, ...pad('vermogens', 'v1'))))
+    await assertFails(updateDoc(ra(db), { naam: 'Andere naam' }))
+    const uit = await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud, regels: [regel(oud[0], { begindatum: '2027-03-13' })] }))
+    assert.deepEqual([uit.toegevoegd, uit.gewijzigd, uit.verwijderd], [0, 1, 0])
+    assert.equal((await lees('uitvoeringen', 'u1')).begindatum, '2027-03-13')
+    const nieuw = { ...ACTIVITEIT, vermogenIds: ['v2'], soort: 'toernooi' }
+    const oud2 = await uitvoeringenVan('a1')
+    assert.deepEqual(await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: nieuw, oud: oud2, regels: oud2.map(u => regel(u)) })),
+      { id: 'a1', nieuweIds: [], toegevoegd: 0, gewijzigd: 0, verwijderd: 0 })
+    assert.deepEqual(await lees('activiteiten', 'a1'), nieuw)
+    await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: { ...nieuw, naam: 'Zonder lijst' }, oud: null, regels: [] }))
+    assert.equal((await lees('activiteiten', 'a1')).naam, 'Zonder lijst')
+    assert.equal(await aantal('uitvoeringen'), 1)
+  })
+
+  test('oude datumvelden op de activiteit gaan mee weg (deleteField)', async () => {
+    await admin(a => setDoc(ra(a), { ...ACTIVITEIT, begindatum: '2027-06-12', einddatum: '' }))
+    await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: [], regels: [nieuweRegel('n1', '2027-06-12')] }))
+    assert.deepEqual(await lees('activiteiten', 'a1'), ACTIVITEIT)
+    assert.equal(await aantal('uitvoeringen'), 1)
+  })
+
+  test('de activiteit is intussen weg: activiteit-weg, er is niets geschreven', async () => {
+    await zet('u1', '2027-03-12')
+    const oud = await uitvoeringenVan('a1')
+    await admin(a => deleteDoc(ra(a)))
+    const e = await fout(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud, regels: [regel(oud[0], { begindatum: '2027-03-13' }), nieuweRegel('n1', '2027-09-01')] }))
+    assert.equal(e.code, 'activiteit-weg')
+    assert.deepEqual(await stand(), { activiteiten: 0, uitvoeringen: [{ id: 'u1', activiteitId: 'a1', begindatum: '2027-03-12', einddatum: '' }] })
+  })
+
+  test('een gewijzigde uitvoering is intussen weg: uitvoering-intussen-weg met de sleutel, er is niets geschreven', async () => {
+    await zet('u1', '2027-03-12')
+    await zet('u2', '2027-06-01')
+    const oud = await uitvoeringenVan('a1')
+    await admin(a => deleteDoc(doc(a, ...pad('uitvoeringen', 'u2'))))
+    const voor = await stand()
+    const e = await fout(bewaarActiviteit(db, CLUB, { id: 'a1', velden: { ...ACTIVITEIT, naam: 'ALV' }, oud, regels: [regel(oud[1], { begindatum: '2027-06-03' }), nieuweRegel('n1', '2027-09-01')] }))
+    assert.deepEqual([e.code, e.sleutels], ['uitvoering-intussen-weg', ['u2']])
+    assert.deepEqual(await stand(), voor)
+    assert.deepEqual(await lees('activiteiten', 'a1'), ACTIVITEIT)
+  })
+
+  test('een weggehaalde uitvoering is al weg: het lukt, verwijderd telt hem niet', async () => {
+    await zet('u1', '2027-03-12')
+    await zet('u2', '2027-06-01')
+    const oud = await uitvoeringenVan('a1')
+    await admin(a => deleteDoc(doc(a, ...pad('uitvoeringen', 'u1'))))
+    const uit = await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud, regels: [] }))
+    assert.equal(uit.verwijderd, 1)
+    assert.equal(await aantal('uitvoeringen'), 0)
+    await zet('u3', '2027-07-01')
+    const oud2 = await uitvoeringenVan('a1')
+    await admin(a => deleteDoc(doc(a, ...pad('uitvoeringen', 'u3'))))
+    assert.equal((await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: oud2, regels: [] }))).verwijderd, 0)
+  })
+
+  test('wat iemand anders intussen toevoegde, blijft staan; op dezelfde datum: dubbele-uitvoering-vers, niets geschreven', async () => {
+    await zet('u1', '2027-03-12')
+    const oud = await uitvoeringenVan('a1')
+    await zet('ander', '2027-09-01')
+    await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud, regels: [regel(oud[0]), nieuweRegel('n1', '2027-10-01')] }))
+    assert.deepEqual((await uitvoeringenVan('a1')).map(u => u.begindatum), ['2027-03-12', '2027-09-01', '2027-10-01'])
+    const oud2 = oud
+    const voor = await stand()
+    const e = await fout(bewaarActiviteit(db, CLUB, { id: 'a1', velden: { ...ACTIVITEIT, naam: 'ALV' }, oud: oud2, regels: [regel(oud2[0], { begindatum: '2027-09-01' })] }))
+    assert.deepEqual([e.code, e.sleutels], ['dubbele-uitvoering-vers', ['u1']])
+    assert.deepEqual(await stand(), voor)
+    assert.equal((await lees('activiteiten', 'a1')).naam, ACTIVITEIT.naam)
+  })
+
+  test('uitvoeringen van een andere activiteit worden nooit geraakt', async () => {
+    await admin(a => setDoc(ra(a, 'a2'), { ...ACTIVITEIT, naam: 'Andere' }))
+    await zet('x1', '2027-03-12', '', 'a2')
+    const vreemd = [{ id: 'x1', activiteitId: 'a2', begindatum: '2027-03-12', einddatum: '' }]
+    assert.equal((await fout(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: vreemd, regels: [regel(vreemd[0], { begindatum: '2027-03-13' })] }))).code, 'uitvoering-intussen-weg')
+    assert.equal((await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: vreemd, regels: [] }))).verwijderd, 0)
+    assert.deepEqual(await lees('uitvoeringen', 'x1'), { activiteitId: 'a2', begindatum: '2027-03-12', einddatum: '' })
+  })
+
+  test('meer dan 499 wijzigingen: te-veel-uitvoeringen, er is niets geschreven', async () => {
+    const regels = Array.from({ length: 500 }, (_, i) => nieuweRegel(`n${i}`, datum(i)))
+    assert.equal(uitvoeringWijzigingen([], regels).nieuw.length, 500)
+    assert.equal((await fout(bewaarActiviteit(db, CLUB, { velden: { ...ACTIVITEIT, naam: 'Te groot' }, regels }))).code, 'te-veel-uitvoeringen')
+    assert.equal((await fout(bewaarActiviteit(db, CLUB, { id: 'a1', velden: ACTIVITEIT, oud: [], regels }))).code, 'te-veel-uitvoeringen')
+    assert.deepEqual(await stand(), { activiteiten: 1, uitvoeringen: [] })
+  })
+
+  test('een grote gemengde batch slaagt (de activiteit plus 30 nieuw, 30 gewijzigd en 30 weg), en nieuw met 40', async () => {
+    await admin(async a => {
+      const b = writeBatch(a)
+      for (let i = 0; i < 60; i++) b.set(doc(a, ...pad('uitvoeringen', `u${i}`)), { activiteitId: 'a1', begindatum: datum(i), einddatum: '' })
+      await b.commit()
+    })
+    const oud = await uitvoeringenVan('a1')
+    const regels = [
+      ...oud.slice(0, 30).map(u => regel(u, { einddatum: datum(Number(u.id.slice(1)) + 1) })),
+      ...Array.from({ length: 30 }, (_, i) => nieuweRegel(`n${i}`, datum(i, 2028))),
+    ]
+    const uit = await assertSucceeds(bewaarActiviteit(db, CLUB, { id: 'a1', velden: { ...ACTIVITEIT, naam: 'Groot' }, oud, regels }))
+    assert.deepEqual([uit.toegevoegd, uit.gewijzigd, uit.verwijderd], [30, 30, 30])
+    assert.equal((await uitvoeringenVan('a1')).length, 60)
+    assert.equal((await lees('activiteiten', 'a1')).naam, 'Groot')
+    const r40 = await assertSucceeds(bewaarActiviteit(db, CLUB, { velden: { ...ACTIVITEIT, naam: 'Veertig' }, regels: Array.from({ length: 40 }, (_, i) => nieuweRegel(`n${i}`, datum(i))) }))
+    assert.equal((await uitvoeringenVan(r40.id)).length, 40)
   })
 })
