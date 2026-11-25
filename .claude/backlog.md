@@ -643,8 +643,8 @@ Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m
 
 ---
 
-### 🔨 CK-170 — Beheer → Activiteiten
-**Status:** gebouwd op branch `test`, nog niet getest op tst, nog niet gecommit · route groot (nieuw datamodel en nieuwe regels) · docs: `.claude/docs/CK-170.md` · spec: `.claude/specs/CK-170-activiteiten.md`
+### ✅ CK-170 — Beheer → Activiteiten
+**Status:** ✅ getest op tst (25 november 2026), versie 0.14.0, regels in test en productie · route groot (nieuw datamodel en nieuwe regels) · docs: `.claude/docs/CK-170.md` · spec: `.claude/specs/CK-170-activiteiten.md`
 
 - [x] Collectie `activiteiten` met `naam`, `soort`, `begindatum`, `einddatum`, `vermogenIds` (lijst, nu precies 1) en `commissieId`; regels en 152 regeltests groen
 - [x] Beheerpagina met filter op soort, module `src/activiteiten.js`, pictogram `kalender`

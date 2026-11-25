@@ -1,6 +1,6 @@
 # Changelog
 
-## Nog niet uitgebracht
+## [0.14.0] – 2026-11-25
 
 ### Toegevoegd (CK-170: Beheer → Activiteiten)
 - Nieuwe beheerpagina Activiteiten, direct na Vermogens in het zijmenu. Een activiteit heeft een naam, een soort, een begindatum, een optionele einddatum, een vermogen en een optionele commissie. De lijst staat op datum en heeft een filter op soort.
@@ -8,7 +8,7 @@
 - Nieuwe module `src/activiteiten.js` (zonder DOM) voor latere schermen.
 
 ### Beveiliging
-- Regels voor `clubs/{clubId}/activiteiten`: alleen een beheerder schrijft, elk lid leest, exacte velden, vermogen en commissie moeten bestaan (152 regeltests). Paul moet de regels nog publiceren met `npm run regels:test` en daarna `npm run regels:productie`.
+- Regels voor `clubs/{clubId}/activiteiten`: alleen een beheerder schrijft, elk lid leest, exacte velden, vermogen en commissie moeten bestaan (152 regeltests). Gepubliceerd in test en productie op 25 november 2026.
 
 ## [0.13.4] – 2026-11-24
 
