@@ -18,6 +18,11 @@ import {
   laadOnderdelen, voegOnderdeelToe, bewerkOnderdeel, verwijderOnderdeel,
 } from '../src/onderdelen.js'
 import { HCA_ONDERDELEN, maakOnderdelenPlan } from '../scripts/lib/onderdelen-hca.mjs'
+import {
+  ACTIVITEIT_SOORTEN, ACTIVITEIT_SOORT_LABEL, activiteitSoortLabel, activiteitVelden, geldigeActiviteit, activiteitDatumFout,
+  datumTekst, sorteerActiviteiten, activiteitBezet, laadActiviteiten, laadActiviteitenVanVermogen, telActiviteitenVanCommissie,
+  voegActiviteitToe, bewerkActiviteit, verwijderActiviteit,
+} from '../src/activiteiten.js'
 
 const CLUB = 'club1'
 // De bronlijst (CK-020-bron-vermogensoverzicht.md) bevat 58 namen (13 + 45), bevestigd tegen het HCA-overzicht v1.4.
@@ -1421,5 +1426,202 @@ describe('omgevingsguard', () => {
     assert.equal(g({ label: 'test', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
     const r = g({ label: 'productie', config: config(TEST) })
     assert.deepEqual([r.soort, r.labelWijktAf, r.configFout], ['test', true, null])
+  })
+})
+
+// ── Activiteiten (CK-170) ──
+const ACTIVITEIT = { naam: 'Clubdag 2027', soort: 'evenement', begindatum: '2027-06-12', einddatum: '', vermogenIds: ['v1'], commissieId: '' }
+
+describe('CK-170 activiteiten: app-functies', () => {
+  test('soorten en labels', () => {
+    assert.deepEqual(ACTIVITEIT_SOORTEN.map(([k]) => k), ['toernooi', 'clinic', 'evenement', 'bijeenkomst', 'opleiding', 'actie', 'overig'])
+    assert.equal(ACTIVITEIT_SOORT_LABEL.clinic, 'Clinic of training')
+    assert.equal(activiteitSoortLabel({ soort: 'feest' }), 'Overig')
+  })
+  test('datumTekst volgens het ontwerp', () => {
+    assert.equal(datumTekst('2027-03-12', ''), '12 mrt 2027')
+    assert.equal(datumTekst('2027-03-12', '2027-03-12'), '12 mrt 2027')
+    assert.equal(datumTekst('2027-03-12', '2027-03-14'), '12 – 14 mrt 2027')
+    assert.equal(datumTekst('2027-03-30', '2027-04-02'), '30 mrt – 2 apr 2027')
+    assert.equal(datumTekst('2026-12-30', '2027-01-02'), '30 dec 2026 – 2 jan 2027')
+    assert.equal(datumTekst('', ''), '')
+  })
+  test('activiteitDatumFout: begin verplicht, eind niet vóór begin, eind leeg mag', () => {
+    assert.deepEqual(activiteitDatumFout('', ''), { begin: 'Vul een begindatum in.' })
+    assert.deepEqual(activiteitDatumFout('2027-03-12', '2027-03-11'), { eind: 'De einddatum ligt vóór de begindatum.' })
+    assert.deepEqual(activiteitDatumFout('2027-03-12', ''), {})
+    assert.deepEqual(activiteitDatumFout('2027-03-12', '2027-03-12'), {})
+    assert.equal(activiteitDatumFout('2027-13-01', '').begin, 'Vul een hele datum in.')
+  })
+  test('sorteren op begindatum, einddatum (leeg eerst) en naam; dubbel alleen op dezelfde begindatum', () => {
+    const l = [
+      { id: 'a', naam: 'B', begindatum: '2027-03-12', einddatum: '2027-03-14' },
+      { id: 'b', naam: 'Z', begindatum: '2027-03-12', einddatum: '' },
+      { id: 'c', naam: 'A', begindatum: '2027-03-12', einddatum: '2027-03-14' },
+      { id: 'd', naam: 'C', begindatum: '2026-12-30', einddatum: '' },
+    ]
+    assert.deepEqual(sorteerActiviteiten(l).map(x => x.id), ['d', 'b', 'c', 'a'])
+    assert.ok(activiteitBezet(l, 'z', '2027-03-12'))
+    assert.ok(!activiteitBezet(l, 'Z', '2027-03-13'))
+    assert.ok(!activiteitBezet(l, 'Z', '2027-03-12', 'b'))
+  })
+  test('activiteitBezet: hoofdletters en spaties tellen niet, lege lijst is vrij', () => {
+    const l = [{ id: 'a', naam: 'Clubdag 2027', begindatum: '2027-06-12' }]
+    assert.ok(activiteitBezet(l, 'clubdag  2027 ', '2027-06-12'))
+    assert.ok(activiteitBezet(l, 'CLUBDAG 2027', '2027-06-12', 'x'))
+    assert.ok(!activiteitBezet(l, 'Clubdag 2027', '2028-06-12'))
+    assert.ok(!activiteitBezet([], 'Clubdag 2027', '2027-06-12'))
+  })
+  test('sorteerActiviteiten: ontbrekende datums vooraan, naam met nl-volgorde', () => {
+    const l = [
+      { id: 'a', naam: 'Één', begindatum: '2027-01-01', einddatum: '' },
+      { id: 'b', naam: 'Echt', begindatum: '2027-01-01' },
+      { id: 'c', naam: 'Oud' },
+      { id: 'd', naam: 'Later', begindatum: '2027-01-01', einddatum: '2027-01-03' },
+    ]
+    assert.deepEqual(sorteerActiviteiten(l).map(x => x.id), ['c', 'b', 'a', 'd'])
+  })
+  test('activiteitVelden en de spiegel van de regels', () => {
+    assert.deepEqual(activiteitVelden({ naam: 'X y', soort: 'actie', begindatum: '2027-01-01', vermogenIds: ['v1'] }),
+      { naam: 'X y', soort: 'actie', begindatum: '2027-01-01', einddatum: '', vermogenIds: ['v1'], commissieId: '' })
+    assert.ok(geldigeActiviteit(ACTIVITEIT))
+    assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, omschrijving: '' }))
+    assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, vermogenIds: [] }))
+    assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, begindatum: '' }))
+    assert.ok(!geldigeActiviteit({ ...ACTIVITEIT, soort: 'feest' }))
+  })
+})
+
+describe('CK-170 activiteiten: regels', () => {
+  let kees
+  const r = (fs, id = 'a1') => doc(fs, ...pad('activiteiten', id))
+  beforeEach(async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'gebruikers', 'kees'), { clubId: CLUB })
+      await setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'lid' })
+      await setDoc(doc(a, ...pad('vermogens', 'v1')), { naam: 'Teamindeling', domeinId: 'speelt', volgorde: 1 })
+      await setDoc(doc(a, ...pad('vermogens', 'v2')), { naam: 'Ledenwerving', domeinId: 'leden', volgorde: 1 })
+      await setDoc(doc(a, ...pad('commissies', 'c1')), { naam: 'Activiteitencommissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+    })
+    kees = env.authenticatedContext('kees').firestore()
+  })
+
+  test('beheerder: aanmaken, bewerken en verwijderen via de app-functies', async () => {
+    const { id } = await assertSucceeds(voegActiviteitToe(db, CLUB, ACTIVITEIT))
+    assert.deepEqual(await lees('activiteiten', id), ACTIVITEIT)
+    const nieuw = { ...ACTIVITEIT, soort: 'toernooi', einddatum: '2027-06-14', vermogenIds: ['v2'], commissieId: 'c1' }
+    await assertSucceeds(bewerkActiviteit(db, CLUB, id, nieuw))
+    assert.deepEqual(await lees('activiteiten', id), nieuw)
+    assert.equal((await laadActiviteiten(db, CLUB)).length, 1)
+    assert.equal((await laadActiviteitenVanVermogen(db, CLUB, 'v2')).length, 1)
+    assert.equal((await laadActiviteitenVanVermogen(db, CLUB, 'v1')).length, 0)
+    assert.equal(await telActiviteitenVanCommissie(db, CLUB, 'c1'), 1)
+    await assertSucceeds(verwijderActiviteit(db, CLUB, id))
+    assert.equal((await fout(verwijderActiviteit(db, CLUB, id))).code, 'activiteit-weg')
+    assert.equal((await fout(bewerkActiviteit(db, CLUB, id, ACTIVITEIT))).code, 'activiteit-weg')
+    assert.equal(await telActiviteitenVanCommissie(db, CLUB, 'c1'), 0)
+  })
+
+  test('lid zonder beheerrol leest, maar schrijft niet; niet-lid leest niet', async () => {
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'a1')), ACTIVITEIT))
+    await assertSucceeds(getDocs(collection(kees, ...pad('activiteiten'))))
+    await assertSucceeds(getDoc(r(kees)))
+    await assertFails(addDoc(collection(kees, ...pad('activiteiten')), ACTIVITEIT))
+    await assertFails(setDoc(r(kees, 'a2'), ACTIVITEIT))
+    await assertFails(updateDoc(r(kees), { naam: 'Andere naam' }))
+    await assertFails(deleteDoc(r(kees)))
+    await assertFails(getDocs(collection(buiten, ...pad('activiteiten'))))
+    await assertFails(getDoc(r(buiten)))
+    await assertFails(setDoc(r(buiten, 'a3'), ACTIVITEIT))
+    await assertFails(deleteDoc(r(buiten)))
+  })
+
+  test('extra of ontbrekend veld: geweigerd', async () => {
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, omschrijving: 'Met Jan en Piet' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, volgorde: 1 }))
+    for (const veld of Object.keys(ACTIVITEIT)) {
+      const { [veld]: _, ...zonder } = ACTIVITEIT
+      await assertFails(setDoc(r(db), zonder))
+    }
+    await assertSucceeds(setDoc(r(db), ACTIVITEIT))
+  })
+
+  test('soort: alleen de vaste lijst', async () => {
+    for (const soort of ['feest', '', 'Toernooi', 1]) await assertFails(setDoc(r(db), { ...ACTIVITEIT, soort }))
+    for (const [soort] of ACTIVITEIT_SOORTEN) await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, soort }))
+  })
+
+  test('datum: begin verplicht, vast formaat, eind niet vóór begin', async () => {
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, begindatum: '' }))
+    for (const d of ['12-06-2027', '2027-6-12', '2027-13-01', '2027-06-32', '2027-06-12T10:00', 20270612]) {
+      await assertFails(setDoc(r(db), { ...ACTIVITEIT, begindatum: d }))
+      await assertFails(setDoc(r(db), { ...ACTIVITEIT, einddatum: d }))
+    }
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, einddatum: '2027-06-11' }))
+    await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, einddatum: '2027-06-12' }))
+    await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, einddatum: '2027-06-14' }))
+  })
+
+  test('vermogenIds: precies één bestaand vermogen in een lijst', async () => {
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: [] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['v1', 'v2'] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: 'v1' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: [''] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: [1] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['x'.repeat(101)] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['bestaat-niet'] }))
+    await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['v2'] }))
+  })
+
+  test('commissieId: leeg of een bestaande commissie', async () => {
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, commissieId: 'bestaat-niet' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, commissieId: 'x'.repeat(101) }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, commissieId: null }))
+    await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, commissieId: 'c1' }))
+  })
+
+  test('naam: 2-100 tekens, geen onzichtbare tekens, getrimd en zonder dubbele spaties', async () => {
+    for (const naam of ['A', 'x'.repeat(101), 'Club​dag', 'Club‮dag', '﻿Clubdag', ' Clubdag', 'Club  dag', '-Clubdag', 'Clubdag 🎉', 'Club<b>dag']) {
+      await assertFails(setDoc(r(db), { ...ACTIVITEIT, naam }))
+    }
+    for (const naam of ['xy', 'x'.repeat(100), 'Oud-en-nieuw (jeugd) 26/27']) await assertSucceeds(setDoc(r(db), { ...ACTIVITEIT, naam }))
+  })
+
+  test('bewerken met een verdwenen vermogen: geweigerd tot er een ander vermogen is gekozen', async () => {
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'a1')), ACTIVITEIT))
+    await admin(a => deleteDoc(doc(a, ...pad('vermogens', 'v1'))))
+    await assertFails(updateDoc(r(db), { naam: 'Clubdag 2027 jeugd' }))
+    await assertSucceeds(updateDoc(r(db), { naam: 'Clubdag 2027 jeugd', vermogenIds: ['v2'] }))
+  })
+
+  test('paden in een id: niet naar een andere club en niet naar een subdocument', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'clubs', 'club2', 'commissies', 'c9'), { naam: 'Vreemde commissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+      await setDoc(doc(a, 'clubs', 'club2', 'vermogens', 'v9'), { naam: 'Vreemd vermogen', domeinId: 'x', volgorde: 1 })
+      await setDoc(doc(a, ...pad('vermogens', 'v1', 'sub', 'x')), { iets: 1 })
+      await setDoc(doc(a, ...pad('commissies', 'c1', 'sub', 'x')), { iets: 1 })
+    })
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, commissieId: '../../club2/commissies/c9' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, commissieId: 'c1/sub/x' }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['../../club2/vermogens/v9'] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['v1/sub/x'] }))
+  })
+
+  test('verplicht veld weghalen met deleteField of een null in vermogenIds: geweigerd', async () => {
+    const { deleteField } = await import('firebase/firestore')
+    await admin(a => setDoc(doc(a, ...pad('activiteiten', 'a1')), ACTIVITEIT))
+    for (const veld of Object.keys(ACTIVITEIT)) await assertFails(updateDoc(r(db), { [veld]: deleteField() }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: ['v1', null] }))
+    await assertFails(setDoc(r(db), { ...ACTIVITEIT, vermogenIds: [null] }))
+    await assertSucceeds(updateDoc(r(db), { einddatum: '2027-06-13' }))
+  })
+
+  test('andere club: geen verwijzing naar een vermogen of commissie van club1', async () => {
+    await admin(async a => {
+      await setDoc(doc(a, 'clubs', 'club2'), { naam: 'Andere club' })
+      await setDoc(doc(a, 'clubs', 'club2', 'leden', 'jan'), { rol: 'beheerder' })
+    })
+    await assertFails(setDoc(doc(db, 'clubs', 'club2', 'activiteiten', 'a1'), ACTIVITEIT))
+    await assertFails(setDoc(doc(db, 'clubs', 'club2', 'activiteiten', 'a1'), { ...ACTIVITEIT, vermogenIds: ['../../club1/vermogens/v1'] }))
   })
 })

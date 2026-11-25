@@ -13,6 +13,11 @@ import {
   omschrijvingFout, periodeTekst, datumFout, naamBezet, laadOnderdelen, voegOnderdeelToe,
   bewerkOnderdeel, verwijderOnderdeel,
 } from './onderdelen.js'
+import {
+  ACTIVITEIT_SOORTEN, ACTIVITEIT_SOORT_LABEL, activiteitSoort, activiteitSoortLabel, activiteitDatumFout, datumTekst,
+  activiteitBezet, laadActiviteiten, laadActiviteitenVanVermogen, telActiviteitenVanCommissie,
+  voegActiviteitToe, bewerkActiviteit, verwijderActiviteit,
+} from './activiteiten.js'
 
 let huidigClubId = null
 let huidigProfiel = null
@@ -226,7 +231,20 @@ function domeinOptiesHTML(domeinen, gekozen, { alle = false } = {}) {
   return eerste + groep('pijler', 'Pijlers') + groep('domein', 'Ondersteunende domeinen')
 }
 
+// Keuzelijst Vermogen (CK-170): per domein een groep, in de volgorde van domeinOptiesHTML. Zonder domeinen: plat op naam.
+function vermogenOptiesHTML(vermogens, domeinen, gekozen) {
+  const optie = v => `<option value="${esc(v.id)}"${v.id === gekozen ? ' selected' : ''}>${esc(v.naam)}</option>`
+  const eerste = `<option value=""${vermogens.some(v => v.id === gekozen) ? '' : ' selected'}>Kies een vermogen</option>`
+  if (!domeinen) return eerste + [...vermogens].sort((a, b) => String(a.naam).localeCompare(String(b.naam), 'nl')).map(optie).join('')
+  const groep = (label, lijst) => (lijst.length ? `<optgroup label="${esc(label)}">${sorteerDomeinen([...lijst]).map(optie).join('')}</optgroup>` : '')
+  const metVermogens = [...domeinen.filter(d => d.type === 'pijler'), ...domeinen.filter(d => d.type === 'domein')]
+  const bekend = new Set(metVermogens.map(d => d.id))
+  return eerste + metVermogens.map(d => groep(d.naam, vermogens.filter(v => v.domeinId === d.id))).join('')
+    + groep('Zonder domein', vermogens.filter(v => !bekend.has(v.domeinId)))
+}
+
 const vermogensTekst = n => (n === 1 ? '1 vermogen' : `${n} vermogens`)
+const activiteitenTekst = n => (n === 1 ? '1 activiteit' : `${n} activiteiten`)
 
 function bestuursfunctieKeuzeHTML(id, huidig, functies) {
   const opties = functies.map(f =>
@@ -342,7 +360,7 @@ function supportLinkHTML(accountEmail, onderwerp = 'Toegang clubKOMPAS') {
 
 const OPSLAAN_TIJDSLIMIET = 15000
 const INLOG_CODES = new Set(['unauthenticated', 'auth/user-token-expired', 'auth/requires-recent-login'])
-const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg', 'commissie-weg'])
+const WEG_CODES = new Set(['not-found', 'failed-precondition', 'vermogen-weg', 'project-weg', 'samenwerking-weg', 'commissie-weg', 'activiteit-weg'])
 const VERBINDING_CODES = new Set(['unavailable', 'deadline-exceeded', 'auth/network-request-failed'])
 const STAART_INVOER = ' Wat je hebt ingevuld, staat er nog.'
 const STAART_LIJST = ' De lijst is niet gewijzigd.'
@@ -376,6 +394,8 @@ const FOUTTEKSTEN = {
   'samenwerking-weg': 'Deze samenwerking bestaat niet meer.',
   'dubbele-commissie': 'Er is al een commissie met deze naam.',
   'commissie-weg': 'Deze commissie bestaat niet meer.',
+  'dubbele-activiteit': 'Er is al een activiteit met deze naam op deze datum.',
+  'activiteit-weg': 'Deze activiteit bestaat niet meer.',
 }
 
 const TIJD_OP_ACCOUNT = {
@@ -1340,6 +1360,7 @@ const MENU_ICOON = {
   'pijl-omlaag': '<path d="M24 10 V38"/><path d="M13 27 L24 38 L35 27"/>',
   potlood: '<path d="M31 9 L39 17 L18 38 L9 39 L10 30 Z"/><path d="M27 13 L35 21"/>',
   klembord: '<rect x="10" y="10" width="28" height="32" rx="3"/><rect x="18" y="6" width="12" height="8" rx="2"/><path d="M17 22 H31"/><path d="M17 29 H31"/><path d="M17 36 H25"/>',
+  kalender: '<rect x="7" y="10" width="34" height="30" rx="3"/><path d="M7 20 H41"/><path d="M16 6 V14"/><path d="M32 6 V14"/>',
   schakels: '<g transform="rotate(-45 24 24)"><rect x="4" y="18" width="24" height="12" rx="6"/><rect x="20" y="18" width="24" height="12" rx="6"/></g>',
   prullenbak: '<path d="M8 13 H40"/><path d="M19 13 V8 H29 V13"/><path d="M12 13 L14.5 40 H33.5 L36 13"/><path d="M20 20 V33"/><path d="M28 20 V33"/>',
 }
@@ -1360,6 +1381,7 @@ const ZIJMENU = [
     { id: 'commissies', naam: 'Commissies', ico: 'groep' },
     { id: 'domeinen', naam: 'Domeinen', ico: 'plaat' },
     { id: 'vermogensbeheer', naam: 'Vermogens', ico: 'puzzel' },
+    { id: 'activiteiten', naam: 'Activiteiten', ico: 'kalender' },
     { id: 'projecten', naam: 'Projecten', ico: 'klembord' },
     { id: 'samenwerkingen', naam: 'Samenwerkingen', ico: 'schakels' },
   ]},
@@ -1379,6 +1401,7 @@ const NAV_DOEL = new Map([
   ['beheer', renderPijlersDomeinenBeheer],
   ['domeinen', renderPijlersDomeinenBeheer],
   ['vermogensbeheer', renderVermogensBeheer],
+  ['activiteiten', renderActiviteitenBeheer],
   ['commissies', g => renderOnderdeelBeheer(g, 'commissies')],
   ['projecten', g => renderOnderdeelBeheer(g, 'projecten')],
   ['samenwerkingen', g => renderOnderdeelBeheer(g, 'samenwerkingen')],
@@ -2384,6 +2407,25 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
       else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
       if (!v) return
+      // Een vermogen met activiteiten kan niet weg (CK-170). Vers tellen; mislukt dat, dan ook niet.
+      let n
+      try {
+        n = (await metTijdslimiet(laadActiviteitenVanVermogen(db, clubId, id))).length
+      } catch (e) {
+        console.error('Activiteiten tellen mislukt:', e?.code)
+        if (!lijstEl.isConnected) return
+        sectieOk.textContent = ''
+        sectieFout.textContent = `Vermogen ${v.naam} kan nu niet worden verwijderd: de activiteiten konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.`
+        meldingInBeeld(sectieFout)
+        return
+      }
+      if (!lijstEl.isConnected) return
+      if (n > 0) {
+        sectieOk.textContent = ''
+        sectieFout.textContent = `Vermogen ${v.naam} hoort nog bij ${activiteitenTekst(n)}. Koppel die eerst aan een ander vermogen in Beheer → Activiteiten.`
+        meldingInBeeld(sectieFout)
+        return
+      }
       if (!bevestigVerwijderen('Vermogen', v.naam)) return
       const groep = groepVan(v)
       const k = groep.findIndex(x => x.id === id)
@@ -2497,6 +2539,419 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
         : domeinAnders ? `Vermogen ${naam} verplaatst naar ${doelNaam}.`
         : `Vermogen ${naam} opgeslagen.`
       toonOk(sectieOk, tekst)
+      meldingInBeeld(sectieOk)
+    }
+  })
+
+  await laadEnRender()
+}
+
+// ── Activiteiten (CK-170) ─────────────────────────────────────────────────────
+// Op datum, zonder ↑ en ↓. Eén vermogen (verplicht) en eventueel een commissie; id-voorvoegsel activiteit-.
+
+async function renderActiviteitenBeheer(gebruiker) {
+  if (geenBeheer(gebruiker)) return
+  document.querySelector('#app').innerHTML = appShellHTML({ actief: 'activiteiten', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('activiteiten')]], inhoud: `
+        <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-9">
+          <div class="sectie-kop">
+            <h1 id="sectie-kop-9">Activiteiten</h1>
+          </div>
+          <div class="sectie-lijf">
+            <div class="beheer-balk" id="activiteit-balk" hidden>
+              <div class="filter-keuze" id="activiteit-filter-keuze">
+                <label class="sr-only" for="activiteit-filter">Toon</label>
+                <select class="form-input" id="activiteit-filter">
+                  <option value="alle">Alle soorten</option>
+                  ${ACTIVITEIT_SOORTEN.map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}
+                </select>
+              </div>
+              <button class="btn-toevoegen" type="button" id="activiteit-toevoegen-knop">+ Activiteit toevoegen</button>
+            </div>
+            <div class="pijler-form" id="activiteit-form" hidden></div>
+            ${meldingenHTML('activiteit-ok', 'activiteit-fout')}
+            <p class="tussen-hint" id="activiteit-hint"></p>
+            <div class="sr-only" id="activiteit-filter-status" role="status"></div>
+            <div id="activiteit-lijst"><p class="lijst-laden">Activiteiten worden geladen...</p></div>
+          </div>
+        </div>
+` })
+
+  bindAppShell(gebruiker)
+  bindMeldblokken()
+
+  const clubId = huidigClubId
+  const el = id => document.getElementById(id)
+  const balk = el('activiteit-balk')
+  const filterEl = el('activiteit-filter')
+  const filterKeuze = el('activiteit-filter-keuze')
+  const form = el('activiteit-form')
+  const lijstEl = el('activiteit-lijst')
+  const sectieOk = el('activiteit-ok')
+  const sectieFout = el('activiteit-fout')
+  const hint = el('activiteit-hint')
+  const filterStatus = el('activiteit-filter-status')
+  const toevoegKnop = el('activiteit-toevoegen-knop')
+
+  let activiteiten = []
+  let vermogens = null
+  let domeinen = null
+  let commissies = null
+  let actiefFilter = 'alle'
+
+  const getoond = () => (actiefFilter === 'alle' ? activiteiten : activiteiten.filter(x => activiteitSoort(x) === actiefFilter))
+  const terugval = () => zichtbareTerugval(toevoegKnop, form)
+  const potlood = id => lijstEl.querySelector(`[data-actie="bewerk"][data-id="${CSS.escape(id)}"]`)
+  const leeg = label => `<span class="leeg-streep"><span aria-hidden="true">—</span><span class="sr-only">${label}</span></span>`
+  const weg = '<span class="leeg-streep">bestaat niet meer</span>'
+  const vermogenVan = x => (Array.isArray(x.vermogenIds) ? x.vermogenIds[0] : '') || ''
+  const idsVoor = id => ({ naam: `an-${id}`, soort: `as-${id}`, vermogen: `av-${id}`, commissie: `ac-${id}`, begin: `ab-${id}`, eind: `ae-${id}` })
+  const NIEUW = { naam: 'activiteit-naam', soort: 'activiteit-soort', vermogen: 'activiteit-vermogen', commissie: 'activiteit-commissie', begin: 'activiteit-begin', eind: 'activiteit-eind' }
+  const VERMOGEN_WEG = 'Het vermogen van deze activiteit bestaat niet meer. Kies een ander vermogen.'
+
+  function commissieVeldHTML(ids, w) {
+    if (!commissies) {
+      const tekst = w.commissieId ? 'Huidige commissie (niet geladen)' : 'Geen commissie'
+      return `<select class="form-input" id="${esc(ids.commissie)}" disabled aria-describedby="${esc(ids.commissie)}-hint"><option value="${esc(w.commissieId)}" selected>${tekst}</option></select>
+                <p class="vermogens-hint" id="${esc(ids.commissie)}-hint">De commissies konden niet worden geladen. De commissie blijft zoals hij was.</p>`
+    }
+    const bestaat = commissies.some(c => c.id === w.commissieId)
+    const opties = commissies.map(c => `<option value="${esc(c.id)}"${bestaat && c.id === w.commissieId ? ' selected' : ''}>${esc(c.naam)}</option>`).join('')
+    const wegHint = w.commissieId && !bestaat
+      ? `<p class="vermogens-hint" id="${esc(ids.commissie)}-hint">De commissie van deze activiteit bestaat niet meer. Bij opslaan wordt dit Geen commissie.</p>` : ''
+    return `<select class="form-input" id="${esc(ids.commissie)}"${wegHint ? ` aria-describedby="${esc(ids.commissie)}-hint"` : ''}><option value=""${bestaat ? '' : ' selected'}>Geen commissie</option>${opties}</select>${wegHint}`
+  }
+
+  function veldenHTML(ids, w) {
+    const vermogenOpties = vermogens
+      ? vermogenOptiesHTML(vermogens, domeinen, vermogenVan(w))
+      : `<option value="${esc(vermogenVan(w))}" selected>${vermogenVan(w) ? 'Huidig vermogen (niet geladen)' : 'Kies een vermogen'}</option>`
+    return `
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.naam)}">Naam</label>
+                <input class="form-input" id="${esc(ids.naam)}" type="text" value="${esc(w.naam)}" placeholder="Bijv. Clubdag 2027" ${NAAM_VELD_ATTR} aria-describedby="${esc(ids.naam)}-fout" data-naamveld>
+                <span class="form-fout" id="${esc(ids.naam)}-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.soort)}">Soort</label>
+                <select class="form-input" id="${esc(ids.soort)}" aria-describedby="${esc(ids.soort)}-fout"><option value=""${w.soort ? '' : ' selected'}>Kies een soort</option>${ACTIVITEIT_SOORTEN.map(([k, label]) => `<option value="${k}"${k === w.soort ? ' selected' : ''}>${esc(label)}</option>`).join('')}</select>
+                <span class="form-fout" id="${esc(ids.soort)}-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.vermogen)}">Vermogen</label>
+                <select class="form-input" id="${esc(ids.vermogen)}" aria-describedby="${esc(ids.vermogen)}-fout"${vermogens ? '' : ' disabled'}>${vermogenOpties}</select>
+                <span class="form-fout" id="${esc(ids.vermogen)}-fout"></span>
+              </div>
+              <div class="form-groep">
+                <label class="form-label" for="${esc(ids.commissie)}">Commissie</label>
+                ${commissieVeldHTML(ids, w)}
+              </div>
+              <fieldset class="periode-velden">
+                <legend class="form-label">Datum</legend>
+                <div class="form-rij-datums">
+                  <div class="form-groep">
+                    <label class="datum-label" for="${esc(ids.begin)}">Begindatum</label>
+                    <input class="form-input" id="${esc(ids.begin)}" type="date" value="${esc(w.begindatum)}" aria-describedby="${esc(ids.begin)}-fout" data-eind="${esc(ids.eind)}">
+                    <span class="form-fout" id="${esc(ids.begin)}-fout"></span>
+                  </div>
+                  <div class="form-groep">
+                    <label class="datum-label" for="${esc(ids.eind)}">Einddatum (optioneel)</label>
+                    <input class="form-input" id="${esc(ids.eind)}" type="date" value="${esc(w.einddatum)}"${w.begindatum ? ` min="${esc(w.begindatum)}"` : ''} aria-describedby="${esc(ids.eind)}-fout">
+                    <span class="form-fout" id="${esc(ids.eind)}-fout"></span>
+                  </div>
+                </div>
+              </fieldset>`
+  }
+
+  // Invoer lezen en controleren; geeft de velden of null (fouten staan dan bij de velden, focus op de eerste)
+  function leesVelden(ids, bestaand = null) {
+    const naam = normaliseerNaam(el(ids.naam)?.value)
+    const soort = el(ids.soort)?.value || ''
+    const vermogenId = el(ids.vermogen)?.value || ''
+    const commissieId = commissies ? (el(ids.commissie)?.value || '') : (bestaand?.commissieId || '')
+    const beginEl = el(ids.begin)
+    const eindEl = el(ids.eind)
+    const begindatum = beginEl?.value || ''
+    const einddatum = eindEl?.value || ''
+    const d = activiteitDatumFout(begindatum, einddatum)
+    const vermogenOk = vermogens?.some(v => v.id === vermogenId)
+    const ok = valideerVelden([
+      [ids.naam, `${ids.naam}-fout`, onderdeelnaamFout(naam)],
+      [ids.soort, `${ids.soort}-fout`, Object.hasOwn(ACTIVITEIT_SOORT_LABEL, soort) ? '' : 'Kies een soort.'],
+      [ids.vermogen, `${ids.vermogen}-fout`, vermogenOk ? '' : 'Kies een vermogen.'],
+      [ids.begin, `${ids.begin}-fout`, beginEl?.validity?.badInput ? 'Vul een hele datum in.' : d.begin || ''],
+      [ids.eind, `${ids.eind}-fout`, eindEl?.validity?.badInput ? 'Vul een hele datum in, of maak het veld leeg.' : d.eind || ''],
+    ])
+    return ok ? { naam, soort, begindatum, einddatum, vermogenIds: [vermogenId], commissieId } : null
+  }
+
+  function verwijzingHTML(lijst, id, leegLabel) {
+    if (!id) return leeg(leegLabel)
+    if (!lijst) return leeg('niet geladen')
+    const naam = lijst.find(o => o.id === id)?.naam
+    return naam ? esc(naam) : weg
+  }
+
+  function rijHTML(x, plaats) {
+    const datum = datumTekst(x.begindatum, x.einddatum)
+    return `
+        <div class="structuur-rij beheer-rij activiteit-rij" role="row" data-id="${esc(x.id)}">
+          <span class="cel-nr" role="cell">${plaats}</span>
+          <span class="cel-activiteit" role="cell"><span class="cel-naam">${esc(x.naam)}</span>${datum ? `<span class="cel-periode"><span class="sr-only">, datum </span>${esc(datum)}</span>` : ''}</span>
+          <span class="cel-soort" role="cell"><span class="status-label">${esc(activiteitSoortLabel(x))}</span></span>
+          <span class="cel-vermogen" role="cell"><span class="cel-label" aria-hidden="true">Vermogen: </span>${verwijzingHTML(vermogens, vermogenVan(x), 'geen vermogen')}</span>
+          <span class="cel-commissie" role="cell"><span class="cel-label" aria-hidden="true">Commissie: </span>${verwijzingHTML(commissies, x.commissieId, 'geen commissie')}</span>
+          <div class="kaart-acties cel-acties" role="cell">
+            ${actieKnopHTML('bewerk', x.id, 'bewerk', x.naam)}${actieKnopHTML('verwijder', x.id, 'verwijder', x.naam)}
+          </div>
+        </div>`
+  }
+
+  function tekenLijst() {
+    if (!lijstEl.isConnected) return
+    balk.hidden = false
+    filterKeuze.hidden = !activiteiten.length
+    if (!activiteiten.length) {
+      lijstEl.innerHTML = `
+        <div class="leeg-blok">
+          <h3>Nog geen activiteiten</h3>
+          <p>Een activiteit is iets wat de club op een bepaalde dag organiseert, zoals een toernooi, een clinic of de ALV. Elke activiteit hoort bij een vermogen.</p>
+        </div>`
+      return
+    }
+    filterEl.value = actiefFilter
+    const lijst = getoond()
+    if (!lijst.length) {
+      lijstEl.innerHTML = `<p class="lijst-leeg">Geen activiteiten van de soort ${esc(ACTIVITEIT_SOORT_LABEL[actiefFilter])}.</p>`
+      return
+    }
+    lijstEl.innerHTML = `
+          <div role="table" aria-label="Activiteiten">
+            <div class="beheer-rij beheer-kop activiteit-rij" role="row"><span role="columnheader">#</span><span role="columnheader">Activiteit</span><span role="columnheader">Soort</span><span role="columnheader">Vermogen</span><span role="columnheader">Commissie</span><span role="columnheader"><span class="sr-only">Acties</span></span></div>
+            ${lijst.map(x => rijHTML(x, activiteiten.indexOf(x) + 1)).join('')}
+          </div>`
+  }
+
+  function toonHint() {
+    toevoegKnop.disabled = !vermogens?.length
+    if (toevoegKnop.disabled) toevoegKnop.setAttribute('aria-describedby', 'activiteit-hint')
+    else toevoegKnop.removeAttribute('aria-describedby')
+    if (!vermogens) hint.textContent = 'De vermogens konden niet worden geladen. Toevoegen en opslaan kan nu niet. Herlaad de pagina.'
+    else if (!vermogens.length) hint.innerHTML = 'Maak eerst een vermogen aan in <a href="#" class="tussen-link" data-nav="vermogensbeheer">Beheer → Vermogens</a>. Daarna kun je activiteiten toevoegen.'
+    else if (!domeinen) hint.textContent = 'De domeinen konden niet worden geladen. De vermogens staan daarom op naam, zonder domein.'
+    else hint.textContent = ''
+  }
+
+  function toonLaadfout(e) {
+    if (!lijstEl.isConnected) return
+    balk.hidden = true
+    form.hidden = true
+    toevoegKnop.hidden = false
+    hint.textContent = ''
+    lijstEl.innerHTML = laadfoutHTML('De activiteiten konden niet worden geladen.', 'activiteit-herlaad', e, 'activiteiten')
+  }
+
+  async function laadEnRender() {
+    const bijzaken = Promise.allSettled([laadVermogens(db, clubId), laadStructuurelementen(), laadOnderdelen(db, clubId, 'commissies')])
+    try {
+      activiteiten = await laadActiviteiten(db, clubId)
+    } catch (e) {
+      console.error('Activiteiten laden mislukt:', e?.code)
+      toonLaadfout(e)
+      return false
+    }
+    const [v, d, c] = await bijzaken
+    if (!lijstEl.isConnected) return false
+    for (const [naam, u] of [['Vermogens', v], ['Domeinen', d], ['Commissies', c]]) {
+      if (u.status === 'rejected') console.error(`${naam} laden mislukt:`, u.reason?.code)
+    }
+    vermogens = v.status === 'fulfilled' ? v.value : null
+    domeinen = d.status === 'fulfilled' ? d.value : null
+    commissies = c.status === 'fulfilled' ? c.value : null
+    toonHint()
+    tekenLijst()
+    return true
+  }
+
+  function sluitForm() {
+    form.hidden = true
+    form.innerHTML = ''
+    toevoegKnop.hidden = false
+  }
+
+  function meldFilter() {
+    const n = getoond().length
+    zetStatus(filterStatus, n || actiefFilter === 'alle'
+      ? `${activiteitenTekst(n)} getoond.`
+      : `Geen activiteiten van de soort ${ACTIVITEIT_SOORT_LABEL[actiefFilter]}.`)
+  }
+
+  function openBewerk(id) {
+    const rij = lijstEl.querySelector(`.structuur-rij[data-id="${CSS.escape(id)}"]`)
+    const x = activiteiten.find(o => o.id === id)
+    if (!rij || !x) return null
+    const ids = idsVoor(id)
+    rij.classList.add('bewerken')
+    rij.innerHTML = `
+        <div class="pijler-bewerk-form activiteit-bewerk" role="cell">${veldenHTML(ids, { ...x, soort: activiteitSoort(x), einddatum: x.einddatum || '', commissieId: x.commissieId || '' })}
+          <div class="form-rij">
+            <button class="btn opslaan" type="button" data-actie="bewerk-opslaan" data-id="${esc(id)}"${vermogens ? '' : ' disabled'}>Opslaan</button>
+            <button class="btn" type="button" data-actie="bewerk-annuleer" data-id="${esc(id)}">Annuleren</button>
+          </div>
+          ${meldingenHTML(null, `am-fout-${id}`)}
+        </div>`
+    if (vermogens && vermogenVan(x) && !vermogens.some(v => v.id === vermogenVan(x))) {
+      zetVeldFout(ids.vermogen, `${ids.vermogen}-fout`, VERMOGEN_WEG, false)
+    }
+    return rij
+  }
+
+  const dubbelFout = ids => ({ 'dubbele-activiteit': [`${ids.naam}-fout`, ids.naam] })
+  async function controleerDubbel(velden, eigenId = null) {
+    if (activiteitBezet(await laadActiviteiten(db, clubId), velden.naam, velden.begindatum, eigenId)) throw { code: 'dubbele-activiteit' }
+  }
+
+  // Begindatum gekozen: einddatum niet eerder laten kiezen (hulp in de kiezer; de controle zit in leesVelden)
+  const bijBegin = e => {
+    const eindId = e.target.dataset?.eind
+    if (!eindId) return
+    const eind = el(eindId)
+    if (eind) eind.min = e.target.value || ''
+  }
+  const enterIsOpslaan = (e, knop) => {
+    if (e.key === 'Enter' && e.target.matches?.('[data-naamveld]')) { e.preventDefault(); knop()?.click() }
+  }
+
+  // ── Toevoegen ──
+  toevoegKnop.addEventListener('click', () => {
+    if (!vermogens?.length) return
+    const soort = Object.hasOwn(ACTIVITEIT_SOORT_LABEL, actiefFilter) ? actiefFilter : ''
+    form.innerHTML = `${veldenHTML(NIEUW, { naam: '', soort, vermogenIds: [], commissieId: '', begindatum: '', einddatum: '' })}
+              <div class="form-rij">
+                <button class="btn opslaan" type="button" id="activiteit-opslaan">Opslaan</button>
+                <button class="btn" type="button" id="activiteit-annuleer">Annuleren</button>
+              </div>
+              ${meldingenHTML(null, 'activiteit-form-fout')}`
+    form.hidden = false
+    toevoegKnop.hidden = true
+    el(NIEUW.naam).focus()
+  })
+  form.addEventListener('change', bijBegin)
+  form.addEventListener('keydown', e => enterIsOpslaan(e, () => el('activiteit-opslaan')))
+  form.addEventListener('click', async e => {
+    const knop = e.target.closest('button')
+    if (!knop || knop.getAttribute('aria-disabled') === 'true') return
+    if (knop.id === 'activiteit-annuleer') {
+      sluitForm()
+      toevoegKnop.focus()
+      return
+    }
+    if (knop.id !== 'activiteit-opslaan') return
+    const velden = leesVelden(NIEUW)
+    if (!velden) return
+    let nieuwId = ''
+    const uitkomst = await metOpslaan(knop, async () => {
+      await controleerDubbel(velden)
+      nieuwId = (await voegActiviteitToe(db, clubId, velden)).id
+    }, { soort: 'formulier-lijst', fout: el('activiteit-form-fout'), veldFouten: dubbelFout(NIEUW) })
+    if (uitkomst !== 'ok' || !lijstEl.isConnected) return
+    sluitForm()
+    let staart = ''
+    if (actiefFilter !== 'alle' && actiefFilter !== velden.soort) {
+      actiefFilter = 'alle'
+      staart = ' Het filter staat weer op Alle soorten.'
+    }
+    await laadEnRender()
+    ;(potlood(nieuwId) || toevoegKnop).focus()
+    toonOk(sectieOk, `Activiteit ${velden.naam} toegevoegd.${staart}`)
+    meldingInBeeld(sectieOk)
+  })
+
+  // ── Filter ──
+  filterEl.addEventListener('change', () => {
+    actiefFilter = filterEl.value
+    tekenLijst()
+    meldFilter()
+  })
+
+  // ── Rijacties ──
+  lijstEl.addEventListener('change', bijBegin)
+  lijstEl.addEventListener('keydown', e => {
+    const formEl = e.target.closest?.('.activiteit-bewerk')
+    if (formEl) enterIsOpslaan(e, () => formEl.querySelector('[data-actie="bewerk-opslaan"]'))
+  })
+
+  lijstEl.addEventListener('click', async e => {
+    const herlaad = e.target.closest('#activiteit-herlaad')
+    if (herlaad) {
+      if (herlaad.getAttribute('aria-disabled') === 'true') return
+      herlaad.textContent = 'Bezig...'
+      herlaad.setAttribute('aria-disabled', 'true')
+      const gelukt = await laadEnRender()
+      if (gelukt) (!filterKeuze.hidden ? filterEl : toevoegKnop).focus()
+      else el('activiteit-herlaad')?.focus()
+      return
+    }
+    const knop = e.target.closest('[data-actie]')
+    if (!knop) return
+    if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true' || knop.disabled) return
+    const { actie, id } = knop.dataset
+    const x = activiteiten.find(o => o.id === id)
+    if (!x) return
+
+    if (actie === 'verwijder') {
+      if (!bevestigVerwijderen('Activiteit', x.naam)) return
+      const lijst = getoond()
+      const k = lijst.indexOf(x)
+      const uitkomst = await metOpslaan(knop, () => verwijderActiviteit(db, clubId, id), {
+        soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null,
+      })
+      await laadEnRender()
+      if (uitkomst === 'ok') {
+        const buur = potlood(lijst[k + 1]?.id || '') || potlood(lijst[k - 1]?.id || '')
+        ;(buur || terugval())?.focus()
+        toonOk(sectieOk, `Activiteit ${x.naam} verwijderd.`)
+        meldingInBeeld(sectieOk)
+      } else if (uitkomst === 'weg') {
+        terugval()?.focus()
+        meldingInBeeld(sectieFout)
+      } else {
+        focusInLijst(lijstEl, 'verwijder', id, terugval())
+        meldingInBeeld(sectieFout)
+      }
+    } else if (actie === 'bewerk') {
+      if (openBewerk(id)) el(idsVoor(id).naam)?.focus()
+    } else if (actie === 'bewerk-annuleer') {
+      tekenLijst()
+      ;(potlood(id) || terugval())?.focus()
+    } else if (actie === 'bewerk-opslaan') {
+      const ids = idsVoor(id)
+      const velden = leesVelden(ids, x)
+      if (!velden) return
+      const oud = { naam: x.naam, soort: x.soort, begindatum: x.begindatum, einddatum: x.einddatum ?? '', vermogenId: vermogenVan(x), commissieId: x.commissieId ?? '' }
+      const nieuw = { ...velden, vermogenId: velden.vermogenIds[0] }
+      delete nieuw.vermogenIds
+      if (Object.keys(oud).every(k => oud[k] === nieuw[k]) && x.vermogenIds?.length === 1) {
+        tekenLijst()
+        potlood(id)?.focus()
+        return
+      }
+      const lijst = getoond()
+      const k = lijst.indexOf(x)
+      const uitkomst = await metOpslaan(knop, async () => {
+        await controleerDubbel(velden, id)
+        await bewerkActiviteit(db, clubId, id, velden)
+      }, { soort: 'formulier-lijst', fout: el(`am-fout-${id}`), weg: sectieFout, veldFouten: dubbelFout(ids) })
+      if (!lijstEl.isConnected || uitkomst === 'fout') return
+      await laadEnRender()
+      if (uitkomst === 'weg') {
+        terugval()?.focus()
+        meldingInBeeld(sectieFout)
+        return
+      }
+      const nu = getoond()
+      const doel = potlood(id) || potlood((nu[k] || nu[nu.length - 1])?.id || '')
+      ;(doel || terugval())?.focus()
+      toonOk(sectieOk, `Activiteit ${velden.naam} opgeslagen.`)
       meldingInBeeld(sectieOk)
     }
   })
@@ -2847,6 +3302,27 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
       if (uitkomst === 'ok') { if (plaats) zetStatus(volgordeStatus, plaats) }
       else meldingInBeeld(sectieFout)
     } else if (actie === 'verwijder') {
+      // Een commissie met activiteiten kan niet weg (CK-170). Vers tellen; mislukt dat, dan ook niet.
+      if (soort === 'commissies') {
+        let n
+        try {
+          n = await metTijdslimiet(telActiviteitenVanCommissie(db, clubId, id))
+        } catch (e) {
+          console.error('Activiteiten tellen mislukt:', e?.code)
+          if (!lijstEl.isConnected) return
+          sectieOk.textContent = ''
+          sectieFout.textContent = `Commissie ${x.naam} kan nu niet worden verwijderd: de activiteiten konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.`
+          meldingInBeeld(sectieFout)
+          return
+        }
+        if (!lijstEl.isConnected) return
+        if (n > 0) {
+          sectieOk.textContent = ''
+          sectieFout.textContent = `Commissie ${x.naam} hoort nog bij ${activiteitenTekst(n)}. Koppel die eerst aan een andere commissie, of kies daar Geen commissie, in Beheer → Activiteiten.`
+          meldingInBeeld(sectieFout)
+          return
+        }
+      }
       if (!bevestigVerwijderen(cfg.Enkel, x.naam)) return
       const lijst = getoond()
       const k = lijst.indexOf(x)

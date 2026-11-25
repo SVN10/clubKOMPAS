@@ -1052,7 +1052,7 @@ a.btn { text-decoration: none; }
 .filter-keuze[hidden] { display: none; }
 .project-rij      { grid-template-columns: 28px minmax(140px, 1.4fr) 128px minmax(110px, 1fr) 152px; }
 /* Periode staat achter de projectnaam, op dezelfde regel (Paul, 23-11-2026) */
-.cel-project .cel-periode { margin-left: 10px; color: var(--muted); white-space: nowrap; }
+.cel-project .cel-periode, .cel-activiteit .cel-periode { margin-left: 10px; color: var(--muted); white-space: nowrap; }
 .samenwerking-rij { grid-template-columns: 28px minmax(140px, 1.2fr) minmax(140px, 1fr) 152px; }
 @media (max-width: 700px) { .samenwerking-rij { grid-template-columns: 28px minmax(100px, 1.2fr) minmax(100px, 1fr) 200px; } }
 .cel-label { display: none; color: var(--muted); }
@@ -1089,22 +1089,41 @@ a.btn { text-decoration: none; }
 }
 @media (max-width: 480px) { .form-rij-datums { grid-template-columns: 1fr; } }
 
+/* Activiteiten (CK-170) */
+#activiteit-lijst { container-type: inline-size; }
+.activiteit-rij { grid-template-columns: 28px minmax(140px, 1.4fr) auto minmax(110px, 1fr) minmax(110px, 1fr) 152px; } /* terugval zonder subgrid en tijdens bewerken */
+.cel-activiteit { min-width: 0; overflow-wrap: anywhere; }
+.btn-toevoegen:disabled, .btn.opslaan:disabled { opacity: .5; cursor: not-allowed; }
+.btn-toevoegen:disabled:hover, .beheer-balk .btn-toevoegen:disabled:hover { background: transparent; }
+
+@container (max-width: 760px) {
+  .beheer-rij.beheer-kop.activiteit-rij { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* alleen voor de schermlezer (CK-050) */
+  #activiteit-lijst .beheer-rij.activiteit-rij { grid-template-columns: 24px auto 1fr; row-gap: 6px; column-gap: 10px; }
+  .activiteit-rij .cel-activiteit { grid-column: 2 / -1; }
+  .activiteit-rij .cel-soort      { grid-column: 2; grid-row: 2; }
+  .activiteit-rij .cel-vermogen   { grid-column: 3; grid-row: 2; font-size: var(--fs-toelichting); }
+  .activiteit-rij .cel-commissie  { grid-column: 2 / -1; font-size: var(--fs-toelichting); }
+  .activiteit-rij .cel-acties     { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+  .activiteit-rij .cel-label      { display: inline; }
+}
+
 /* CK-046: kolommen in één raster voor de hele tabel (subgrid). Kolommen staan van links
    achter elkaar, zo breed als hun langste waarde, met 30px ertussen. Een lege kolom vult de rest
    (omschrijvingen staan nooit in een tabel); de knoppen staan altijd rechts. Op smalle breedte stapelt elke rij. */
-#structuur-lijst[role="table"], #functie-lijst[role="table"], #onderdeel-lijst > [role="table"] {
+#structuur-lijst[role="table"], #functie-lijst[role="table"], #onderdeel-lijst > [role="table"], #activiteit-lijst > [role="table"] {
   display: grid; column-gap: 30px; row-gap: 0;
 }
 #structuur-lijst[role="table"]                             { grid-template-columns: 28px auto auto auto auto auto minmax(0, 1fr) 152px; }
 #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
 #onderdeel-lijst > [role="table"]:has(> .project-rij)      { grid-template-columns: 28px auto auto auto minmax(0, 1fr) 152px; }
 #onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 152px; }
+#activiteit-lijst > [role="table"]                         { grid-template-columns: 28px auto auto auto auto minmax(0, 1fr) 152px; }
 @media (max-width: 700px) {
   #functie-lijst[role="table"]                               { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
   #onderdeel-lijst > [role="table"]:has(> .samenwerking-rij) { grid-template-columns: 28px auto auto minmax(0, 1fr) 200px; }
 }
-#structuur-lijst[role="table"] > *, #functie-lijst[role="table"] > *, #onderdeel-lijst > [role="table"] > * { grid-column: 1 / -1; }
-#structuur-lijst .beheer-rij, #functie-lijst .beheer-rij, #onderdeel-lijst .beheer-rij { column-gap: 30px; }
+#structuur-lijst[role="table"] > *, #functie-lijst[role="table"] > *, #onderdeel-lijst > [role="table"] > *, #activiteit-lijst > [role="table"] > * { grid-column: 1 / -1; }
+#structuur-lijst .beheer-rij, #functie-lijst .beheer-rij, #onderdeel-lijst .beheer-rij, #activiteit-lijst .beheer-rij { column-gap: 30px; }
 @container (min-width: 661px) {
   #structuur-lijst .beheer-rij.domein-rij:not(.bewerken) { grid-template-columns: subgrid; }
   #structuur-lijst .domein-rij > :last-child { grid-column: -2 / -1; }
@@ -1120,6 +1139,10 @@ a.btn { text-decoration: none; }
 @container (min-width: 501px) {
   #onderdeel-lijst .beheer-rij.samenwerking-rij:not(.bewerken) { grid-template-columns: subgrid; }
   #onderdeel-lijst .samenwerking-rij > :last-child { grid-column: -2 / -1; }
+}
+@container (min-width: 761px) {
+  #activiteit-lijst .beheer-rij.activiteit-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #activiteit-lijst .activiteit-rij > :last-child { grid-column: -2 / -1; }
 }
 
 /* Domeinen: aantal vermogens onder de naam (besluit 16) */

@@ -640,3 +640,23 @@ Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m
 - [x] N-3: snel weg en terug (A→B→A) bindt de oude render zijn listeners op de nieuwe lijst. Leg het lijst-element vast vóór de eerste `await` (`src/main.js:1741`, `:3018`)
 - [x] N-6: de L1-test krijgt een positieve controle: de eigen beheerder mag het wel (`tests/regels.test.mjs`)
 - [x] N-7: `.claude/docs/CK-044-technisch.md:55`, `:72` (`--paneel-top`) en het commentaar in `src/keuzelijst.js:38` bijwerken
+
+---
+
+### 🔨 CK-170 — Beheer → Activiteiten
+**Status:** gebouwd op branch `test`, nog niet getest op tst, nog niet gecommit · route groot (nieuw datamodel en nieuwe regels) · docs: `.claude/docs/CK-170.md` · spec: `.claude/specs/CK-170-activiteiten.md`
+
+- [x] Collectie `activiteiten` met `naam`, `soort`, `begindatum`, `einddatum`, `vermogenIds` (lijst, nu precies 1) en `commissieId`; regels en 152 regeltests groen
+- [x] Beheerpagina met filter op soort, module `src/activiteiten.js`, pictogram `kalender`
+- [x] Verwijderblokkade in Vermogens en Commissies (alleen in de app; restrisico aanvaard)
+- [ ] Paul: regels publiceren met `npm run regels:test`, dan app op tst controleren, daarna `npm run regels:productie`
+- [ ] Browsercontrole: 320-400 px (kolomafstand in het smalle raster), toetsenbord, zoom 200%
+
+**Vervolgpunten:**
+- Meerdere vermogens per activiteit (Paul twijfelt; het model is er klaar voor, de regels en de keuzelijst moeten dan verruimd worden)
+- Activiteiten toevoegen vanaf andere schermen (de module is daarvoor bedoeld)
+- CK-171: activiteiten per vermogen bekijken (`laadActiviteitenVanVermogen` bestaat al)
+- Een omschrijving bij een activiteit, pas na een AVG-besluit en compliance-controle
+- `geldigeDatum` laat datums toe die niet bestaan (zoals 2027-02-31) en jaar 0000; aanscherpen in de regels en `onderdelen.js`
+- `aria-required` in de hele app (WCAG 3.3.2)
+- Kleine punten uit de controle: groene melding wissen bij een geblokkeerde verwijdering, `aria-describedby` op de uitgeschakelde toevoegknop, unittests voor `activiteitBezet`, `sorteerActiviteiten` en `geldigeActiviteit`, extra regeltests uit het beveiligingsrapport (bevinding 3)
