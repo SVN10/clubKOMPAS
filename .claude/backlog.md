@@ -663,12 +663,29 @@ Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m
 
 ---
 
-### CK-172 — Uitvoeringen van een activiteit
-**Status:** live in v0.15.0 (25-11-2026) (25 november 2026) · route groot (nieuw datamodel, nieuwe regels, omzetscript) · docs: `.claude/docs/CK-172.md` · spec: `.claude/specs/CK-172-uitvoeringen.md`
+### ✅ CK-172 — Uitvoeringen van een activiteit
+**Status:** ✅ live in v0.15.0 (25 november 2026), regels in test en productie, test omgezet · route groot (nieuw datamodel, nieuwe regels, omzetscript) · docs: `.claude/docs/CK-172.md` · spec: `.claude/specs/CK-172-uitvoeringen.md`
 
 - [x] Een activiteit heeft geen datums meer; die staan per keer in `clubs/{clubId}/uitvoeringen` (`activiteitId`, `begindatum`, `einddatum`). Uitklappaneel in Beheer → Activiteiten, nieuwe volgorde van de lijst, mee verwijderen; regels en 177 regeltests groen
 - [x] Omzetscript `npm run uitvoeringen:omzetten` (alleen `--droog` in productie)
-- [ ] Paul: `npm run regels:test`, dan het omzetscript met `--droog` en zonder op test, de app op tst controleren, daarna `npm run regels:productie`
+- [x] Paul: `npm run regels:test`, omzetscript op test (droog, echt, droog: "Niets te doen"), `npm run regels:productie`
 - [ ] Browsercontrole: 320 px, toetsenbord, zoom 200%
 
 **Voor CK-160 (seizoensplanner):** uitvoeringen opvragen uit `clubs/{clubId}/uitvoeringen` op `begindatum`, en wezen (een uitvoering zonder activiteit) overslaan.
+
+**Doorlopende activiteiten (Paul, 25-11-2026):** iets wat het hele seizoen loopt, krijgt één uitvoering per seizoen, van de start tot het eind van het seizoen. Er komt geen apart soort, en een lege einddatum blijft "één dag" betekenen. Later komt er eventueel een knop "Hele seizoen", die de datums uit het seizoen invult (bij CK-161). Kijk eerst of zoiets niet eigenlijk een vermogen is, zoals trainingen of de competitie.
+
+---
+
+### Begrippen: activiteit, werkproces, termijn (Paul, 25-11-2026)
+Dit is een afspraak voor het model, geen bouwwerk:
+- **Activiteit** (M2): iets wat de club organiseert op een datum of in een periode, zoals de ALV, een open dag, een toernooi of een clinicreeks. Een activiteit heeft uitvoeringen en staat in de seizoensplanner.
+- **Werkproces** (P2 Workflows, CK-053–055; F0, CK-150–152): een vaste reeks stappen die begint bij een gebeurtenis, zoals een lid inschrijven of uitschrijven, of een vrijwilliger aanmelden. Een werkproces heeft geen datum en staat dus niet in de planner. Het hoort bij een vermogen, zoals Ledenadministratie.
+- **Termijn**: een vaste datum die bij een werkproces hoort, zoals de uiterste opzegdatum of het moment dat de contributie wordt geïnd. Een termijn is een activiteit van de soort "Termijn", met één uitvoering. Zo staat hij in de planner. Bij P2 koppel je later een termijn aan het werkproces, bijvoorbeeld "Uiterste opzegdatum" aan "Lid uitschrijven".
+
+### CK-173 — Soort "Termijn" voor activiteiten
+**Status:** nog in te plannen · route klein tot middel (de vaste lijst in de regels en in de app verandert, maar er komt geen nieuw datamodel)
+
+- [ ] De soort `termijn` ("Termijn", voor deadlines en vaste momenten) komt in `ACTIVITEIT_SOORTEN` (`src/activiteiten.js`) en in de vaste lijst van `geldigeActiviteit` (`firestore.rules`). Er komen regeltests bij.
+- [ ] De regels gaan eerst naar test en daarna naar productie, vóór de app.
+- [ ] Later, bij P2: een termijn koppelen aan een werkproces.
