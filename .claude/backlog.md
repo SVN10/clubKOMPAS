@@ -664,7 +664,7 @@ Later, bij het opsplitsen van `main.js`: de bundel (712 kB), HS-2/3/5/6, A-3 t/m
 ---
 
 ### CK-172 — Uitvoeringen van een activiteit
-**Status:** gebouwd, te testen op tst (25 november 2026) · route groot (nieuw datamodel, nieuwe regels, omzetscript) · docs: `.claude/docs/CK-172.md` · spec: `.claude/specs/CK-172-uitvoeringen.md`
+**Status:** live in v0.15.0 (25-11-2026) (25 november 2026) · route groot (nieuw datamodel, nieuwe regels, omzetscript) · docs: `.claude/docs/CK-172.md` · spec: `.claude/specs/CK-172-uitvoeringen.md`
 
 - [x] Een activiteit heeft geen datums meer; die staan per keer in `clubs/{clubId}/uitvoeringen` (`activiteitId`, `begindatum`, `einddatum`). Uitklappaneel in Beheer → Activiteiten, nieuwe volgorde van de lijst, mee verwijderen; regels en 177 regeltests groen
 - [x] Omzetscript `npm run uitvoeringen:omzetten` (alleen `--droog` in productie)

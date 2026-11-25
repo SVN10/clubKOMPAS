@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.0] – 2026-11-25
+
+### Toegevoegd (CK-172: uitvoeringen van een activiteit)
+- Een activiteit kan nu meerdere uitvoeringen hebben, zoals de ALV een paar keer per jaar. Een uitvoering heeft een begindatum en eventueel een einddatum. Het vermogen en de commissie blijven bij de activiteit.
+- Beheer → Activiteiten toont per activiteit het aantal uitvoeringen en de eerstvolgende datum (of "laatst: …"). Klap je een activiteit uit, dan zie je haar uitvoeringen. Je kunt ze toevoegen, bewerken en verwijderen, en met een knop kies je "Nieuwste eerst" of "Oudste eerst".
+- Een nieuwe activiteit krijgt meteen haar eerste uitvoering. De lijst staat op volgorde: eerst bezig of komend, dan voorbij, dan zonder uitvoering.
+- Een activiteit verwijder je samen met haar uitvoeringen, na één bevestiging met het aantal. Een naam van een activiteit is uniek in de club.
+- Omzetscript `npm run uitvoeringen:omzetten` (`--droog`). In productie draait het alleen droog. Test is omgezet (2 activiteiten).
+
+### Beveiliging
+- Regels voor `clubs/{clubId}/uitvoeringen`: alleen een beheerder schrijft, elk lid leest, de velden liggen precies vast, de activiteit moet bestaan en `activiteitId` kan niet veranderen. Een activiteit heeft geen datumvelden meer. 177 regeltests. Gepubliceerd in test en productie op 25 november 2026.
+
 ## [0.14.0] – 2026-11-25
 
 ### Toegevoegd (CK-170: Beheer → Activiteiten)
