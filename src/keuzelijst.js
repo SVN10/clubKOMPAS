@@ -42,14 +42,15 @@ function volgAttributen(veld, doel, aria = true) {
   const zet = () => {
     doel.disabled = veld.disabled
     if (!aria) return
-    for (const a of ['aria-describedby', 'aria-invalid']) {
+    for (const a of ['aria-describedby', 'aria-invalid', 'aria-required']) {
+      if (a === 'aria-required' && doel.tagName !== 'INPUT') continue   // niet op een knop: daar hoort het niet
       if (veld.hasAttribute(a)) doel.setAttribute(a, veld.getAttribute(a))
       else doel.removeAttribute(a)
     }
     doel.classList.toggle('fout', veld.classList.contains('fout'))
   }
   zet()
-  new MutationObserver(zet).observe(veld, { attributes: true, attributeFilter: ['aria-describedby', 'aria-invalid', 'disabled', 'class'] })
+  new MutationObserver(zet).observe(veld, { attributes: true, attributeFilter: ['aria-describedby', 'aria-invalid', 'aria-required', 'disabled', 'class'] })
 }
 
 // ── Keuzelijst ──────────────────────────────────────────────────────────────────
@@ -89,7 +90,8 @@ function verbeterSelect(select) {
   select.focus = () => knop.focus()
 
   const tekstEl = knop.querySelector('.eigen-tekst')
-  const toonWaarde = () => { tekstEl.textContent = select.selectedOptions[0]?.textContent || '' }
+  // Lege waarde ("Kies een …", "Geen …") grijs, net als de hint in een leeg tekstveld (26-11-2026)
+  const toonWaarde = () => { tekstEl.textContent = select.selectedOptions[0]?.textContent || ''; knop.classList.toggle('leeg', !select.value) }
   // Code zet soms select.value of de opties zelf; dan het knoplabel bijwerken
   Object.defineProperty(select, 'value', {
     configurable: true,
@@ -430,14 +432,27 @@ function verbeterDatum(veld) {
   })
 }
 
+// Verplicht of vrij (26-11-2026): een veld waarvan het label niet "(optioneel)" bevat is verplicht en krijgt
+// aria-required, zodat een schermlezer "verplicht" zegt. Zichtbaar staat alleen "(optioneel)" bij de vrije velden.
+function markeerVerplicht(root) {
+  root.querySelectorAll?.('label.form-label[for], label.uv-label[for]').forEach(label => {
+    const veld = document.getElementById(label.htmlFor)
+    if (!veld?.matches('input:not([type="radio"], [type="checkbox"]), select, textarea')) return
+    if (label.textContent.includes('(optioneel)')) veld.removeAttribute('aria-required')
+    else veld.setAttribute('aria-required', 'true')
+  })
+}
+
 export function startEigenVelden() {
   const verbeter = root => {
+    markeerVerplicht(root)
     root.querySelectorAll?.('select.form-input:not([data-eigen])').forEach(verbeterSelect)
     root.querySelectorAll?.('input.form-input[type="date"]:not([data-eigen])').forEach(verbeterDatum)
   }
   verbeter(document)
   new MutationObserver(lijst => {
     for (const m of lijst) for (const n of m.addedNodes) if (n.nodeType === 1) {
+      markeerVerplicht(n)
       if (n.matches('select.form-input:not([data-eigen])')) verbeterSelect(n)
       else if (n.matches('input.form-input[type="date"]:not([data-eigen])')) verbeterDatum(n)
       else verbeter(n)

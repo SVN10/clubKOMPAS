@@ -5,6 +5,22 @@
 
 let teller = 0
 
+// Focus zetten zonder zichtbare focusring (26-11-2026, Paul): na het sluiten van het venster of na opslaan
+// staat de focus weer op de knop, maar zonder oranje rand. Zodra je een toets indrukt of de knop verlaat,
+// werkt de gewone focusring weer, zodat je met het toetsenbord blijft zien waar je bent.
+export function stilFocus(el) {
+  if (!el?.focus) return
+  el.classList.add('focus-stil')
+  el.focus()
+  const weg = () => {
+    el.classList.remove('focus-stil')
+    el.removeEventListener('blur', weg)
+    document.removeEventListener('keydown', weg, true)
+  }
+  el.addEventListener('blur', weg)
+  document.addEventListener('keydown', weg, true)
+}
+
 export function beheerVenster(houder) {
   const id = `beheer-venster-${++teller}`
   const dialoog = document.createElement('dialog')
@@ -18,8 +34,8 @@ export function beheerVenster(houder) {
       </div>
       <div class="venster-lijf"></div>
       <div class="form-rij venster-knoppen">
-        <button class="btn opslaan" type="button" data-venster="opslaan">Opslaan</button>
         <button class="btn" type="button" data-venster="sluit">Annuleren</button>
+        <button class="btn opslaan" type="button" data-venster="opslaan">Opslaan</button>
       </div>
     </div>`
   houder.append(dialoog)
@@ -59,7 +75,7 @@ export function beheerVenster(houder) {
     if (dialoog.open) dialoog.close()
     lijf.innerHTML = ''
     opSluiten?.()
-    if (terug) terugNaar?.()?.focus()
+    if (terug) stilFocus(terugNaar?.())
   }
 
   dialoog.addEventListener('click', async e => {

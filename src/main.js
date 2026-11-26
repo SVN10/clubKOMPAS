@@ -1,6 +1,6 @@
 import './style.css'
 import { startEigenVelden, werkDatumLabelBij } from './keuzelijst.js'
-import { beheerVenster } from './venster.js'
+import { beheerVenster, stilFocus } from './venster.js'
 import { auth, db, projectId, configFout, SOORT, OMGEVING_LABEL, VERCEL_ENV } from './firebase.js'
 import { version } from '../package.json'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
@@ -230,7 +230,7 @@ function domeinOptiesHTML(domeinen, gekozen, { alle = false } = {}) {
     return `<optgroup label="${label}">${opties}</optgroup>`
   }
   const eerste = alle
-    ? `<option value="alle"${gekozen === 'alle' ? ' selected' : ''}>Alle domeinen</option>`
+    ? `<option value="alle"${gekozen === 'alle' ? ' selected' : ''}>Alle vermogens</option>`
     : `<option value=""${gekozen ? '' : ' selected'}>Kies een domein</option>`
   return eerste + groep('pijler', 'Pijlers') + groep('domein', 'Ondersteunende domeinen')
 }
@@ -251,10 +251,10 @@ const vermogensTekst = n => (n === 1 ? '1 vermogen' : `${n} vermogens`)
 const activiteitenTekst = n => (n === 1 ? '1 activiteit' : `${n} activiteiten`)
 const uitvoeringenTekst = n => (n === 1 ? '1 uitvoering' : `${n} uitvoeringen`)
 
-function bestuursfunctieKeuzeHTML(id, huidig, functies) {
+function bestuursfunctieKeuzeHTML(id, huidig, functies, leeg = 'Kies een bestuursfunctie') {
   const opties = functies.map(f =>
     `<option value="${esc(f.id)}"${f.id === huidig ? ' selected' : ''}>${esc(f.naam)}</option>`).join('')
-  return `<select class="form-input" id="${esc(id)}"><option value="">Kies een bestuursfunctie</option>${opties}</select>`
+  return `<select class="form-input" id="${esc(id)}"><option value="">${esc(leeg)}</option>${opties}</select>`
 }
 
 // ── Profiel ───────────────────────────────────────────────────────────────────
@@ -624,7 +624,7 @@ function focusInLijst(lijstEl, actie, id, terugval) {
   const zoek = a => lijstEl?.querySelector(`[data-actie="${a}"][data-id="${CSS.escape(id)}"]`)
   const knop = zoek(actie)
   const doel = knop && !knop.disabled && !knop.classList.contains('onzichtbaar') ? knop : (zoek('bewerk') || terugval)
-  doel?.focus()
+  stilFocus(doel)
 }
 
 // Sectiemelding staat boven de lijst: na een rijactie verder op de pagina in beeld scrollen (ná het focussen)
@@ -639,6 +639,12 @@ const ACTIEKNOP = { bewerk: ['Bewerken', 'potlood', ''], verwijder: ['Verwijdere
 function actieKnopHTML(actie, id, soort, naam, extra = '') {
   const [label, ico, klasse] = ACTIEKNOP[soort]
   return `<button class="btn-kaart-actie btn-icoon${klasse}" type="button" data-actie="${esc(actie)}" data-id="${esc(id)}" aria-label="${label}: ${esc(naam)}"${extra}>${menuIcoon(ico)}<span class="tip" aria-hidden="true">${label}</span></button>`
+}
+
+// Toevoegregel onder een beheertabel: een pictogramknop met een plus, net als de prullenbak (26-11-2026).
+// De regel staat buiten de lijst, zodat de knop (en zijn listeners) blijft bestaan als de lijst opnieuw wordt getekend.
+function toevoegRegelHTML(id, label, extra = '') {
+  return `<div class="toevoeg-regel"><button class="btn-kaart-actie btn-icoon btn-plus" type="button"${id ? ` id="${esc(id)}"` : ''} aria-label="${esc(label)}"${extra}>${menuIcoon('plus')}<span class="tip" aria-hidden="true">Toevoegen</span></button></div>`
 }
 
 // Statusregel voor de schermlezer: eerst leeg, na 100 ms gevuld
@@ -676,7 +682,7 @@ function bindHerlaad(container, knopId, opnieuw, focusNaGelukt) {
     knop.textContent = 'Bezig...'
     knop.setAttribute('aria-disabled', 'true')
     const gelukt = await opnieuw()
-    if (gelukt) focusNaGelukt?.()?.focus()
+    if (gelukt) stilFocus(focusNaGelukt?.())
     else document.getElementById(knopId)?.focus()
   })
 }
@@ -799,12 +805,12 @@ function renderInlogscherm() {
         <h1 class="inlog-titel">Inloggen</h1>
         <div class="form-groep">
           <label class="form-label" for="inlog-email">E-mailadres</label>
-          <input class="form-input" id="inlog-email" type="email" placeholder="naam@voorbeeld.nl" autocomplete="email" aria-describedby="inlog-email-fout inlog-algemeen-fout">
+          <input class="form-input" id="inlog-email" type="email" placeholder="Bijv. naam@voorbeeld.nl" autocomplete="email" aria-describedby="inlog-email-fout inlog-algemeen-fout">
           <span class="form-fout" id="inlog-email-fout"></span>
         </div>
         <div class="form-groep">
           <label class="form-label" for="inlog-wachtwoord">Wachtwoord</label>
-          <input class="form-input" id="inlog-wachtwoord" type="password" placeholder="••••••••" autocomplete="current-password" aria-describedby="inlog-wachtwoord-fout inlog-algemeen-fout">
+          <input class="form-input" id="inlog-wachtwoord" type="password" autocomplete="current-password" aria-describedby="inlog-wachtwoord-fout inlog-algemeen-fout">
           <span class="form-fout" id="inlog-wachtwoord-fout"></span>
         </div>
         <div class="form-fout" id="inlog-algemeen-fout" role="alert"></div>
@@ -1379,6 +1385,7 @@ const MENU_ICOON = {
   klembord: '<rect x="10" y="10" width="28" height="32" rx="3"/><rect x="18" y="6" width="12" height="8" rx="2"/><path d="M17 22 H31"/><path d="M17 29 H31"/><path d="M17 36 H25"/>',
   kalender: '<rect x="7" y="10" width="34" height="30" rx="3"/><path d="M7 20 H41"/><path d="M16 6 V14"/><path d="M32 6 V14"/>',
   schakels: '<g transform="rotate(-45 24 24)"><rect x="4" y="18" width="24" height="12" rx="6"/><rect x="20" y="18" width="24" height="12" rx="6"/></g>',
+  plus: '<path d="M24 11 V37"/><path d="M11 24 H37"/>',
   prullenbak: '<path d="M8 13 H40"/><path d="M19 13 V8 H29 V13"/><path d="M12 13 L14.5 40 H33.5 L36 13"/><path d="M20 20 V33"/><path d="M28 20 V33"/>',
 }
 function menuIcoon(naam) {
@@ -1639,19 +1646,19 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
               <div class="filter-keuze">
                 <label class="sr-only" for="structuur-filter">Toon</label>
                 <select class="form-input" id="structuur-filter">
-                  <option value="alles">Alle soorten</option>
+                  <option value="alles">Alle domeinen</option>
                   <option value="pijler">Pijlers</option>
                   <option value="domein">Ondersteunende domeinen</option>
                   <option value="overkoepelend">Overkoepelende domeinen</option>
                 </select>
               </div>
-              <button class="btn-toevoegen" type="button" id="structuur-toevoegen-knop">+ Domein toevoegen</button>
             </div>
             ${meldingenHTML('structuur-ok', 'structuur-fout')}
             <div class="sr-only" id="structuur-volgorde" role="status"></div>
             <div class="sr-only" id="structuur-filter-status" role="status"></div>
-            <p class="lijst-voetnoot" id="structuur-volgorde-hint" hidden>De volgorde wijzig je bij Alle soorten.</p>
+            <p class="lijst-voetnoot" id="structuur-volgorde-hint" hidden>De volgorde wijzig je bij Alle domeinen.</p>
             <div id="structuur-lijst"></div>
+            ${toevoegRegelHTML('structuur-toevoegen-knop', 'Domein toevoegen')}
           </div>
         </div>
 ` })
@@ -1715,7 +1722,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
     lijst.setAttribute('role', 'table')
     lijst.setAttribute('aria-label', 'Domeinen')
     lijst.innerHTML = kop + gefilterd.map((item, i) => {
-      // Nummer = plaats in de hele lijst, ook met een filter; pijlknoppen alleen bij "Alle soorten" (Paul, 23-11-2026)
+      // Nummer = plaats in de hele lijst, ook met een filter; pijlknoppen alleen bij "Alle domeinen" (heette eerst "Alle soorten") (Paul, 23-11-2026)
       const plaats = huidigeItems.indexOf(item) + 1
       const pijlen = kanVerplaatsen ? `
             <button class="btn-kaart-actie btn-volgorde" type="button" data-actie="omhoog" data-id="${esc(item.id)}" aria-label="Omhoog: ${esc(item.naam)}"${i === 0 ? ' disabled' : ''}>${menuIcoon('pijl-omhoog')}</button>
@@ -1763,7 +1770,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
     actiefFilter = filterEl.value
     await laadEnRender().catch(e => console.error(e))
     const n = actiefFilter === 'alles' ? huidigeItems.length : huidigeItems.filter(i => i.type === actiefFilter).length
-    zetStatus(filterStatus, FILTER_TEKST[actiefFilter](n) + (actiefFilter === 'alles' ? '' : ' Volgorde wijzigen kan bij Alle soorten.'))
+    zetStatus(filterStatus, FILTER_TEKST[actiefFilter](n) + (actiefFilter === 'alles' ? '' : ' Volgorde wijzigen kan bij Alle domeinen.'))
   })
 
   function nieuwFormHTML() {
@@ -1776,17 +1783,17 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
               </div>
               <div class="form-groep">
                 <label class="form-label" for="structuur-naam">Naam</label>
-                <input class="form-input" id="structuur-naam" name="naam" type="text" placeholder="Naam" autocomplete="off" maxlength="200">
+                <input class="form-input" id="structuur-naam" name="naam" type="text" placeholder="Bijv. Leden" autocomplete="off" maxlength="200">
                 <span class="form-fout" id="structuur-naam-fout"></span>
               </div>
               <div class="form-groep">
-                <label class="form-label" for="structuur-hashtag">#Hashtag</label>
-                <input class="form-input" id="structuur-hashtag" type="text" placeholder="Optioneel, bijv. #HCASpeelt" autocomplete="off">
+                <label class="form-label" for="structuur-hashtag">#Hashtag (optioneel)</label>
+                <input class="form-input" id="structuur-hashtag" type="text" placeholder="Bijv. #HCASpeelt" autocomplete="off">
                 <span class="form-fout" id="structuur-hashtag-fout"></span>
               </div>
               <div class="form-groep">
                 <label class="form-label" for="structuur-omschr">Omschrijving</label>
-                <textarea class="form-input" id="structuur-omschr" name="omschrijving" rows="3" maxlength="500" placeholder="Korte omschrijving"></textarea>
+                <textarea class="form-input" id="structuur-omschr" name="omschrijving" rows="3" maxlength="500"></textarea>
                 <span class="form-fout" id="structuur-omschr-fout"></span>
               </div>
               <div class="form-groep" id="structuur-verantw-groep">
@@ -1795,7 +1802,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
                 <span class="form-fout" id="structuur-verantw-fout"></span>
               </div>
               <div class="form-groep">
-                <label class="form-label" for="structuur-icoon">Pictogram</label>
+                <label class="form-label" for="structuur-icoon">Pictogram (optioneel)</label>
                 ${pictogramKeuzeHTML('structuur-icoon', '')}
               </div>
               ${meldingenHTML(null, 'structuur-form-fout')}`
@@ -1812,12 +1819,12 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
           </div>
           <div class="form-groep">
             <label class="form-label" for="bn-${esc(id)}">Naam</label>
-            <input class="form-input" id="bn-${esc(id)}" type="text" value="${esc(item.naam)}" autocomplete="off" maxlength="200">
+            <input class="form-input" id="bn-${esc(id)}" type="text" value="${esc(item.naam)}" placeholder="Bijv. Leden" autocomplete="off" maxlength="200">
             <span class="form-fout" id="bn-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
-            <label class="form-label" for="bh-${esc(id)}">#Hashtag</label>
-            <input class="form-input" id="bh-${esc(id)}" type="text" value="${esc(item.hashtag || '')}" placeholder="Optioneel, bijv. #HCASpeelt" autocomplete="off">
+            <label class="form-label" for="bh-${esc(id)}">#Hashtag (optioneel)</label>
+            <input class="form-input" id="bh-${esc(id)}" type="text" value="${esc(item.hashtag || '')}" placeholder="Bijv. #HCASpeelt" autocomplete="off">
             <span class="form-fout" id="bh-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
@@ -1831,7 +1838,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
             <span class="form-fout" id="bv-fout-${esc(id)}"></span>
           </div>
           <div class="form-groep">
-            <label class="form-label" for="bi-${esc(id)}">Pictogram</label>
+            <label class="form-label" for="bi-${esc(id)}">Pictogram (optioneel)</label>
             ${pictogramKeuzeHTML(`bi-${id}`, item.icoon || '')}
           </div>
           ${meldingenHTML(null, `bm-fout-${id}`)}`
@@ -1904,7 +1911,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
     if (uitkomst !== 'ok' || !lijstEl.isConnected) return
     venster.sluit()
     await laadEnRender().catch(e => console.error(e))
-    terugval()?.focus()
+    stilFocus(terugval())
     toonOk(sectieOk, `Domein ${item.naam} toegevoegd.`)
   }
 
@@ -1954,7 +1961,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
     }
     venster.sluit()
     await laadEnRender().catch(e => console.error(e))
-    if (uitkomst === 'weg') { terugval()?.focus(); zetNaVenster(sectieFout, wegMelding); return }
+    if (uitkomst === 'weg') { stilFocus(terugval()); zetNaVenster(sectieFout, wegMelding); return }
     focusInLijst(lijstEl, 'bewerk', id, terugval())
     toonOk(sectieOk, `Domein ${naam} opgeslagen.`)
     meldingInBeeld(sectieOk)
@@ -2008,10 +2015,10 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
       }, { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null })
       await laadEnRender().catch(e => console.error(e))
       if (uitkomst === 'ok') {
-        terugval()?.focus()
+        stilFocus(terugval())
         toonOk(sectieOk, `Domein ${domein.naam} verwijderd.`)
       } else if (uitkomst === 'weg') {
-        terugval()?.focus()
+        stilFocus(terugval())
       } else {
         const nieuweKnop = lijstEl.querySelector(`[data-actie="verwijder"][data-id="${CSS.escape(id)}"]`)
         if (blokkade > 0 && nieuweKnop) toonVerwijderBlokkade(nieuweKnop, domein, blokkade)
@@ -2032,6 +2039,11 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
 
 // ── Beheer → Vermogens (CK-020) ───────────────────────────────────────────────
 
+// Hints in invoervelden (26-11-2026): een tekstveld krijgt "Bijv. <voorbeeld>" (ook bij bewerken), een keuzelijst
+// "Kies een …" (verplicht) of "Geen …" (mag leeg). Optioneel staat in het label: "(optioneel)". Geen hint in een
+// omschrijving of wachtwoord; een eis (minimaal 8 tekens) staat in het label. Leeg = grijs, ingevuld = donker.
+// Verplicht of vrij (26-11-2026): alleen vrije velden krijgen "(optioneel)" in het label. Elk ander veld met een
+// label krijgt vanzelf aria-required (markeerVerplicht in keuzelijst.js), zodat een schermlezer "verplicht" zegt.
 const NAAM_VELD_ATTR = 'autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false"'
 
 // Veldtekst bij een fout uit de vermogenstransacties; '' = de algemene CK-023-tekst
@@ -2076,7 +2088,6 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
                 <label class="sr-only" for="vermogen-filter">Toon</label>
                 <select class="form-input" id="vermogen-filter"></select>
               </div>
-              <button class="btn-toevoegen" type="button" id="vermogen-toevoegen-knop">+ Vermogen toevoegen</button>
             </div>
             ${meldingenHTML('vermogen-ok', 'vermogen-fout')}
             <div class="sr-only" id="vermogen-volgorde" role="status"></div>
@@ -2099,7 +2110,8 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   const sectieFout = el('vermogen-fout')
   const volgordeStatus = el('vermogen-volgorde')
   const filterStatus = el('vermogen-filter-status')
-  const toevoegKnop = el('vermogen-toevoegen-knop')
+  // Toevoegen gaat per domein: elke domeintabel heeft een eigen plusregel (26-11-2026)
+  const plusVan = domeinId => lijstEl.querySelector(`.btn-plus[data-domein="${CSS.escape(domeinId || '')}"]`)
 
   let domeinen = []
   let vermogens = []
@@ -2110,7 +2122,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   const vanDomein = id => sorteerDomeinen(vermogens.filter(v => v.domeinId === id))
   const zonderDomein = () => sorteerDomeinen(vermogens.filter(v => !geldigDomein(v.domeinId)))
   const groepVan = v => (geldigDomein(v.domeinId) ? vanDomein(v.domeinId) : zonderDomein())
-  const terugval = () => toevoegKnop
+  const terugval = () => lijstEl.querySelector('.btn-plus') || filterEl
   const potlood = id => lijstEl.querySelector(`[data-actie="bewerk"][data-id="${CSS.escape(id)}"]`)
 
   const domeinOpties = gekozen => domeinOptiesHTML(geldigeDomeinen(), geldigDomein(gekozen) ? gekozen : '')
@@ -2147,6 +2159,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
             <span class="groep-naam">${esc(d.naam)}</span>
           </h3>
           ${lijst.length ? tabelHTML(lijst, `Vermogens bij ${d.naam}`) : '<p class="groep-leeg">Nog geen vermogens.</p>'}
+          ${toevoegRegelHTML('', `Vermogen toevoegen aan ${d.naam}`, ` data-actie="toevoegen" data-domein="${esc(d.id)}"`)}
         </section>`
   }
 
@@ -2179,23 +2192,20 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     const wezen = zonderDomein()
     if (!geldig.length) {
       balk.hidden = true
-      balk.append(toevoegKnop)
       lijstEl.innerHTML = `<p class="sectie-uitleg">Er zijn nog geen pijlers of ondersteunende domeinen. Een vermogen hoort altijd bij zo'n domein. <a href="#" class="tussen-link" data-nav="domeinen">Ga naar Domeinen</a> om er een toe te voegen.</p>${wezen.length ? zonderDomeinHTML(wezen) : ''}`
       return
     }
     if (!vermogens.length) {
+      // Nog geen vermogens: de uitleg en per domein een lege groep met een plusregel
       balk.hidden = true
+      actiefFilter = 'alle'
       lijstEl.innerHTML = `
-        <div class="leeg-blok">
-          <h3>Nog geen vermogens</h3>
-          <p>Een vermogen is iets wat de club moet kunnen om een domein te laten werken, bijvoorbeeld <em>Ledenwerving</em> bij Leden of <em>Kascontrole</em> bij Financiën. Voeg het eerste vermogen toe.</p>
-        </div>`
-      lijstEl.querySelector('.leeg-blok').append(toevoegKnop)
+        <p class="sectie-uitleg">Een vermogen is iets wat de club moet kunnen om een domein te laten werken, bijvoorbeeld <em>Ledenwerving</em> bij Leden of <em>Kascontrole</em> bij Financiën. Voeg met de plus het eerste vermogen toe bij een domein.</p>
+        ${geldig.map(groepHTML).join('')}${wezen.length ? zonderDomeinHTML(wezen) : ''}${voetnootHTML()}`
       return
     }
     filterEl.innerHTML = domeinOptiesHTML(geldig, actiefFilter, { alle: true })
     balk.hidden = false
-    balk.append(toevoegKnop)
     if (actiefFilter === 'alle') {
       lijstEl.innerHTML = geldig.map(groepHTML).join('') + (wezen.length ? zonderDomeinHTML(wezen) : '') + voetnootHTML()
     } else {
@@ -2206,7 +2216,6 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   function toonLaadfout(e) {
     if (!lijstEl.isConnected) return
     balk.hidden = true
-    balk.append(toevoegKnop)
     venster.sluit()
     lijstEl.innerHTML = laadfoutHTML('De vermogens konden niet worden geladen.', 'vermogen-herlaad', e, 'vermogens')
   }
@@ -2249,7 +2258,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
       inhoud: `
           <div class="form-groep">
             <label class="form-label" for="vn-${esc(id)}">Naam</label>
-            <input class="form-input" id="vn-${esc(id)}" type="text" value="${esc(naam)}" ${NAAM_VELD_ATTR} aria-describedby="vn-${esc(id)}-fout">
+            <input class="form-input" id="vn-${esc(id)}" type="text" value="${esc(naam)}" placeholder="Bijv. Ledenwerving" ${NAAM_VELD_ATTR} aria-describedby="vn-${esc(id)}-fout">
             <span class="form-fout" id="vn-${esc(id)}-fout"></span>
           </div>
           <div class="form-groep">
@@ -2262,9 +2271,9 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
   }
 
   // ── Toevoegen ──
-  toevoegKnop.addEventListener('click', () => {
+  function openToevoegen(domeinId, knop) {
     venster.open({
-      titel: 'Vermogen toevoegen', opslaan: bewaarNieuw, terug: () => toevoegKnop,
+      titel: 'Vermogen toevoegen', opslaan: bewaarNieuw, terug: () => (knop.isConnected ? knop : plusVan(domeinId)) || terugval(),
       inhoud: `
               <div class="form-groep">
                 <label class="form-label" for="vermogen-naam">Naam</label>
@@ -2273,13 +2282,13 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
               </div>
               <div class="form-groep">
                 <label class="form-label" for="vermogen-domein">Domein</label>
-                <select class="form-input" id="vermogen-domein" aria-describedby="vermogen-domein-fout">${domeinOpties(actiefFilter === 'alle' ? '' : actiefFilter)}</select>
+                <select class="form-input" id="vermogen-domein" aria-describedby="vermogen-domein-fout">${domeinOpties(domeinId || (actiefFilter === 'alle' ? '' : actiefFilter))}</select>
                 <span class="form-fout" id="vermogen-domein-fout"></span>
               </div>
               ${meldingenHTML(null, 'vermogen-form-fout')}`,
     })
     el('vermogen-naam').focus()
-  })
+  }
   async function bewaarNieuw(knop) {
     const naam = normaliseerVermogensnaam(el('vermogen-naam').value)
     const domeinId = el('vermogen-domein').value
@@ -2309,7 +2318,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     venster.sluit()
     if (actiefFilter !== 'alle' && actiefFilter !== domeinId) actiefFilter = domeinId
     await laadEnRender()
-    toevoegKnop.focus()
+    stilFocus(plusVan(domeinId) || terugval())
     toonOk(sectieOk, `Vermogen ${naam} toegevoegd aan ${domeinNaam}.`)
   }
 
@@ -2327,7 +2336,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     knop.textContent = 'Bezig...'
     knop.setAttribute('aria-disabled', 'true')
     const gelukt = await laadEnRender()
-    if (gelukt) (balk.hidden ? toevoegKnop : filterEl).focus()
+    if (gelukt) (balk.hidden ? terugval() : filterEl)?.focus()
     else el('vermogen-herlaad')?.focus()
   })
 
@@ -2336,6 +2345,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     const knop = e.target.closest('[data-actie]')
     if (!knop) return
     if (lijstEl.getAttribute('aria-busy') === 'true' || knop.getAttribute('aria-disabled') === 'true') return
+    if (knop.dataset.actie === 'toevoegen') { openToevoegen(knop.dataset.domein, knop); return }
     const { actie, id } = knop.dataset
     const v = vermogens.find(x => x.id === id)
 
@@ -2356,7 +2366,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
         plaats = `Vermogen ${vers[j].naam} staat nu op plaats ${j + 1} van ${vers.length} in ${domeinNaam}.`
       }, { soort: 'lijstactie', lijst: lijstEl, bezig: null, fout: sectieFout })
       await laadEnRender()
-      if (uitkomst === 'weg') terugval()?.focus()
+      if (uitkomst === 'weg') stilFocus(terugval())
       else focusInLijst(lijstEl, actie, id, terugval())
       if (uitkomst === 'ok' && plaats) zetStatus(volgordeStatus, plaats)
       else meldingInBeeld(sectieFout)
@@ -2390,11 +2400,11 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
       await laadEnRender()
       if (uitkomst === 'ok') {
         const buur = potlood(groep[k + 1]?.id || '') || potlood(groep[k - 1]?.id || '')
-        ;(buur || terugval())?.focus()
+        stilFocus(buur || terugval())
         toonOk(sectieOk, `Vermogen ${v.naam} verwijderd.`)
         meldingInBeeld(sectieOk)
       } else if (uitkomst === 'weg') {
-        terugval()?.focus()
+        stilFocus(terugval())
         meldingInBeeld(sectieFout)
       } else {
         focusInLijst(lijstEl, 'verwijder', id, terugval())
@@ -2412,7 +2422,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     if (!v) {
       venster.sluit()
       await laadEnRender()
-      terugval()?.focus()
+      stilFocus(terugval())
       toonFout(sectieFout, { code: 'vermogen-weg' }, 'formulier-lijst')
       meldingInBeeld(sectieFout)
       return
@@ -2429,7 +2439,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     const domeinAnders = domeinId !== v.domeinId
     if (!naamAnders && !domeinAnders) {
       venster.sluit()
-      potlood(id)?.focus()
+      stilFocus(potlood(id))
       return
     }
     const doelNaam = geldigDomein(domeinId)?.naam || ''
@@ -2453,7 +2463,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
     if (uitkomst === 'weg') {
       venster.sluit()
       await laadEnRender()
-      terugval()?.focus()
+      stilFocus(terugval())
       zetNaVenster(sectieFout, wegMelding)
       return
     }
@@ -2464,7 +2474,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
       if (verplaatst) {
         if (actiefFilter !== 'alle') actiefFilter = domeinId
         await laadEnRender()
-        if (!openBewerk(id, { naam, domeinId })) { venster.sluit(); terugval()?.focus(); return }
+        if (!openBewerk(id, { naam, domeinId })) { venster.sluit(); stilFocus(terugval()); return }
         const meld = el(`vm-fout-${id}`)
         const begin = `Het vermogen is verplaatst naar ${doelNaam}, maar de nieuwe naam is niet opgeslagen.`
         const slot = 'Klik nog eens op Opslaan om de naam te wijzigen.'
@@ -2481,7 +2491,7 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
       // Dubbel, domein weg/overkoepelend of tegelijk gewijzigd: lijst verversen, invoer en fout terugzetten
       if (VERVERS_CODES.has(code)) {
         await laadEnRender()
-        if (!openBewerk(id, { naam, domeinId: DOMEIN_CODES.has(code) ? '' : domeinId })) { venster.sluit(); terugval()?.focus(); return }
+        if (!openBewerk(id, { naam, domeinId: DOMEIN_CODES.has(code) ? '' : domeinId })) { venster.sluit(); stilFocus(terugval()); return }
         if (NAAM_CODES.has(code)) zetVeldFout(naamId, `${naamId}-fout`, laatsteFout.tekst)
         else if (DOMEIN_CODES.has(code)) zetVeldFout(domeinVeldId, `${domeinVeldId}-fout`, laatsteFout.tekst)
         else {
@@ -2494,12 +2504,12 @@ async function renderVermogensBeheer(gebruiker, { filter = 'alle' } = {}) {
 
     venster.sluit()
     await laadEnRender()
-    if (!domeinAnders) potlood(id)?.focus()
-    else if (actiefFilter === 'alle') potlood(id)?.focus()
+    if (!domeinAnders) stilFocus(potlood(id))
+    else if (actiefFilter === 'alle') stilFocus(potlood(id))
     else {
       const nu = vanDomein(actiefFilter)
       const doel = nu[k] || nu[nu.length - 1]
-      ;(doel ? potlood(doel.id) : terugval())?.focus()
+      stilFocus(doel ? potlood(doel.id) : terugval())
     }
     const tekst = naamAnders && domeinAnders ? `Vermogen ${naam} opgeslagen en verplaatst naar ${doelNaam}.`
       : domeinAnders ? `Vermogen ${naam} verplaatst naar ${doelNaam}.`
@@ -2531,16 +2541,16 @@ async function renderActiviteitenBeheer(gebruiker) {
               <div class="filter-keuze" id="activiteit-filter-keuze">
                 <label class="sr-only" for="activiteit-filter">Toon</label>
                 <select class="form-input" id="activiteit-filter">
-                  <option value="alle">Alle soorten</option>
+                  <option value="alle">Alle activiteiten</option>
                   ${ACTIVITEIT_SOORTEN.map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}
                 </select>
               </div>
-              <button class="btn-toevoegen" type="button" id="activiteit-toevoegen-knop">+ Activiteit toevoegen</button>
             </div>
             ${meldingenHTML('activiteit-ok', 'activiteit-fout')}
             <p class="tussen-hint" id="activiteit-hint"></p>
             <div class="sr-only" id="activiteit-filter-status" role="status"></div>
             <div id="activiteit-lijst"><p class="lijst-laden">Activiteiten worden geladen...</p></div>
+            ${toevoegRegelHTML('activiteit-toevoegen-knop', 'Activiteit toevoegen')}
           </div>
         </div>
 ` })
@@ -2620,13 +2630,13 @@ async function renderActiviteitenBeheer(gebruiker) {
                 <span class="form-fout" id="${esc(ids.vermogen)}-fout"></span>
               </div>
               <div class="form-groep">
-                <label class="form-label" for="${esc(ids.commissie)}">Commissie</label>
+                <label class="form-label" for="${esc(ids.commissie)}">Commissie (optioneel)</label>
                 ${commissieVeldHTML(ids, w)}
               </div>${uvBlok}`
   }
 
   // ── Blok Uitvoeringen in het formulier (CK-174) ──
-  const volgordeTekst = () => (volgorde === 'oud' ? 'Nieuwste eerst' : 'Oudste eerst')
+  const VOLGORDE_KEUZES = [['nieuw', 'Nieuwste eerst'], ['oud', 'Oudste eerst']]
   const uvWegLabel = (nr, b, e) => { const d = datumTekst(b, e); return `Verwijderen: uitvoering ${nr}${d ? ` (${d})` : ''}` }
 
   // Label voorbij of bezig; leeg als de datums (nog) niet kloppen of de uitvoering nog komt
@@ -2670,14 +2680,16 @@ async function renderActiviteitenBeheer(gebruiker) {
     return `
               <fieldset class="uv-blok" id="${esc(p)}" data-uv-blok>
                 <legend class="form-label">Uitvoeringen <span class="uv-aantal">(${n})</span></legend>
-                <div class="uv-balk">
-                  <button class="btn uv-volgorde" type="button" data-uv-actie="volgorde"${n < 2 ? ' hidden' : ''}>${volgordeTekst()}</button>
+                <div class="form-rij soort-keuze uv-balk" role="radiogroup" aria-label="Volgorde van de uitvoeringen"${n < 2 ? ' hidden' : ''}>${VOLGORDE_KEUZES.map(([k, label]) => `
+                  <label class="soort-optie"><input type="radio" name="${esc(p)}-volgorde" value="${k}" data-uv-volgorde${k === volgorde ? ' checked' : ''}> ${label}</label>`).join('')}
                 </div>
-                <div class="uv-kop" aria-hidden="true"${n ? '' : ' hidden'}><span>#</span><span>Begindatum</span><span>Einddatum (optioneel)</span></div>
-                <ol class="uv-regels" id="${esc(p)}-regels">${regels.map((r, i) => uvRegelHTML(p, r, i + 1)).join('')}
-                </ol>
-                <p class="lijst-leeg" id="${esc(p)}-leeg"${n ? ' hidden' : ''}>Geen uitvoeringen.</p>
-                <button class="btn-toevoegen uv-toevoegen" type="button" data-uv-actie="toevoegen">+ Uitvoering toevoegen</button>
+                <div class="uv-tabel">
+                  <div class="uv-kop" aria-hidden="true"${n ? '' : ' hidden'}><span>#</span><span>Begindatum</span><span>Einddatum (optioneel)</span></div>
+                  <ol class="uv-regels" id="${esc(p)}-regels">${regels.map((r, i) => uvRegelHTML(p, r, i + 1)).join('')}
+                  </ol>
+                  <p class="lijst-leeg uv-leeg" id="${esc(p)}-leeg"${n ? ' hidden' : ''}>Geen uitvoeringen.</p>
+                  <div class="uv-toevoeg-regel"><button class="btn-kaart-actie btn-icoon btn-plus uv-toevoegen" type="button" data-uv-actie="toevoegen" aria-label="Uitvoering toevoegen">${menuIcoon('plus')}<span class="tip" aria-hidden="true">Toevoegen</span></button></div>
+                </div>
                 <p class="vermogens-hint uv-weg-hint" id="${esc(p)}-weg" hidden></p>
                 <div class="sr-only" id="${esc(p)}-status" role="status"></div>
               </fieldset>`
@@ -2716,7 +2728,7 @@ async function renderActiviteitenBeheer(gebruiker) {
     })
     const n = regels.length
     blok.querySelector('.uv-aantal').textContent = `(${n})`
-    blok.querySelector('.uv-volgorde').hidden = n < 2
+    blok.querySelector('.uv-balk').hidden = n < 2
     blok.querySelector('.uv-kop').hidden = !n
     el(`${p}-leeg`).hidden = n > 0
     const w = uvStaat.get(p)?.weg.size || 0
@@ -2728,6 +2740,7 @@ async function renderActiviteitenBeheer(gebruiker) {
 
   // Een datum van een regel gewijzigd: het label en de naam van de prullenbak volgen (de volgorde blijft staan)
   function uvWijzig(e) {
+    if (e.target.matches?.('[data-uv-volgorde]')) { uvVolgorde(e.target); return }
     const li = e.target.closest?.('.uv-regel')
     const p = li?.closest('[data-uv-blok]')?.id
     if (!p) return
@@ -2739,7 +2752,7 @@ async function renderActiviteitenBeheer(gebruiker) {
     li.querySelector('.uv-weg')?.setAttribute('aria-label', uvWegLabel(nr, begin, r.einddatum))
   }
 
-  // De knoppen in het blok (data-uv-actie): toevoegen, weghalen en de volgorde. Er wordt nog niets opgeslagen.
+  // De knoppen in het blok (data-uv-actie): toevoegen en weghalen. Er wordt nog niets opgeslagen.
   function uvBlokKlik(e) {
     const knop = e.target.closest?.('[data-uv-actie]')
     const blok = knop?.closest('[data-uv-blok]')
@@ -2776,23 +2789,28 @@ async function renderActiviteitenBeheer(gebruiker) {
       zetStatus(status, opgeslagen
         ? `Uitvoering ${i + 1} (${uvDatum(opgeslagen)}) weggehaald. Die wordt verwijderd bij Opslaan.${nog}`
         : `Uitvoering ${i + 1} weggehaald.${nog}`)
+    }
+  }
+
+  // Keuzerondje Nieuwste eerst / Oudste eerst: de regels opnieuw op volgorde zetten (er wordt nog niets opgeslagen)
+  function uvVolgorde(rondje) {
+    const blok = rondje.closest('[data-uv-blok]')
+    if (!blok) return
+    if (venster.opslaanKnop.getAttribute('aria-disabled') === 'true') {
+      blok.querySelectorAll('[data-uv-volgorde]').forEach(x => { x.checked = x.value === volgorde })
       return
     }
-
-    if (actie === 'volgorde') {
-      volgorde = volgorde === 'oud' ? 'nieuw' : 'oud'
-      try { localStorage.setItem(VOLGORDE_SLEUTEL, volgorde) } catch {}
-      const regels = leesRegels(p)
-      const geldig = regels.filter(r => !r.beginHalf && r.begindatum && geldigeDatum(r.begindatum))
-      const zonder = regels.filter(r => !geldig.includes(r))
-      const gesorteerd = sorteerUitvoeringen(geldig.map(r => ({ id: r.sleutel, begindatum: r.begindatum, einddatum: r.eindHalf ? '' : r.einddatum, r })), volgorde)
-      const ol = el(`${p}-regels`)
-      for (const x of [...gesorteerd.map(g => g.r), ...zonder]) ol.append(x.li)
-      hernummer(p)
-      document.querySelectorAll('.uv-volgorde').forEach(k => { k.textContent = volgordeTekst() })
-      knop.focus()
-      zetStatus(status, volgorde === 'nieuw' ? 'Nieuwste uitvoering bovenaan.' : 'Oudste uitvoering bovenaan.')
-    }
+    const p = blok.id
+    volgorde = rondje.value === 'nieuw' ? 'nieuw' : 'oud'
+    try { localStorage.setItem(VOLGORDE_SLEUTEL, volgorde) } catch {}
+    const regels = leesRegels(p)
+    const geldig = regels.filter(r => !r.beginHalf && r.begindatum && geldigeDatum(r.begindatum))
+    const zonder = regels.filter(r => !geldig.includes(r))
+    const gesorteerd = sorteerUitvoeringen(geldig.map(r => ({ id: r.sleutel, begindatum: r.begindatum, einddatum: r.eindHalf ? '' : r.einddatum, r })), volgorde)
+    const ol = el(`${p}-regels`)
+    for (const x of [...gesorteerd.map(g => g.r), ...zonder]) ol.append(x.li)
+    hernummer(p)
+    zetStatus(el(`${p}-status`), volgorde === 'nieuw' ? 'Nieuwste uitvoering bovenaan.' : 'Oudste uitvoering bovenaan.')
   }
 
   // Invoer lezen en controleren, met de regels van het blok erachter in één valideerVelden;
@@ -2997,7 +3015,7 @@ async function renderActiviteitenBeheer(gebruiker) {
       const geenUitvoeringen = !wijzigingen.nieuw.length && !wijzigingen.gewijzigd.length && !wijzigingen.weg.length
       if (Object.keys(was).every(k => was[k] === wordt[k]) && x.vermogenIds?.length === 1 && !oudeDatums && geenUitvoeringen) {
         venster.sluit()
-        potlood(x.id)?.focus()
+        stilFocus(potlood(x.id))
         return
       }
     }
@@ -3041,7 +3059,7 @@ async function renderActiviteitenBeheer(gebruiker) {
     venster.sluit()
     if (uitkomst === 'weg') {
       await laadEnRender()
-      terugval()?.focus()
+      stilFocus(terugval())
       zetNaVenster(sectieFout, wegMelding)
       return
     }
@@ -3050,10 +3068,10 @@ async function renderActiviteitenBeheer(gebruiker) {
       let staart = ''
       if (actiefFilter !== 'alle' && actiefFilter !== velden.soort) {
         actiefFilter = 'alle'
-        staart = ' Het filter staat weer op Alle soorten.'
+        staart = ' Het filter staat weer op Alle activiteiten.'
       }
       await laadEnRender()
-      ;(potlood(uit.id) || toevoegKnop).focus()
+      stilFocus(potlood(uit.id) || toevoegKnop)
       const mee = uit.toegevoegd ? ` (${uitvoeringenTekst(uit.toegevoegd)})` : ''
       toonOk(sectieOk, `Activiteit ${velden.naam} toegevoegd${mee}.${staart}`)
       meldingInBeeld(sectieOk)
@@ -3063,7 +3081,7 @@ async function renderActiviteitenBeheer(gebruiker) {
     await laadEnRender()
     const nu = getoond()
     const doel = potlood(x.id) || potlood((nu[k] || nu[nu.length - 1])?.id || '')
-    ;(doel || terugval())?.focus()
+    stilFocus(doel || terugval())
     const wijziging = uitvoeringWijzigingTekst(uit)
     toonOk(sectieOk, `Activiteit ${velden.naam} opgeslagen${wijziging ? ` (${wijziging})` : ''}.`)
     meldingInBeeld(sectieOk)
@@ -3104,7 +3122,7 @@ async function renderActiviteitenBeheer(gebruiker) {
       knop.removeAttribute('aria-disabled')
       sectieOk.textContent = ''
       sectieFout.textContent = `Activiteit ${x.naam} kan nu niet worden verwijderd: de uitvoeringen konden niet worden geteld. Herlaad de pagina en probeer het opnieuw.`
-      knop.focus()
+      stilFocus(knop)
       meldingInBeeld(sectieFout)
       return
     }
@@ -3112,7 +3130,7 @@ async function renderActiviteitenBeheer(gebruiker) {
     if (n > 499) {
       sectieOk.textContent = ''
       sectieFout.textContent = `Activiteit ${x.naam} heeft te veel uitvoeringen om in één keer te verwijderen.`
-      knop.focus()
+      stilFocus(knop)
       meldingInBeeld(sectieFout)
       return
     }
@@ -3130,11 +3148,11 @@ async function renderActiviteitenBeheer(gebruiker) {
     await laadEnRender()
     if (uitkomst === 'ok') {
       const buur = potlood(lijst[k + 1]?.id || '') || potlood(lijst[k - 1]?.id || '')
-      ;(buur || terugval())?.focus()
+      stilFocus(buur || terugval())
       toonOk(sectieOk, verwijderd ? `Activiteit ${x.naam} en ${uitvoeringenTekst(verwijderd)} verwijderd.` : `Activiteit ${x.naam} verwijderd.`)
       meldingInBeeld(sectieOk)
     } else if (uitkomst === 'weg') {
-      terugval()?.focus()
+      stilFocus(terugval())
       meldingInBeeld(sectieFout)
     } else {
       if (code === 'te-veel-uitvoeringen') sectieFout.textContent = `Activiteit ${x.naam} heeft te veel uitvoeringen om in één keer te verwijderen.`
@@ -3194,7 +3212,6 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
           </div>
           <div class="sectie-lijf">
             <div class="beheer-balk" id="onderdeel-balk" hidden>${filterHTML}
-              <button class="btn-toevoegen" type="button" id="onderdeel-toevoegen-knop">+ ${cfg.Enkel} toevoegen</button>
             </div>
             ${meldingenHTML('onderdeel-ok', 'onderdeel-fout')}
             <p class="vermogens-hint" id="onderdeel-functies-hint" role="status"></p>
@@ -3202,6 +3219,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
             <div class="sr-only" id="onderdeel-volgorde" role="status"></div>
             <div class="sr-only" id="onderdeel-filter-status" role="status"></div>
             <div id="onderdeel-lijst"><p class="lijst-laden">${cfg.Meer} worden geladen...</p></div>
+            ${toevoegRegelHTML('onderdeel-toevoegen-knop', `${cfg.Enkel} toevoegen`)}
           </div>
         </div>
 ` })
@@ -3265,11 +3283,11 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
                 <span class="form-fout" id="${esc(ids.naam)}-fout"></span>
               </div>${status}
               <div class="form-groep">
-                <label class="form-label" for="${esc(ids.eigenaar)}">Eigenaar</label>
-                ${bestuursfunctieKeuzeHTML(ids.eigenaar, eigenaar, functies || [])}
+                <label class="form-label" for="${esc(ids.eigenaar)}">Eigenaar (optioneel)</label>
+                ${bestuursfunctieKeuzeHTML(ids.eigenaar, eigenaar, functies || [], 'Geen eigenaar')}
               </div>
               <div class="form-groep">
-                <label class="form-label" for="${esc(ids.omschrijving)}">Omschrijving</label>
+                <label class="form-label" for="${esc(ids.omschrijving)}">Omschrijving (optioneel)</label>
                 <textarea class="form-input" id="${esc(ids.omschrijving)}" rows="3" aria-describedby="${esc(ids.omschrijving)}-fout">${esc(w.omschrijving)}</textarea>
                 <span class="form-fout" id="${esc(ids.omschrijving)}-fout"></span>
               </div>`
@@ -3428,7 +3446,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
       staart = ' Het filter staat weer op Alle projecten.'
     }
     await laadEnRender()
-    toevoegKnop.focus()
+    stilFocus(toevoegKnop)
     toonOk(sectieOk, `${cfg.Enkel} ${velden.naam} toegevoegd.${staart}`)
   }
 
@@ -3440,7 +3458,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     const ongewijzigd = Object.keys(velden).every(k => velden[k] === (x[k] ?? ''))
     if (ongewijzigd) {
       venster.sluit()
-      potlood(id)?.focus()
+      stilFocus(potlood(id))
       return
     }
     const lijst = getoond()
@@ -3454,13 +3472,13 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
     venster.sluit()
     await laadEnRender()
     if (uitkomst === 'weg') {
-      terugval()?.focus()
+      stilFocus(terugval())
       zetNaVenster(sectieFout, wegMelding)
       return
     }
     const nu = getoond()
     const doel = potlood(id) || potlood((nu[k] || nu[nu.length - 1])?.id || '')
-    ;(doel || terugval())?.focus()
+    stilFocus(doel || terugval())
     const afgerond = cfg.status && velden.status === 'afgerond' && x.status !== 'afgerond'
       ? ` ${velden.naam} is afgerond en staat niet meer op de plaat.` : ''
     toonOk(sectieOk, `${cfg.Enkel} ${velden.naam} opgeslagen.${afgerond}`)
@@ -3515,7 +3533,7 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
         plaats = `${vers[b].naam} staat nu op plaats ${b + 1} van ${vers.length}.`
       }, { soort: 'lijstactie', lijst: lijstEl, bezig: null, fout: sectieFout })
       await laadEnRender()
-      if (uitkomst === 'weg') terugval()?.focus()
+      if (uitkomst === 'weg') stilFocus(terugval())
       else focusInLijst(lijstEl, actie, id, terugval())
       if (uitkomst === 'ok') { if (plaats) zetStatus(volgordeStatus, plaats) }
       else meldingInBeeld(sectieFout)
@@ -3550,11 +3568,11 @@ async function renderOnderdeelBeheer(gebruiker, soort) {
       await laadEnRender()
       if (uitkomst === 'ok') {
         const buur = potlood(lijst[k + 1]?.id || '') || potlood(lijst[k - 1]?.id || '')
-        ;(buur || terugval())?.focus()
+        stilFocus(buur || terugval())
         toonOk(sectieOk, `${cfg.Enkel} ${x.naam} verwijderd.`)
         meldingInBeeld(sectieOk)
       } else if (uitkomst === 'weg') {
-        terugval()?.focus()
+        stilFocus(terugval())
         meldingInBeeld(sectieFout)
       } else {
         focusInLijst(lijstEl, 'verwijder', id, terugval())
@@ -3576,13 +3594,12 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
             <h1 id="sectie-kop-5">Bestuursfuncties</h1>
           </div>
           <div class="sectie-lijf">
-            <div class="beheer-balk">
-              <button class="btn-toevoegen" type="button" id="functie-toevoegen-knop">+ Bestuursfunctie toevoegen</button>
-            </div>
+            <div class="beheer-balk"></div>
             ${meldingenHTML('functie-ok', 'functie-fout')}
             <div class="sr-only" id="functie-volgorde" role="status"></div>
             <p class="vermogens-hint" id="functie-hint" role="status"></p>
             <div id="functie-lijst"></div>
+            ${toevoegRegelHTML('functie-toevoegen-knop', 'Bestuursfunctie toevoegen')}
           </div>
         </div>
 ` })
@@ -3709,7 +3726,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     if (uitkomst !== 'ok' || !lijstEl.isConnected) return
     venster.sluit()
     await laadEnRender().catch(e => console.error(e))
-    terugval()?.focus()
+    stilFocus(terugval())
     toonOk(sectieOk, `Bestuursfunctie ${naam} toegevoegd.`)
   }
 
@@ -3730,7 +3747,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
     if (uitkomst === 'fout' || !lijstEl.isConnected) return
     venster.sluit()
     await laadEnRender().catch(e => console.error(e))
-    if (uitkomst === 'weg') { terugval()?.focus(); zetNaVenster(sectieFout, wegMelding); return }
+    if (uitkomst === 'weg') { stilFocus(terugval()); zetNaVenster(sectieFout, wegMelding); return }
     focusInLijst(lijstEl, 'bewerk', id, terugval())
     toonOk(sectieOk, `Bestuursfunctie ${naam} opgeslagen.`)
     meldingInBeeld(sectieOk)
@@ -3786,9 +3803,9 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
       const uitkomst = await metOpslaan(knop, () => verwijderBestuursfunctie(id), { soort: 'lijstactie', lijst: lijstEl, fout: sectieFout, bezig: null })
       await laadEnRender().catch(e => console.error(e))
       if (uitkomst === 'ok') {
-        terugval()?.focus()
+        stilFocus(terugval())
         toonOk(sectieOk, `Bestuursfunctie ${naam} verwijderd.`)
-      } else if (uitkomst === 'weg') terugval()?.focus()
+      } else if (uitkomst === 'weg') stilFocus(terugval())
       else { focusInLijst(lijstEl, 'verwijder', id, terugval()); meldingInBeeld(sectieFout) }
     } else if (actie === 'bewerk') {
       const f = (await laadBestuursfuncties()).find(x => x.id === id)
@@ -3799,7 +3816,7 @@ async function renderBestuursfunctiesBeheer(gebruiker) {
         inhoud: `
           <div class="form-groep">
             <label class="form-label" for="fn-${esc(id)}">Naam</label>
-            <input class="form-input" id="fn-${esc(id)}" type="text" maxlength="100" value="${esc(f.naam)}" autocomplete="off" aria-describedby="fn-fout-${esc(id)}">
+            <input class="form-input" id="fn-${esc(id)}" type="text" maxlength="100" value="${esc(f.naam)}" placeholder="Bijv. Bestuurslid Hockey" autocomplete="off" aria-describedby="fn-fout-${esc(id)}">
             <span class="form-fout" id="fn-fout-${esc(id)}"></span>
           </div>
           ${meldingenHTML(null, `fm-fout-${id}`)}`,
@@ -3830,17 +3847,17 @@ function renderClubBeheer(gebruiker, { succes } = {}) {
             <div class="profiel-form-wrap">
               <div class="form-groep">
                 <label class="form-label" for="profiel-naam">Clubnaam</label>
-                <input class="form-input" id="profiel-naam" type="text" placeholder="Volledige naam van de club" autocomplete="off" maxlength="100" value="${esc(huidigProfiel?.naam || '')}">
+                <input class="form-input" id="profiel-naam" type="text" placeholder="Bijv. Hockeyclub Zuidwijk" autocomplete="off" maxlength="100" value="${esc(huidigProfiel?.naam || '')}">
                 <span class="form-fout" id="profiel-naam-fout"></span>
               </div>
               <div class="form-groep">
                 <label class="form-label" for="profiel-afkorting">Afkorting</label>
-                <input class="form-input" id="profiel-afkorting" type="text" placeholder="bv. FCE" autocomplete="off" maxlength="20" value="${esc(huidigProfiel?.afkorting || '')}">
+                <input class="form-input" id="profiel-afkorting" type="text" placeholder="Bijv. HCZ" autocomplete="off" maxlength="20" value="${esc(huidigProfiel?.afkorting || '')}">
                 <span class="form-fout" id="profiel-afkorting-fout"></span>
               </div>
               <div class="form-groep">
                 <label class="form-label" for="profiel-seizoen">Huidig seizoen</label>
-                <input class="form-input" id="profiel-seizoen" type="text" placeholder="bv. 2026–2027" autocomplete="off" maxlength="20" value="${esc(huidigProfiel?.seizoen || '')}">
+                <input class="form-input" id="profiel-seizoen" type="text" placeholder="Bijv. 2026–2027" autocomplete="off" maxlength="20" value="${esc(huidigProfiel?.seizoen || '')}">
                 <span class="form-fout" id="profiel-seizoen-fout"></span>
               </div>
               <div class="form-rij">
@@ -3964,7 +3981,7 @@ function renderMijnAccount(gebruiker) {
               <div class="meld-blok" data-meldblok>
                 <div class="form-groep">
                   <label class="form-label" for="geb-naam">Naam</label>
-                  <input class="form-input" id="geb-naam" type="text" placeholder="Jouw naam" autocomplete="name" value="${esc(huidigGebruiker?.displayName || '')}">
+                  <input class="form-input" id="geb-naam" type="text" placeholder="Bijv. Sanne de Vries" autocomplete="name" value="${esc(huidigGebruiker?.displayName || '')}">
                   <span class="form-fout" id="geb-naam-fout"></span>
                 </div>
                 <div class="form-rij">
@@ -3979,12 +3996,12 @@ function renderMijnAccount(gebruiker) {
                 <p class="geb-info">Huidig e-mailadres: ${esc(huidigGebruiker?.email || '')}</p>
                 <div class="form-groep">
                   <label class="form-label" for="geb-email">Nieuw e-mailadres</label>
-                  <input class="form-input" id="geb-email" type="email" placeholder="nieuw@voorbeeld.nl" autocomplete="off" aria-describedby="geb-email-fout">
+                  <input class="form-input" id="geb-email" type="email" placeholder="Bijv. naam@voorbeeld.nl" autocomplete="off" aria-describedby="geb-email-fout">
                   <span class="form-fout" id="geb-email-fout"></span>
                 </div>
                 <div class="form-groep">
                   <label class="form-label" for="geb-email-ww">Wachtwoord ter bevestiging</label>
-                  <input class="form-input" id="geb-email-ww" type="password" placeholder="••••••••" autocomplete="current-password" aria-describedby="geb-email-ww-fout">
+                  <input class="form-input" id="geb-email-ww" type="password" autocomplete="current-password" aria-describedby="geb-email-ww-fout">
                   <span class="form-fout" id="geb-email-ww-fout"></span>
                 </div>
                 <div class="form-rij">
@@ -3998,12 +4015,12 @@ function renderMijnAccount(gebruiker) {
               <div class="meld-blok" data-meldblok>
                 <div class="form-groep">
                   <label class="form-label" for="geb-huidig-ww">Huidig wachtwoord</label>
-                  <input class="form-input" id="geb-huidig-ww" type="password" placeholder="••••••••" autocomplete="current-password" aria-describedby="geb-huidig-ww-fout">
+                  <input class="form-input" id="geb-huidig-ww" type="password" autocomplete="current-password" aria-describedby="geb-huidig-ww-fout">
                   <span class="form-fout" id="geb-huidig-ww-fout"></span>
                 </div>
                 <div class="form-groep">
-                  <label class="form-label" for="geb-nieuw-ww">Nieuw wachtwoord</label>
-                  <input class="form-input" id="geb-nieuw-ww" type="password" placeholder="Minimaal 8 tekens" autocomplete="new-password" aria-describedby="geb-nieuw-ww-fout">
+                  <label class="form-label" for="geb-nieuw-ww">Nieuw wachtwoord (minimaal 8 tekens)</label>
+                  <input class="form-input" id="geb-nieuw-ww" type="password" autocomplete="new-password" aria-describedby="geb-nieuw-ww-fout">
                   <span class="form-fout" id="geb-nieuw-ww-fout"></span>
                 </div>
                 <div class="form-rij">
