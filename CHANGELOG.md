@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.18.0] – 2026-11-26
+
+### Gewijzigd (CK-177: rustiger beheerschermen en formulieren)
+- Tabellen: de kolomkop staat in een witte balk, kop, rijen en plusregel zijn overal even hoog, en de knopjes zijn even groot en staan recht onder elkaar. Toevoegen gaat met een plusknop in een regel onder de tabel; bij Vermogens per domein.
+- Uitvoeringen staan als tabel in het venster, met keuzerondjes voor de volgorde.
+- Het venster heeft twee vaste kolommen en de knoppen staan rechtsonder (Annuleren, dan Opslaan).
+- Tekst is minimaal 16px (veldlabels en menukopjes 14px, titels 18px) en alleen het actieve menu-item, de huidige kruimel en KOMPAS zijn vet.
+- Invoervelden zijn een lichtgrijs vlak zonder rand, met een licht kader bij hover en focus. Lege waarden zijn grijs, hints hebben één opzet en vrije velden hebben "(optioneel)" in het label.
+- Filters heten overal "Alle …", tooltips verschijnen alleen bij muisover en na sluiten of opslaan blijft er geen focusrand hangen.
+- Bewuste afwijking van WCAG 2.1 AA bij invoervelden en focus (besluit Paul, zie backlog CK-177). De regels zijn niet veranderd. 194 regeltests.
+
 ## [0.17.0] – 2026-11-26
 
 ### Gewijzigd (CK-176 en CK-175: toevoegen en bewerken in een venster)

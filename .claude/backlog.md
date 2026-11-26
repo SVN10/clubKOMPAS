@@ -696,7 +696,7 @@ Dit is een afspraak voor het model, geen bouwwerk:
 ---
 
 ### CK-177 — Rustiger beheerschermen en formulieren
-**Status:** gebouwd op 26 november 2026, staat op tst (commit `c3b4445`), nog niet live · route klein (alleen vormgeving, geen regels of datamodel) · besluiten van Paul in de sessie van 26-11-2026
+**Status:** ✅ live in v0.18.0 (26 november 2026); op verzoek van Paul live gezet vóór een test op tst · route klein (alleen vormgeving, geen regels of datamodel) · besluiten van Paul in de sessie van 26-11-2026
 
 - [x] Tabellen: kolomkop in een witte balk, kop/rij/plusregel overal 49px, knopjes 32×32 recht onder elkaar, toevoegen via een plusregel onder de tabel (Vermogens: per domein, met dat domein al ingevuld).
 - [x] Uitvoeringen als tabel in het venster, met keuzerondjes Nieuwste/Oudste eerst.
@@ -705,7 +705,7 @@ Dit is een afspraak voor het model, geen bouwwerk:
 - [x] Invoervelden: lichtgrijs vlak zonder rand, licht kader bij hover en focus, rood kader bij een fout, lege waarde grijs.
 - [x] Hints: tekstveld "Bijv. …", keuzelijst "Kies een …" (verplicht) of "Geen …" (mag leeg), "(optioneel)" in het label van vrije velden; verplichte velden krijgen vanzelf `aria-required`.
 - [x] Filters heten "Alle <onderdeel>"; tooltips alleen bij muisover; geen focusring na sluiten of opslaan (`stilFocus`).
-- [ ] Paul: testen op tst (ook Safari), daarna versie en live.
+- [ ] Paul: nog nalopen op live/tst, ook in Safari.
 
 **Bewuste afwijking van WCAG 2.1 AA (besluit Paul, 26-11-2026), vastleggen bij CK-049/toegankelijkheid:**
 - Invoervelden hebben geen rand met 3:1 contrast (1.4.11); het lichtgrijze vlak en het label maken het veld herkenbaar.
