@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.1] – 2026-11-26
+
+### Opgelost
+- Beheer → Domeinen verschijnt direct na een klik en laadt daarna de gegevens tegelijk. Eerst gebeurde er bij een trage verbinding na een klik niets, en kon de pagina later een andere pagina overschrijven.
+- Bij snel wisselen van pagina horen de titel en de focus altijd bij de laatst gekozen pagina.
+
 ## [0.19.0] – 2026-11-26
 
 ### Gewijzigd (CK-179: verbeterwensen per pagina en geen omschrijvingen meer)
