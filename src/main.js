@@ -1403,12 +1403,16 @@ const NAV_DOEL = new Map([
 
 // Paginawissel door de gebruiker: titel bijwerken en focus naar de nieuwe inhoud (niet bij de eerste render).
 // opties gaan naar de render-functie, bijv. { filter: domeinId } voor Beheer → Vermogens.
+let navTeller = 0
 async function navigeer(id, gebruiker, opties = {}) {
   if (!magNaar(id)) return navigeer('home', gebruiker)
   const doel = NAV_DOEL.get(id)
   if (!doel) return
+  const deze = ++navTeller
   sluitPaneel({ focus: false })
   await doel(gebruiker, opties)
+  // Intussen naar een andere pagina gegaan: titel en focus horen bij die pagina (26-11-2026)
+  if (deze !== navTeller) return
   document.title = paginaTitel(navNaam(id))
   document.querySelector('.app-kolom')?.scrollTo(0, 0)
   document.getElementById('inhoud')?.focus({ preventScroll: true })
@@ -1590,19 +1594,13 @@ function bindAppShell(gebruiker) {
   })
 }
 
-// alsNog: bij "Opnieuw laden" niet tekenen als de gebruiker intussen naar een andere pagina ging
-async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog = null } = {}) {
+async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles' } = {}) {
   if (geenBeheer(gebruiker)) return
+  // Eerst de pagina tekenen, dan laden (26-11-2026): wachten vóór het tekenen liet een klik op Domeinen
+  // bij een trage verbinding niets doen, en een late uitkomst kon een nieuwere pagina overschrijven.
   // Zonder bestuursfuncties kan de lijst niet goed getekend worden: dan een laadfout (CK-048)
   let functies = []
-  let functiesFout = null
-  try {
-    functies = await laadBestuursfuncties()
-  } catch (e) {
-    functiesFout = e
-  }
-  if (alsNog && !alsNog.isConnected) return
-  const functieNaam = new Map(functies.map(f => [f.id, f.naam]))
+  let functieNaam = new Map()
   document.querySelector('#app').innerHTML = appShellHTML({ actief: 'domeinen', kruimels: [['Home', 'home'], ['Beheer', 'beheer'], [navNaam('domeinen')]], inhoud: `
         <div class="sectie" data-meldblok role="region" aria-labelledby="sectie-kop-2">
           <div class="sectie-kop">
@@ -1624,7 +1622,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
             <div class="sr-only" id="structuur-volgorde" role="status"></div>
             <div class="sr-only" id="structuur-filter-status" role="status"></div>
             <p class="lijst-voetnoot" id="structuur-volgorde-hint" hidden>De volgorde wijzig je bij Alle domeinen.</p>
-            <div id="structuur-lijst"></div>
+            <div id="structuur-lijst"><p class="lijst-laden">De domeinen worden geladen...</p></div>
             ${toevoegRegelHTML('structuur-toevoegen-knop', 'Domein toevoegen')}
           </div>
         </div>
@@ -1656,16 +1654,16 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
   async function laadEnRender() {
     const lijst = mijnLijst
     if (!lijst) return false
-    if (functiesFout) { toonLaadfout(functiesFout); return false }
     let items
     // Aantal projecten/samenwerkingen voor de kolom Bevat; mislukt dat, dan staat er een streep (fail-soft)
     const onderdelenBelofte = Promise.allSettled(PLAAT_SOORTEN.map(soort => laadOnderdelen(db, clubId, soort)))
     try {
-      items = await laadStructuurelementen()
+      ;[functies, items] = await Promise.all([laadBestuursfuncties(), laadStructuurelementen()])
     } catch (e) {
       toonLaadfout(e)
       return false
     }
+    functieNaam = new Map(functies.map(f => [f.id, f.naam]))
     const aantalVan = new Map((await onderdelenBelofte).map((u, i) => [PLAAT_SOORTEN[i], u.status === 'fulfilled' ? u.value.length : null]))
     if (!lijst.isConnected) return false
     document.querySelector('.beheer-balk').hidden = false
@@ -1676,7 +1674,7 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
     if (gefilterd.length === 0) {
       lijst.removeAttribute('role')
       lijst.innerHTML = `<p class="lijst-leeg">${items.length === 0 ? 'Nog geen domeinen.' : 'Geen domeinen van deze soort.'}</p>`
-      return
+      return true
     }
     const kanVerplaatsen = actiefFilter === 'alles'
     const kop = `
@@ -1722,17 +1720,15 @@ async function renderPijlersDomeinenBeheer(gebruiker, { filter = 'alles', alsNog
           </div>
         </div>`
     }).join('')
+    return true
   }
 
   await laadEnRender()
 
-  // Opnieuw laden: de hele pagina opnieuw, want ook de bestuursfuncties kunnen ontbroken hebben
+  // Opnieuw laden: laadEnRender haalt ook de bestuursfuncties opnieuw op
   const lijstNu = mijnLijst
   if (!lijstNu?.isConnected) return   // intussen naar een andere pagina gegaan (CK-056)
-  bindHerlaad(lijstNu, 'structuur-herlaad', async () => {
-    await renderPijlersDomeinenBeheer(gebruiker, { filter: actiefFilter, alsNog: lijstNu })
-    return !document.getElementById('structuur-herlaad')
-  }, () => document.getElementById('structuur-filter'))
+  bindHerlaad(lijstNu, 'structuur-herlaad', laadEnRender, () => document.getElementById('structuur-filter'))
 
   const filterEl = document.getElementById('structuur-filter')
   filterEl.value = actiefFilter
