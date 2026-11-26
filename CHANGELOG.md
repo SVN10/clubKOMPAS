@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.0] – 2026-11-26
+
+### Gewijzigd (CK-176 en CK-175: toevoegen en bewerken in een venster)
+- Op alle beheerschermen met een tabel gebeuren toevoegen en bewerken nu in een los venster bovenop de pagina: Domeinen, Vermogens, Activiteiten, Commissies, Projecten, Samenwerkingen en Bestuursfuncties. De tabel verschuift niet meer.
+- Sluiten zonder opslaan gaat met Annuleren, ✕ of Esc. Een klik op de grijze achtergrond sluit het venster niet. Na Opslaan sluit het venster en staat de bevestiging boven de tabel. Bij een fout blijft het venster open.
+- De velden staan naast elkaar als er ruimte is. Op een telefoon vult het venster het hele scherm.
+- Nieuwe module `src/venster.js`. De regels zijn niet veranderd. 194 regeltests.
+
 ## [0.16.0] – 2026-11-25
 
 ### Gewijzigd (CK-174: uitvoeringen beheren in het formulier van de activiteit)

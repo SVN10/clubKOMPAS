@@ -696,7 +696,7 @@ Dit is een afspraak voor het model, geen bouwwerk:
 ---
 
 ### CK-176 — Toevoegen en bewerken in een venster (met CK-175)
-**Status:** gebouwd op 26 november 2026, nog te testen op tst · route middel (er veranderen geen regels en er komt geen nieuw datamodel) · docs: `.claude/docs/CK-176.md` · spec: `.claude/specs/CK-176-venster.md`
+**Status:** ✅ live in v0.17.0 (26 november 2026), getest op tst · route middel (er veranderen geen regels en er komt geen nieuw datamodel) · docs: `.claude/docs/CK-176.md` · spec: `.claude/specs/CK-176-venster.md`
 
 - [x] Op alle vijf de beheerschermen gebeuren toevoegen en bewerken in een `<dialog>`-venster. Je sluit het met Esc, ✕ of Annuleren. Een klik op de achtergrond sluit het niet. Op een telefoon vult het venster het hele scherm.
 - [x] CK-175: de velden staan naast elkaar, in kolommen van minstens 280px.
