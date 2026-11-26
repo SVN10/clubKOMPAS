@@ -298,17 +298,7 @@ footer {
 }
 .btn-toevoegen:hover { background: var(--surface); }
 
-.pijler-form {
-  grid-column: 1 / -1;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--petrol);
-  border-radius: 4px;
-  padding: 16px;
-  flex-direction: column;
-  gap: 12px;
-}
-.pijler-form:not([hidden]) { display: flex; }
+.pijler-form { gap: 12px; }
 .form-groep { display: flex; flex-direction: column; gap: 4px; }
 .form-label {
   font-size: var(--fs-label);
@@ -443,17 +433,8 @@ footer {
 .btn-kaart-actie:hover { border-color: var(--petrol); color: var(--petrol); }
 .btn-kaart-actie.gevaar:hover { border-color: var(--fout); color: var(--fout); }
 
-/* ── Inline bewerkform ── */
-.pijler-bewerk-form {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--petrol);
-  border-radius: 4px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+/* ── Bewerkformulier (in het venster, CK-176) ── */
+.pijler-bewerk-form { gap: 10px; }
 
 
 /* ── Instellingen / profielform ── */
@@ -548,7 +529,6 @@ footer {
 }
 .structuur-rij.beheer-rij:last-child { border-bottom: 1px solid var(--border); }
 .structuur-rij.beheer-rij:first-child { border-top: 1px solid var(--border); }
-.structuur-rij.beheer-rij.bewerken { display: block; }
 /* CK-044: de kolommen geven mee met de breedte van de lijst (zijmenu in- of uitgeklapt).
    De actiekolom is vast, zodat de kop gelijk loopt met de rijen. Rasters en container queries:
    zie "Beheer en vermogens (CK-020)" onderaan. */
@@ -1013,8 +993,19 @@ a.btn { text-decoration: none; }
 
 /* Vermogenslijst: groepen per domein */
 #vermogen-lijst { container-type: inline-size; display: flex; flex-direction: column; gap: 24px; }
-/* Eén breedte voor de velden in alle beheerformulieren, gelijk aan het clubprofiel */
-.pijler-form .form-groep, .pijler-bewerk-form .form-groep { max-width: 480px; }
+/* Beheerformulieren: velden naast elkaar in kolommen van minstens 280px, zodat de breedte benut wordt.
+   Gewone velden (invoer of keuzelijst) vullen één kolom; al het andere (soortkeuze, omschrijving,
+   datumvelden, uitvoeringen, knoppen, meldingen) krijgt de hele breedte. Smal scherm: één kolom. */
+.pijler-form, .pijler-bewerk-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  column-gap: 16px;
+  align-items: start;
+}
+.pijler-form > *, .pijler-bewerk-form > * { grid-column: 1 / -1; min-width: 0; }
+.pijler-form > .form-groep:not([role="radiogroup"]):not(:has(textarea)),
+.pijler-bewerk-form > .form-groep:not([role="radiogroup"]):not(:has(textarea)) { grid-column: auto; }
+.pijler-form > [hidden], .pijler-bewerk-form > [hidden] { display: none; } /* .form-groep zet display: flex */
 .vermogen-groep { display: flex; flex-direction: column; }
 .groep-kop {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
@@ -1091,7 +1082,7 @@ a.btn { text-decoration: none; }
 
 /* Activiteiten en uitvoeringen (CK-170, CK-172, CK-174) */
 #activiteit-lijst { container-type: inline-size; }
-.activiteit-rij { grid-template-columns: 28px minmax(140px, 1.4fr) auto auto minmax(110px, 1fr) minmax(110px, 1fr) 152px; } /* terugval zonder subgrid en tijdens bewerken */
+.activiteit-rij { grid-template-columns: 28px minmax(140px, 1.4fr) auto auto minmax(110px, 1fr) minmax(110px, 1fr) 152px; } /* terugval zonder subgrid */
 .cel-activiteit { min-width: 0; overflow-wrap: anywhere; }
 
 /* Datum achter de naam: komend gewoon, bezig petrol, voorbij gedempt */
@@ -1159,23 +1150,23 @@ a.btn { text-decoration: none; }
 #structuur-lijst[role="table"] > *, #functie-lijst[role="table"] > *, #onderdeel-lijst > [role="table"] > *, #activiteit-lijst > [role="table"] > * { grid-column: 1 / -1; }
 #structuur-lijst .beheer-rij, #functie-lijst .beheer-rij, #onderdeel-lijst .beheer-rij, #activiteit-lijst .beheer-rij { column-gap: 30px; }
 @container (min-width: 661px) {
-  #structuur-lijst .beheer-rij.domein-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #structuur-lijst .beheer-rij.domein-rij { grid-template-columns: subgrid; }
   #structuur-lijst .domein-rij > :last-child { grid-column: -2 / -1; }
 }
 @container (min-width: 501px) {
-  #functie-lijst .beheer-rij.functie-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #functie-lijst .beheer-rij.functie-rij { grid-template-columns: subgrid; }
   #functie-lijst .functie-rij > :last-child { grid-column: -2 / -1; }
 }
 @container (min-width: 761px) {
-  #onderdeel-lijst .beheer-rij.project-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #onderdeel-lijst .beheer-rij.project-rij { grid-template-columns: subgrid; }
   #onderdeel-lijst .project-rij > :last-child { grid-column: -2 / -1; }
 }
 @container (min-width: 501px) {
-  #onderdeel-lijst .beheer-rij.samenwerking-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #onderdeel-lijst .beheer-rij.samenwerking-rij { grid-template-columns: subgrid; }
   #onderdeel-lijst .samenwerking-rij > :last-child { grid-column: -2 / -1; }
 }
 @container (min-width: 761px) {
-  #activiteit-lijst .beheer-rij.activiteit-rij:not(.bewerken) { grid-template-columns: subgrid; }
+  #activiteit-lijst .beheer-rij.activiteit-rij { grid-template-columns: subgrid; }
   #activiteit-lijst .activiteit-rij > :last-child { grid-column: -2 / -1; }
 }
 
@@ -1330,4 +1321,41 @@ a.btn { text-decoration: none; }
   .filter-keuze .eigen-keuze { min-width: 0; width: 100%; }
   .filter-keuze .eigen-knop { height: 44px; }
   .eigen-kalender { width: min(288px, calc(100vw - 32px)); }
+}
+
+/* ── Venster voor toevoegen en bewerken (CK-176) ──
+   De laag over het scherm scrolt, niet de kaart. Zo knipt niets de eigen keuzelijst en de datumkiezer af:
+   die klappen over de rand van de kaart heen, zoals op een gewone pagina. Kop en knoppen zijn bewust niet sticky:
+   het blok Uitvoeringen is een container (eigen stapellaag), en dan zou een sticky balk over de datumkiezer vallen. */
+.beheer-venster {
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+  margin: 0; padding: 16px; border: 0; box-sizing: border-box;
+  background: transparent; color: var(--text); overflow-y: auto; overscroll-behavior: contain;
+}
+.beheer-venster[open] { display: flex; }
+.beheer-venster::backdrop { background: var(--dimlaag); }
+.venster-kaart {
+  width: min(960px, 100%); margin: auto; box-sizing: border-box; display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--petrol); border-radius: 4px;
+}
+.venster-kop {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 8px 8px 16px; background: var(--card); border-bottom: 1px solid var(--border);
+}
+.venster-titel { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.venster-sluit {
+  flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  font: inherit; font-size: var(--fs-bloknaam); line-height: 1; color: var(--petrol);
+  background: transparent; border: 1px solid var(--border); cursor: pointer;
+}
+.venster-sluit:hover { border-color: var(--petrol); }
+.venster-sluit:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; box-shadow: 0 0 0 2px var(--text); }
+.venster-sluit[aria-disabled="true"] { opacity: .6; cursor: progress; }
+.venster-sluit[aria-disabled="true"]:hover { border-color: var(--border); }
+.venster-lijf { padding: 16px; }
+.venster-knoppen { padding: 12px 16px; border-top: 1px solid var(--border); }
+@media (max-width: 700px) {
+  .beheer-venster { padding: 0; }
+  .venster-kaart { width: 100%; min-height: 100%; margin: 0; border: 0; border-radius: 0; }
+  .venster-lijf { flex: 1 0 auto; }
 }
