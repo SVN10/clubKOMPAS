@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.19.2] – 2026-11-26
+
+### Gewijzigd
+- Club: de tabel lijnt uit zoals de andere beheertabellen. Elke kolom is zo breed als zijn langste waarde, met 30px ertussen, en de kolomkop Logo staat links boven het logo.
+
 ## [0.19.1] – 2026-11-26
 
 ### Opgelost
