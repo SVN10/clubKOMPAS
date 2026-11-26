@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0] – 2026-11-26
+
+### Gewijzigd (CK-179: verbeterwensen per pagina en geen omschrijvingen meer)
+- Domeinenoverzicht: elk kaartje toont alleen pictogram, naam, soort en eindverantwoordelijke. Alles over vermogens, de omschrijving en de hashtag zijn weg.
+- Vermogensoverzicht: geen tellingen meer in de sectiekoppen.
+- Club: een overzicht met logo, clubnaam, afkorting en seizoen, en een knop Bewerken die een venster opent. Het logo hoort bij het clubprofiel en wordt bij Opslaan bewaard.
+- Commissies, Projecten en Samenwerkingen: "Eigenaar" heet nu "Eerste aanspreekpunt".
+- Domeinen (beheer): de kolom heet "Bevat" en linkt ook naar de projecten of samenwerkingen van een overkoepelend domein.
+- Bij het openen van een venster wordt geen veld meer gekozen of geselecteerd. Soort en status staan er als gewone tekst, niet meer als rond label.
+- Geen omschrijvingen meer bij domeinen, commissies, projecten en samenwerkingen. De regels weigeren een nieuwe of gewijzigde omschrijving; een oude gaat weg bij opslaan of met het opruimscript `npm run omschrijvingen:opruimen`. 198 regeltests.
+
 ## [0.18.0] – 2026-11-26
 
 ### Gewijzigd (CK-177: rustiger beheerschermen en formulieren)

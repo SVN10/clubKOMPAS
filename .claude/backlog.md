@@ -696,7 +696,7 @@ Dit is een afspraak voor het model, geen bouwwerk:
 ---
 
 ### CK-179 — Verbeterwensen per pagina en geen omschrijvingen meer
-**Status:** gebouwd (26 november 2026), nog niet gecommit · route groot (regels veranderen, opruimscript voor bestaande data) · wensen en besluiten van Paul in de sessie van 26-11-2026
+**Status:** ✅ live in v0.19.0 (26 november 2026), getest op tst door Paul · regels in test en productie · route groot (regels veranderen, opruimscript voor bestaande data) · wensen en besluiten van Paul in de sessie van 26-11-2026
 
 - [x] Domeinenoverzicht: elk kaartje toont alleen pictogram, naam, soort en eindverantwoordelijke. Het kerncijfer Vermogens, de vermogenstelling, de omschrijving en de hashtag zijn weg.
 - [x] Vermogensoverzicht: de tellingen ("12 vermogens", "zonder vermogens") staan niet meer in de sectiekoppen.
@@ -708,9 +708,9 @@ Dit is een afspraak voor het model, geen bouwwerk:
 - [x] Geen omschrijvingen meer bij domeinen, commissies, projecten en samenwerkingen (besluit Paul: data zo veel mogelijk in vaste velden, zonder willekeur). De regels weigeren een nieuwe of gewijzigde omschrijving; een oude mag alleen ongewijzigd blijven staan en gaat weg zodra je in de app opslaat.
 - [x] Opruimscript `npm run omschrijvingen:opruimen -- --droog` (`scripts/ruim-omschrijvingen-op.mjs`) haalt de oude omschrijvingen definitief weg; de droogtest toont de teksten.
 - [x] 198 regeltests groen (4 nieuwe voor CK-179); build groen. Niet in de browser gecontroleerd (inloggen doet Paul).
-- [ ] Paul: regels publiceren (`npm run regels:test`, later `regels:productie`) vóór de app live gaat; anders kan de app oude omschrijvingen niet weghalen bij opslaan.
+- [x] Paul: regels gepubliceerd in test en productie (26-11-2026).
 - [ ] Paul: `npm run omschrijvingen:opruimen -- --droog`, daarna zonder `--droog`, in test en daarna in productie.
-- [ ] Paul: testen op tst.
+- [x] Paul: getest op tst, tevreden.
 - [ ] Later (na het opruimen in test en productie): `omschrijving` uit `hasOnly` in de regels halen.
 
 ---
