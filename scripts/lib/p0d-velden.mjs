@@ -4,7 +4,8 @@
 
 export const PROFIEL_VELDEN = ['naam', 'afkorting', 'seizoen', 'logo']
 export const FUNCTIE_VELDEN = ['naam', 'volgorde']
-export const DOMEIN_VELDEN = ['type', 'naam', 'hashtag', 'omschrijving', 'bestuursfunctieId', 'icoon',
+// Geen omschrijving meer (CK-179): een oude telt als onbekend veld en mag weg
+export const DOMEIN_VELDEN = ['type', 'naam', 'hashtag', 'bestuursfunctieId', 'icoon',
   'volgorde', 'aantalVermogens', 'laatsteVermogenId', 'bevat']
 export const LOGO_MAX_TEKENS = 700000
 
@@ -53,7 +54,6 @@ export function controleerDomein(d) {
     ['type', v => ['pijler', 'domein', 'overkoepelend'].includes(v), 'pijler, domein of overkoepelend'],
     ['naam', v => nietLeeg(v, 200) && zonderStuurtekens(v), 'tekst van 1 tot 200 tekens, niet alleen spaties, zonder onzichtbare tekens'],
     ['hashtag', v => typeof v === 'string' && (v === '' || HASHTAG.test(v)), 'leeg, of # en max. 49 tekens zonder spatie'],
-    ['omschrijving', v => tekst(v, 500), 'tekst van max. 500 tekens'],
     ['bestuursfunctieId', v => tekst(v, 100), 'tekst van max. 100 tekens'],
     ['icoon', v => PICTOGRAMMEN.includes(v), 'leeg of een pictogram uit de vaste lijst'],
     ['volgorde', v => isInt(v) && v >= 1 && v <= 100000, 'geheel getal van 1 tot 100000'],

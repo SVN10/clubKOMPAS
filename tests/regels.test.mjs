@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
 import {
-  doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, writeBatch, setLogLevel,
+  doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, writeBatch, setLogLevel, deleteField,
 } from 'firebase/firestore'
 import {
   voegVermogenToe, hernoemVermogen, verplaatsVermogen, verwijderVermogen, controleerNaamVrij,
@@ -27,6 +27,7 @@ import {
   uitvoeringRegelFouten, uitvoeringWijzigingen, controleerUitvoeringEindstand, uitvoeringWijzigingTekst, bewaarActiviteit,
 } from '../src/activiteiten.js'
 import { planOmzetting, BLOKKEREND } from '../scripts/lib/uitvoeringen-omzetten.mjs'
+import { planOpruimen } from '../scripts/lib/omschrijvingen-opruimen.mjs'
 
 const CLUB = 'club1'
 // De bronlijst (CK-020-bron-vermogensoverzicht.md) bevat 58 namen (13 + 45), bevestigd tegen het HCA-overzicht v1.4.
@@ -369,7 +370,7 @@ describe('domeinen en de teller', () => {
   })
   test('pijler ↔ ondersteunend mag met vermogens; overkoepelend blijft bewerkbaar', async () => {
     await voegVermogenToe(db, CLUB, { naam: 'Ledenwerving', domeinId: 'leden' })
-    await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { type: 'pijler', naam: 'Leden', omschrijving: 'x' }))
+    await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { type: 'pijler', naam: 'Leden' }))
     await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'proj')), { naam: 'Projecten 2027' }))
   })
   test('na verwijderen van alle vermogens (teller 0) kan het domein weg', async () => {
@@ -398,14 +399,14 @@ describe('domeinen en de teller', () => {
 
 describe('bestaande bewerkingen (v0.6.0-app en scripts) blijven werken', () => {
   test('domein bewerken zoals de app (updateDoc zonder tellervelden), ook met teller > 0', async () => {
-    const data = { type: 'domein', naam: 'Leden', hashtag: '', omschrijving: 'Ledenzaken', bestuursfunctieId: 'vz', icoon: 'leden' }
+    const data = { type: 'domein', naam: 'Leden', hashtag: '', bestuursfunctieId: 'vz', icoon: 'leden' }
     await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), data))
     await voegVermogenToe(db, CLUB, { naam: 'Ledenwerving', domeinId: 'leden' })
     await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { ...data, naam: 'Leden & co' }))
     assert.equal((await lees('structuurelementen', 'leden')).aantalVermogens, 1)
   })
   test('domein toevoegen en een leeg domein verwijderen', async () => {
-    const ref = await addDoc(collection(db, ...pad('structuurelementen')), { type: 'pijler', naam: 'Test', hashtag: '', omschrijving: 'xx', bestuursfunctieId: 'vz', icoon: '', volgorde: 16 })
+    const ref = await addDoc(collection(db, ...pad('structuurelementen')), { type: 'pijler', naam: 'Test', hashtag: '', bestuursfunctieId: 'vz', icoon: '', volgorde: 16 })
     await assertSucceeds(deleteDoc(ref))
     await assertSucceeds(deleteDoc(doc(db, ...pad('structuurelementen', 'proj'))))
   })
@@ -744,8 +745,8 @@ describe('scripts: terminaluitvoer (beveiliging 3)', () => {
 })
 
 // ── Projecten en samenwerkingen (CK-046) ──
-const PROJECT = { naam: 'LED-scorebord', omschrijving: '', bestuursfunctieId: 'vz', status: 'in-voorbereiding', begindatum: '', einddatum: '', volgorde: 1 }
-const SAMENWERKING = { naam: 'KNHB', omschrijving: '', bestuursfunctieId: 'vz', volgorde: 1 }
+const PROJECT = { naam: 'LED-scorebord', bestuursfunctieId: 'vz', status: 'in-voorbereiding', begindatum: '', einddatum: '', volgorde: 1 }
+const SAMENWERKING = { naam: 'KNHB', bestuursfunctieId: 'vz', volgorde: 1 }
 const HCA_NAMEN = Object.values(HCA_ONDERDELEN).flatMap(l => l.map(([n]) => n))
 
 describe('CK-046 app-functies', () => {
@@ -796,11 +797,11 @@ describe('CK-046 regels: projecten en samenwerkingen slagen', () => {
   test('project toevoegen (lege velden), status en periode wijzigen, verwijderen', async () => {
     const { id, volgorde } = await assertSucceeds(voegOnderdeelToe(db, CLUB, 'projecten', { naam: 'Hoofdsponsoring 27/28+', status: 'lopend' }))
     assert.equal(volgorde, 1)
-    assert.deepEqual(await lees('projecten', id), { naam: 'Hoofdsponsoring 27/28+', omschrijving: '', bestuursfunctieId: '', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 })
+    assert.deepEqual(await lees('projecten', id), { naam: 'Hoofdsponsoring 27/28+', bestuursfunctieId: '', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 })
     const tweede = await voegOnderdeelToe(db, CLUB, 'projecten', { naam: 'Ver(nieuw)bouw', status: 'in-voorbereiding' })
     assert.equal(tweede.volgorde, 2)
     await assertSucceeds(bewerkOnderdeel(db, CLUB, 'projecten', id, {
-      naam: 'Hoofdsponsoring 27/28+', omschrijving: 'Café & co <b>', bestuursfunctieId: 'vz', status: 'afgerond', begindatum: '2026-09-01', einddatum: '2028-06-30',
+      naam: 'Hoofdsponsoring 27/28+', bestuursfunctieId: 'vz', status: 'afgerond', begindatum: '2026-09-01', einddatum: '2028-06-30',
     }))
     assert.equal((await lees('projecten', id)).status, 'afgerond')
     assert.equal((await lees('projecten', id)).volgorde, 1)
@@ -813,8 +814,8 @@ describe('CK-046 regels: projecten en samenwerkingen slagen', () => {
   })
   test('samenwerking toevoegen, bewerken en verwijderen', async () => {
     const { id } = await assertSucceeds(voegOnderdeelToe(db, CLUB, 'samenwerkingen', { naam: 'KNHB' }))
-    assert.deepEqual(await lees('samenwerkingen', id), { naam: 'KNHB', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
-    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'samenwerkingen', id, { naam: 'KNHB', omschrijving: 'De bond', bestuursfunctieId: 'vz' }))
+    assert.deepEqual(await lees('samenwerkingen', id), { naam: 'KNHB', bestuursfunctieId: '', volgorde: 1 })
+    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'samenwerkingen', id, { naam: 'KNHB', bestuursfunctieId: 'vz' }))
     assert.equal((await laadOnderdelen(db, CLUB, 'samenwerkingen')).length, 1)
     await assertSucceeds(verwijderOnderdeel(db, CLUB, 'samenwerkingen', id))
   })
@@ -829,15 +830,15 @@ describe('CK-046 regels: projecten en samenwerkingen slagen', () => {
     await assertSucceeds(b.commit())
     assert.equal((await laadOnderdelen(db, CLUB, 'projecten'))[0].naam, 'Buitenopslag (blaashal)')
   })
-  test('grenzen: naam 2 en 100 tekens, omschrijving 500, Latin-1', async () => {
+  test('grenzen: naam 2 en 100 tekens, Latin-1', async () => {
     const r = n => doc(db, ...pad('projecten', n))
     await assertSucceeds(setDoc(r('a'), { ...PROJECT, naam: 'xy' }))
-    await assertSucceeds(setDoc(r('b'), { ...PROJECT, naam: 'x'.repeat(100), omschrijving: 'o'.repeat(500) }))
+    await assertSucceeds(setDoc(r('b'), { ...PROJECT, naam: 'x'.repeat(100) }))
     await assertSucceeds(setDoc(r('c'), { ...PROJECT, naam: 'Ærø Øst / Ñandú (ÀÖØöøÿ)' }))
   })
   test('domein: bewerken zonder bevat blijft slagen, bevat zetten op projecten of samenwerkingen slaagt', async () => {
     const d = doc(db, ...pad('structuurelementen', 'proj'))
-    await assertSucceeds(updateDoc(d, { type: 'overkoepelend', naam: 'Projecten', omschrijving: 'Trajecten', bestuursfunctieId: 'vz', hashtag: '', icoon: '' }))
+    await assertSucceeds(updateDoc(d, { type: 'overkoepelend', naam: 'Projecten', bestuursfunctieId: 'vz', hashtag: '', icoon: '' }))
     await assertSucceeds(updateDoc(d, { bevat: 'projecten' }))
     await assertSucceeds(updateDoc(d, { naam: 'Trajecten' }))
     assert.equal((await lees('structuurelementen', 'proj')).bevat, 'projecten')
@@ -859,7 +860,7 @@ describe('CK-046 regels weigeren', () => {
   test('extra of ontbrekend veld', async () => {
     await assertFails(setDoc(r('projecten'), { ...PROJECT, contactpersoon: 'Jan' }))
     await assertFails(setDoc(r('projecten'), { ...PROJECT, periode: '2026–2028' }))
-    const { omschrijving, ...zonder } = PROJECT
+    const { status, ...zonder } = PROJECT
     await assertFails(setDoc(r('projecten'), zonder))
     const { einddatum, ...zonderEinde } = PROJECT
     await assertFails(setDoc(r('projecten'), zonderEinde))
@@ -898,9 +899,9 @@ describe('CK-046 regels weigeren', () => {
       await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, naam }), String(naam))
     }
   })
-  test('omschrijving, eigenaar en volgorde', async () => {
-    await assertFails(setDoc(r('projecten'), { ...PROJECT, omschrijving: 'o'.repeat(501) }))
-    await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, omschrijving: 'o'.repeat(501) }))
+  test('omschrijving, eerste aanspreekpunt en volgorde', async () => {
+    await assertFails(setDoc(r('projecten'), { ...PROJECT, omschrijving: '' }))
+    await assertFails(setDoc(r('samenwerkingen'), { ...SAMENWERKING, omschrijving: 'De bond' }))
     await assertFails(setDoc(r('projecten'), { ...PROJECT, bestuursfunctieId: 7 }))
     await assertFails(setDoc(r('projecten'), { ...PROJECT, bestuursfunctieId: 'x'.repeat(101) }))
     for (const volgorde of [0, 1.5, '1', 100001]) {
@@ -982,7 +983,7 @@ describe('CK-046 inrichtscript: plan', () => {
 })
 
 // ── Commissies (CK-041) ──
-const COMMISSIE = { naam: 'Kascommissie', omschrijving: '', bestuursfunctieId: 'vz', volgorde: 1 }
+const COMMISSIE = { naam: 'Kascommissie', bestuursfunctieId: 'vz', volgorde: 1 }
 
 describe('CK-041 commissies', () => {
   const r = (id = 'x') => doc(db, ...pad('commissies', id))
@@ -991,15 +992,15 @@ describe('CK-041 commissies', () => {
     assert.deepEqual(PLAAT_SOORTEN, ['projecten', 'samenwerkingen'])
     assert.ok(geldigOnderdeel('commissies', COMMISSIE))
     assert.ok(!geldigOnderdeel('commissies', { ...COMMISSIE, status: 'lopend' }))
-    assert.deepEqual(onderdeelVelden('commissies', { naam: 'X y', volgorde: 3 }), { naam: 'X y', omschrijving: '', bestuursfunctieId: '', volgorde: 3 })
+    assert.deepEqual(onderdeelVelden('commissies', { naam: 'X y', volgorde: 3 }), { naam: 'X y', bestuursfunctieId: '', volgorde: 3 })
   })
   test('toevoegen, bewerken, volgorde en verwijderen slagen', async () => {
     const { id, volgorde } = await assertSucceeds(voegOnderdeelToe(db, CLUB, 'commissies', { naam: 'Kascommissie' }))
     assert.equal(volgorde, 1)
-    assert.deepEqual(await lees('commissies', id), { naam: 'Kascommissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+    assert.deepEqual(await lees('commissies', id), { naam: 'Kascommissie', bestuursfunctieId: '', volgorde: 1 })
     const tweede = await voegOnderdeelToe(db, CLUB, 'commissies', { naam: 'Activiteitencommissie' })
     assert.equal(tweede.volgorde, 2)
-    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'commissies', id, { naam: 'Kascommissie', omschrijving: 'Controleert de jaarrekening', bestuursfunctieId: 'pm' }))
+    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'commissies', id, { naam: 'Kascommissie', bestuursfunctieId: 'pm' }))
     assert.equal((await lees('commissies', id)).volgorde, 1)
     await assertSucceeds(updateDoc(r(tweede.id), { volgorde: 1 }))
     await assertSucceeds(verwijderOnderdeel(db, CLUB, 'commissies', id))
@@ -1025,12 +1026,12 @@ describe('CK-041 commissies', () => {
     await assertSucceeds(setDoc(r('c'), COMMISSIE))
     await assertFails(updateDoc(r('c'), { leden: ['Jan'] }))
   })
-  test('weigert ongeldige naam, omschrijving, eigenaar en volgorde', async () => {
+  test('weigert ongeldige naam, omschrijving, eerste aanspreekpunt en volgorde', async () => {
     for (const naam of ['x', 'x'.repeat(101), ' Kas', 'Kas ', 'Kas  commissie', 'a_b', 'Feest 🎉', '-Kas', 42]) {
       await assertFails(setDoc(r(), { ...COMMISSIE, naam }), String(naam))
     }
-    await assertFails(setDoc(r(), { ...COMMISSIE, omschrijving: 'o'.repeat(501) }))
-    await assertSucceeds(setDoc(r('grens'), { ...COMMISSIE, naam: 'x'.repeat(100), omschrijving: 'o'.repeat(500) }))
+    await assertFails(setDoc(r(), { ...COMMISSIE, omschrijving: '' }))
+    await assertSucceeds(setDoc(r('grens'), { ...COMMISSIE, naam: 'x'.repeat(100) }))
     await assertFails(setDoc(r(), { ...COMMISSIE, bestuursfunctieId: 7 }))
     await assertFails(setDoc(r(), { ...COMMISSIE, bestuursfunctieId: 'x'.repeat(101) }))
     for (const volgorde of [0, 1.5, '1', 100001]) await assertFails(setDoc(r(), { ...COMMISSIE, volgorde }), String(volgorde))
@@ -1046,8 +1047,8 @@ import { controleerProfiel, controleerBestuursfunctie, controleerDomein, control
 import { bepaalOmgeving, PRODUCTIE_PROJECT_ID, FIREBASE_SLEUTELS } from '../src/omgeving.js'
 
 const P0D_PROFIEL = { naam: 'Testclub', afkorting: 'TST', seizoen: '2026–2027' }
-const P0D_PROJECT = { naam: 'Nieuw veld', omschrijving: '', bestuursfunctieId: 'vz', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 }
-const P0D_SAMEN = { naam: 'Gemeente', omschrijving: '', bestuursfunctieId: 'vz', volgorde: 1 }
+const P0D_PROJECT = { naam: 'Nieuw veld', bestuursfunctieId: 'vz', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 }
+const P0D_SAMEN = { naam: 'Gemeente', bestuursfunctieId: 'vz', volgorde: 1 }
 const png = n => `data:image/png;base64,${'A'.repeat(n)}`
 
 describe('P0d: alleen een beheerder schrijft', () => {
@@ -1182,7 +1183,7 @@ describe('P0d: alleen een beheerder schrijft', () => {
 describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelementen', () => {
   const profiel = () => doc(db, ...pad('instellingen', 'profiel'))
   const domein = (id = 'x') => doc(db, ...pad('structuurelementen', id))
-  const DOMEIN = { type: 'pijler', naam: 'Hockey', hashtag: '#HCASpeelt', omschrijving: 'Alles rond hockey', bestuursfunctieId: 'vz', icoon: 'hcaspeelt', volgorde: 1 }
+  const DOMEIN = { type: 'pijler', naam: 'Hockey', hashtag: '#HCASpeelt', bestuursfunctieId: 'vz', icoon: 'hcaspeelt', volgorde: 1 }
 
   test('clubprofiel: alleen naam, afkorting, seizoen en logo', async () => {
     await assertSucceeds(setDoc(profiel(), P0D_PROFIEL))
@@ -1245,16 +1246,16 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
 
   test('domein: toegestane velden en grenzen', async () => {
     await assertSucceeds(setDoc(domein('a'), DOMEIN))
-    await assertSucceeds(setDoc(domein('b'), { ...DOMEIN, naam: 'x'.repeat(200), omschrijving: 'o'.repeat(500), icoon: 'samenwerkingen', hashtag: `#${'h'.repeat(49)}` }))
+    await assertSucceeds(setDoc(domein('b'), { ...DOMEIN, naam: 'x'.repeat(200), icoon: 'samenwerkingen', hashtag: `#${'h'.repeat(49)}` }))
     await assertSucceeds(setDoc(domein('c'), { ...DOMEIN, hashtag: '' }))
     await assertSucceeds(setDoc(domein('d'), { type: 'overkoepelend', naam: 'Projecten', bevat: 'projecten' }))
   })
 
-  test('domein: weigert extra velden, lege naam, te lange omschrijving en ongeldige waarden', async () => {
+  test('domein: weigert extra velden, lege naam, een omschrijving en ongeldige waarden', async () => {
     const weiger = [
       { verantwoordelijke: 'Voorzitter' }, { leden: ['Jan'] }, { email: 'x@example.com' },
       { naam: '' }, { naam: '   ' }, { naam: 'x'.repeat(201) }, { naam: 7 },
-      { omschrijving: 'o'.repeat(501) }, { omschrijving: 5 },
+      { omschrijving: '' }, { omschrijving: 'Alles rond hockey' }, { omschrijving: 5 },
       { hashtag: 'HCASpeelt' }, { hashtag: '#HCA Speelt' }, { hashtag: '#' }, { hashtag: '#a#b' }, { hashtag: `#${'h'.repeat(50)}` },
       { icoon: 'i'.repeat(51) }, { icoon: 'stick' }, { icoon: 'HCASpeelt' }, { naam: 'Hockey\u202E' }, { naam: 'Hoc\u200Bkey' }, { naam: 'Hockey\n' }, { naam: 'a\nb\nc' }, { naam: 'Hoc\tkey\r\nclub' }, { naam: 'Hockey\u2028' }, { naam: '\uFEFFHockey' }, { naam: 'Hoc\u00ADkey' }, { naam: 'Hockey\u0085' }, { naam: 'Hoc\u2060key' }, { bestuursfunctieId: 'b'.repeat(101) }, { bestuursfunctieId: 3 },
       { volgorde: 0 }, { volgorde: 1.5 }, { volgorde: '1' }, { volgorde: 100001 },
@@ -1265,7 +1266,7 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
     await assertFails(setDoc(domein(), zonderNaam))
     const { type, ...zonderType } = DOMEIN
     await assertFails(setDoc(domein(), zonderType))
-    await assertFails(updateDoc(domein('leden'), { omschrijving: 'o'.repeat(501) }))
+    await assertFails(updateDoc(domein('leden'), { omschrijving: 'Nieuw' }))
     await assertFails(updateDoc(domein('leden'), { naam: ' ' }))
   })
 
@@ -1290,7 +1291,7 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
       ['bestuursfuncties', 'f', controleerBestuursfunctie, { naam: 'Secretaris', persoon: 'Jan' }],
       ['structuurelementen', 'd', controleerDomein, DOMEIN],
       ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, verantwoordelijke: 'x' }],
-      ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, omschrijving: 'o'.repeat(501) }],
+      ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, omschrijving: 'Oud' }],
       ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, hashtag: '#a b' }],
       ['structuurelementen', 'd', controleerDomein, { ...DOMEIN, naam: '' }],
       ['structuurelementen', 'd', controleerDomein, { type: 'overkoepelend', naam: 'P', bevat: 'samenwerkingen' }],
@@ -1313,13 +1314,13 @@ describe('P0d: veldcontrole op instellingen, bestuursfuncties en structuurelemen
       domeinen: [
         { id: 'a', data: DOMEIN },
         { id: 'b', data: { type: 'domein', naam: 'Oud', verantwoordelijke: 'Voorzitter' } },
-        { id: 'c', data: { type: 'domein', naam: 'Lang', omschrijving: 'o'.repeat(501) } },
+        { id: 'c', data: { type: 'domein', naam: 'Lang', hashtag: '#a b' } },
         { id: 'd', data: { type: 'domein', naam: 'Met id', id: 'nep' } },
       ],
     })
     assert.equal(r.afwijkingen.length, 2)
     assert.match(r.afwijkingen[0], /niet "beheerder"/)
-    assert.match(r.afwijkingen[1], /structuurelementen\/c .*omschrijving/)
+    assert.match(r.afwijkingen[1], /structuurelementen\/c .*hashtag/)
     assert.deepEqual(r.herstel.map(h => [h.pad, h.velden]), [['instellingen/profiel', ['kleur']], ['structuurelementen/b', ['verantwoordelijke']], ['structuurelementen/d', ['id']]])
     assert.deepEqual(controleerP0d({ rol: 'beheerder', profiel: null, functies: [], domeinen: [] }), { afwijkingen: [], herstel: [] })
   })
@@ -1444,7 +1445,7 @@ const gemeenschappelijk = async () => {
     await setDoc(doc(a, ...pad('leden', 'kees')), { rol: 'lid' })
     await setDoc(doc(a, ...pad('vermogens', 'v1')), { naam: 'Teamindeling', domeinId: 'speelt', volgorde: 1 })
     await setDoc(doc(a, ...pad('vermogens', 'v2')), { naam: 'Ledenwerving', domeinId: 'leden', volgorde: 1 })
-    await setDoc(doc(a, ...pad('commissies', 'c1')), { naam: 'Activiteitencommissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+    await setDoc(doc(a, ...pad('commissies', 'c1')), { naam: 'Activiteitencommissie', bestuursfunctieId: '', volgorde: 1 })
   })
   return env.authenticatedContext('kees').firestore()
 }
@@ -1590,7 +1591,7 @@ describe('CK-170 activiteiten: regels', () => {
 
   test('paden in een id: niet naar een andere club en niet naar een subdocument', async () => {
     await admin(async a => {
-      await setDoc(doc(a, 'clubs', 'club2', 'commissies', 'c9'), { naam: 'Vreemde commissie', omschrijving: '', bestuursfunctieId: '', volgorde: 1 })
+      await setDoc(doc(a, 'clubs', 'club2', 'commissies', 'c9'), { naam: 'Vreemde commissie', bestuursfunctieId: '', volgorde: 1 })
       await setDoc(doc(a, 'clubs', 'club2', 'vermogens', 'v9'), { naam: 'Vreemd vermogen', domeinId: 'x', volgorde: 1 })
       await setDoc(doc(a, ...pad('vermogens', 'v1', 'sub', 'x')), { iets: 1 })
       await setDoc(doc(a, ...pad('commissies', 'c1', 'sub', 'x')), { iets: 1 })
@@ -2203,5 +2204,49 @@ describe('CK-174 bewaarActiviteit: regels', () => {
     assert.equal((await lees('activiteiten', 'a1')).naam, 'Groot')
     const r40 = await assertSucceeds(bewaarActiviteit(db, CLUB, { velden: { ...ACTIVITEIT, naam: 'Veertig' }, regels: Array.from({ length: 40 }, (_, i) => nieuweRegel(`n${i}`, datum(i))) }))
     assert.equal((await uitvoeringenVan(r40.id)).length, 40)
+  })
+})
+
+// ── CK-179: geen omschrijvingen meer; een oude mag blijven staan tot het opruimscript hem weghaalt ──
+describe('CK-179: omschrijvingen', () => {
+  const OUD_PROJECT = { naam: 'LED-scorebord', omschrijving: 'Oud', bestuursfunctieId: 'vz', status: 'lopend', begindatum: '', einddatum: '', volgorde: 1 }
+  const OUDE_COMMISSIE = { naam: 'Kascommissie', omschrijving: 'Oud', bestuursfunctieId: '', volgorde: 1 }
+  beforeEach(async () => {
+    await admin(async a => {
+      await setDoc(doc(a, ...pad('projecten', 'p1')), OUD_PROJECT)
+      await setDoc(doc(a, ...pad('commissies', 'c1')), OUDE_COMMISSIE)
+      await updateDoc(doc(a, ...pad('structuurelementen', 'leden')), { omschrijving: 'Ledenzaken' })
+    })
+  })
+  test('een oude omschrijving blijft staan bij volgorde en andere velden wijzigen', async () => {
+    await assertSucceeds(updateDoc(doc(db, ...pad('projecten', 'p1')), { volgorde: 2 }))
+    await assertSucceeds(updateDoc(doc(db, ...pad('commissies', 'c1')), { naam: 'Kas commissie' }))
+    await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { volgorde: 4 }))
+  })
+  test('een oude omschrijving wijzigen of een nieuwe toevoegen wordt geweigerd', async () => {
+    await assertFails(updateDoc(doc(db, ...pad('projecten', 'p1')), { omschrijving: 'Nieuw' }))
+    await assertFails(updateDoc(doc(db, ...pad('commissies', 'c1')), { omschrijving: '' }))
+    await assertFails(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { omschrijving: 'Nieuw' }))
+    await assertFails(updateDoc(doc(db, ...pad('structuurelementen', 'vrijw')), { omschrijving: 'Nieuw' }))
+    await assertFails(setDoc(doc(db, ...pad('samenwerkingen', 's1')), { naam: 'KNHB', omschrijving: 'De bond', bestuursfunctieId: '', volgorde: 1 }))
+  })
+  test('opslaan zoals de app haalt de oude omschrijving weg', async () => {
+    await assertSucceeds(bewerkOnderdeel(db, CLUB, 'projecten', 'p1', { naam: 'LED-scorebord', bestuursfunctieId: 'vz', status: 'afgerond' }))
+    assert.ok(!('omschrijving' in await lees('projecten', 'p1')))
+    await assertSucceeds(updateDoc(doc(db, ...pad('structuurelementen', 'leden')), { type: 'domein', naam: 'Leden', hashtag: '', bestuursfunctieId: 'vz', icoon: 'leden', omschrijving: deleteField() }))
+    assert.ok(!('omschrijving' in await lees('structuurelementen', 'leden')))
+  })
+  test('opruimscript: plan en weghalen', async () => {
+    const lijsten = {
+      structuurelementen: [{ id: 'leden', naam: 'Leden', omschrijving: 'Ledenzaken' }, { id: 'vrijw', naam: 'Vrijwilligers' }],
+      commissies: [{ id: 'c1', ...OUDE_COMMISSIE }],
+      projecten: [{ id: 'p1', ...OUD_PROJECT }],
+      samenwerkingen: [],
+    }
+    const plan = planOpruimen(lijsten)
+    assert.deepEqual(plan.map(w => [w.lijst, w.id]), [['structuurelementen', 'leden'], ['commissies', 'c1'], ['projecten', 'p1']])
+    for (const w of plan) await assertSucceeds(updateDoc(doc(db, ...pad(w.lijst, w.id)), { omschrijving: deleteField() }))
+    assert.ok(!('omschrijving' in await lees('commissies', 'c1')))
+    assert.deepEqual(planOpruimen({}), [])
   })
 })

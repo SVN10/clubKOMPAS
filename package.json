@@ -15,7 +15,8 @@
     "vermogens:import": "node scripts/inrichten-vermogens-hca.mjs",
     "vermogens:controle": "node scripts/controleer-vermogens.mjs",
     "projecten:import": "node scripts/inrichten-projecten-samenwerkingen-hca.mjs",
-    "uitvoeringen:omzetten": "node scripts/zet-uitvoeringen-om.mjs"
+    "uitvoeringen:omzetten": "node scripts/zet-uitvoeringen-om.mjs",
+    "omschrijvingen:opruimen": "node scripts/ruim-omschrijvingen-op.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

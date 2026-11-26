@@ -21,8 +21,8 @@ const KOPPELING = {
 }
 
 const NIEUWE_DOMEINEN = [
-  { type: 'overkoepelend', naam: 'Projecten', omschrijving: 'Tijdelijke trajecten, zoals verbouw, LED-scorebord en buitenopslag.', icoon: 'projecten', volgorde: 14 },
-  { type: 'overkoepelend', naam: 'Samenwerkingen', omschrijving: 'Partners buiten de club: KNHB, gemeente, Junis, scholen en hulpdiensten.', icoon: 'samenwerkingen', volgorde: 15 },
+  { type: 'overkoepelend', naam: 'Projecten', icoon: 'projecten', volgorde: 14 },
+  { type: 'overkoepelend', naam: 'Samenwerkingen', icoon: 'samenwerkingen', volgorde: 15 },
 ]
 
 const { omgeving, projectId, firebaseConfig, droog: DROOG } = await startScript()

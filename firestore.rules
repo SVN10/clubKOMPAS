@@ -153,25 +153,31 @@ service cloud.firestore {
     function geldigePeriode(d) {
       return d.begindatum == '' || d.einddatum == '' || d.einddatum >= d.begindatum;
     }
+    // Omschrijvingen bestaan niet meer (CK-179). Een oude mag alleen ongewijzigd blijven staan tot het
+    // opruimscript hem weghaalt; een nieuwe of gewijzigde wordt geweigerd. Op create is resource null.
+    function geenNieuweOmschrijving(d) {
+      return !('omschrijving' in d)
+        || (resource != null && 'omschrijving' in resource.data && d.omschrijving == resource.data.omschrijving);
+    }
     function geldigeBasis(d) {
       return geldigeOnderdeelnaam(d.naam)
-        && tekstTot(d.omschrijving, 500)
+        && geenNieuweOmschrijving(d)
         && tekstTot(d.bestuursfunctieId, 100)
         && d.volgorde is int && d.volgorde >= 1 && d.volgorde <= 100000;
     }
     function geldigProject(d) {
       return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
-        && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
+        && d.keys().hasAll(['naam', 'bestuursfunctieId', 'status', 'begindatum', 'einddatum', 'volgorde'])
         && geldigeBasis(d)
         && d.status in ['in-voorbereiding', 'lopend', 'afgerond']
         && geldigeDatum(d.begindatum)
         && geldigeDatum(d.einddatum)
         && geldigePeriode(d);
     }
-    // Ook voor commissies (CK-041): naam, omschrijving, eigenaar, volgorde
+    // Ook voor commissies (CK-041): naam, eerste aanspreekpunt, volgorde
     function geldigeSamenwerking(d) {
       return d.keys().hasOnly(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
-        && d.keys().hasAll(['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde'])
+        && d.keys().hasAll(['naam', 'bestuursfunctieId', 'volgorde'])
         && geldigeBasis(d);
     }
     // Welk overkoepelend blok op de plaat de kaartjes toont: ontbreekt, of projecten/samenwerkingen
@@ -257,7 +263,7 @@ service cloud.firestore {
         && d.type in ['pijler', 'domein', 'overkoepelend']
         && nietLeeg(d.naam, 200) && geenStuurtekens(d.naam)
         && geldigeHashtag(d)
-        && optioneel(d, 'omschrijving', 500)
+        && geenNieuweOmschrijving(d)
         && optioneel(d, 'bestuursfunctieId', 100)
         && geldigIcoon(d)
         && geldigeVolgorde(d)

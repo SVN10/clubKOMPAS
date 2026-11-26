@@ -25,6 +25,7 @@ export function beheerVenster(houder) {
   const id = `beheer-venster-${++teller}`
   const dialoog = document.createElement('dialog')
   dialoog.className = 'beheer-venster'
+  dialoog.tabIndex = -1
   dialoog.setAttribute('aria-labelledby', `${id}-titel`)
   dialoog.innerHTML = `
     <div class="venster-kaart">
@@ -62,6 +63,9 @@ export function beheerVenster(houder) {
     if (!dialoog.open) {
       dialoog.showModal()
       dialoog.scrollTop = 0
+      // Geen veld vooraf kiezen of selecteren: de focus staat op het venster zelf, de gebruiker kiest een veld
+      // (Paul, 26-11-2026). Tab gaat daarna naar het eerste element in het venster.
+      dialoog.focus()
     }
     return lijf
   }

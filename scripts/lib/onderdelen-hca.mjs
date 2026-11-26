@@ -69,7 +69,7 @@ export function maakOnderdelenPlan({ domeinen, functies, projecten, samenwerking
         continue
       }
       volgorde += 1
-      const velden = onderdeelVelden(soort, { naam, omschrijving: '', bestuursfunctieId, status, begindatum: '', einddatum: '', volgorde })
+      const velden = onderdeelVelden(soort, { naam, bestuursfunctieId, status, begindatum: '', einddatum: '', volgorde })
       if (!geldigOnderdeel(soort, velden)) { fouten.push(`${cfg.enkel} "${naam}" heeft ongeldige velden.`); continue }
       nieuw.push({ soort, velden })
     }

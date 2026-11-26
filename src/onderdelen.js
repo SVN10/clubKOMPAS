@@ -2,7 +2,7 @@
 // Projecten en samenwerkingen vullen de overkoepelende domeinen op de plaat; commissies staan alleen in Beheer.
 // Pure functies met db en clubId als parameter: gedeeld door de app, het inrichtscript en de regeltests.
 
-import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore'
 import { maakNaamregels, normaliseerNaam, naamSleutel } from './vermogens.js'
 
 export const SOORT_ONDERDEEL = {
@@ -27,7 +27,6 @@ export const PLAAT_SOORTEN = Object.keys(SOORT_ONDERDEEL).filter(s => SOORT_ONDE
 export const STATUSSEN = [['in-voorbereiding', 'In voorbereiding'], ['lopend', 'Lopend'], ['afgerond', 'Afgerond']]
 export const STATUS_LABEL = Object.fromEntries(STATUSSEN)
 export const OP_PLAAT = new Set(['in-voorbereiding', 'lopend'])
-export const OMSCHRIJVING_MAX = 500
 
 const NAAMREGELS = maakNaamregels("&'.,()+/")
 export { normaliseerNaam, naamSleutel }
@@ -38,15 +37,6 @@ export function onderdeelnaamFout(naam) {
 
 export function geldigeOnderdeelnaam(naam) {
   return typeof naam === 'string' && NAAMREGELS.geldig(naam) && normaliseerNaam(naam) === naam
-}
-
-export function normaliseerOmschrijving(tekst) {
-  return String(tekst ?? '').trim()
-}
-
-export function omschrijvingFout(tekst) {
-  const n = [...tekst].length
-  return n > OMSCHRIJVING_MAX ? `Een omschrijving heeft maximaal ${OMSCHRIJVING_MAX} tekens. Nu zijn het er ${n}.` : ''
 }
 
 const DATUM = /^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/
@@ -79,9 +69,9 @@ export function datumFout(begin, eind) {
   return fout
 }
 
-// Alle velden die de regels verwachten, ook als lege tekst
-export function onderdeelVelden(soort, { naam, omschrijving = '', bestuursfunctieId = '', status, begindatum = '', einddatum = '', volgorde }) {
-  const velden = { naam, omschrijving, bestuursfunctieId }
+// Alle velden die de regels verwachten, ook als lege tekst. Geen omschrijving meer (CK-179: alleen vaste velden)
+export function onderdeelVelden(soort, { naam, bestuursfunctieId = '', status, begindatum = '', einddatum = '', volgorde }) {
+  const velden = { naam, bestuursfunctieId }
   if (SOORT_ONDERDEEL[soort].status) Object.assign(velden, { status, begindatum, einddatum })
   if (volgorde !== undefined) velden.volgorde = volgorde
   return velden
@@ -93,11 +83,10 @@ const tekstTot = (v, max) => typeof v === 'string' && v.length <= max
 export function geldigOnderdeel(soort, d) {
   const cfg = SOORT_ONDERDEEL[soort]
   if (!cfg || !d || typeof d !== 'object') return false
-  const sleutels = ['naam', 'omschrijving', 'bestuursfunctieId', 'volgorde', ...(cfg.status ? ['status', 'begindatum', 'einddatum'] : [])]
+  const sleutels = ['naam', 'bestuursfunctieId', 'volgorde', ...(cfg.status ? ['status', 'begindatum', 'einddatum'] : [])]
   const eigen = Object.keys(d).filter(k => k !== 'id')
   return eigen.length === sleutels.length && sleutels.every(k => eigen.includes(k))
     && geldigeOnderdeelnaam(d.naam)
-    && tekstTot(d.omschrijving, OMSCHRIJVING_MAX)
     && tekstTot(d.bestuursfunctieId, 100)
     && Number.isInteger(d.volgorde) && d.volgorde >= 1 && d.volgorde <= 100000
     && (!cfg.status || (Object.hasOwn(STATUS_LABEL, d.status) && geldigeDatum(d.begindatum) && geldigeDatum(d.einddatum)
@@ -137,7 +126,8 @@ export async function bewerkOnderdeel(db, clubId, soort, id, data) {
   const ref = doc(db, 'clubs', clubId, soort, id)
   if (!(await getDoc(ref)).exists()) throw { code: SOORT_ONDERDEEL[soort].wegCode }
   try {
-    await updateDoc(ref, onderdeelVelden(soort, data))
+    // Een oude omschrijving gaat bij opslaan weg (CK-179)
+    await updateDoc(ref, { ...onderdeelVelden(soort, data), omschrijving: deleteField() })
   } catch (e) {
     if (e?.code === 'not-found') throw { code: SOORT_ONDERDEEL[soort].wegCode }
     throw e

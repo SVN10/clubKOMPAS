@@ -695,6 +695,26 @@ Dit is een afspraak voor het model, geen bouwwerk:
 
 ---
 
+### CK-179 — Verbeterwensen per pagina en geen omschrijvingen meer
+**Status:** gebouwd (26 november 2026), nog niet gecommit · route groot (regels veranderen, opruimscript voor bestaande data) · wensen en besluiten van Paul in de sessie van 26-11-2026
+
+- [x] Domeinenoverzicht: elk kaartje toont alleen pictogram, naam, soort en eindverantwoordelijke. Het kerncijfer Vermogens, de vermogenstelling, de omschrijving en de hashtag zijn weg.
+- [x] Vermogensoverzicht: de tellingen ("12 vermogens", "zonder vermogens") staan niet meer in de sectiekoppen.
+- [x] Club: overzicht als tabel (logo, clubnaam, afkorting, seizoen) met een Bewerken-knop; bewerken in het venster, het logo hoort bij het clubprofiel en wordt pas bij Opslaan bewaard.
+- [x] Commissies, Projecten en Samenwerkingen: "Eigenaar" heet nu "Eerste aanspreekpunt" (het veld blijft `bestuursfunctieId`).
+- [x] Domeinen (beheer): de kolom "Vermogens" heet "Bevat"; een overkoepelend domein met `bevat` linkt naar Projecten of Samenwerkingen, met het aantal.
+- [x] Bij het openen van een venster staat de focus op het venster zelf; er wordt geen veld gekozen of geselecteerd.
+- [x] Waarden tonen als gewone tekst, niet als rond label (soort, status, activiteitsoort, voorbij/bezig).
+- [x] Geen omschrijvingen meer bij domeinen, commissies, projecten en samenwerkingen (besluit Paul: data zo veel mogelijk in vaste velden, zonder willekeur). De regels weigeren een nieuwe of gewijzigde omschrijving; een oude mag alleen ongewijzigd blijven staan en gaat weg zodra je in de app opslaat.
+- [x] Opruimscript `npm run omschrijvingen:opruimen -- --droog` (`scripts/ruim-omschrijvingen-op.mjs`) haalt de oude omschrijvingen definitief weg; de droogtest toont de teksten.
+- [x] 198 regeltests groen (4 nieuwe voor CK-179); build groen. Niet in de browser gecontroleerd (inloggen doet Paul).
+- [ ] Paul: regels publiceren (`npm run regels:test`, later `regels:productie`) vóór de app live gaat; anders kan de app oude omschrijvingen niet weghalen bij opslaan.
+- [ ] Paul: `npm run omschrijvingen:opruimen -- --droog`, daarna zonder `--droog`, in test en daarna in productie.
+- [ ] Paul: testen op tst.
+- [ ] Later (na het opruimen in test en productie): `omschrijving` uit `hasOnly` in de regels halen.
+
+---
+
 ### CK-177 — Rustiger beheerschermen en formulieren
 **Status:** ✅ live in v0.18.0 (26 november 2026); op verzoek van Paul live gezet vóór een test op tst · route klein (alleen vormgeving, geen regels of datamodel) · besluiten van Paul in de sessie van 26-11-2026
 

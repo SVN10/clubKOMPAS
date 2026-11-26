@@ -13,23 +13,23 @@ const PROFIEL = { naam: 'Testclub clubKOMPAS', afkorting: 'TST', seizoen: '2026�
 const FUNCTIES = ['Voorzitter', 'Secretaris', 'Penningmeester', 'Bestuurslid Hockey', 'Bestuurslid Accommodatie', 'Bestuurslid Hospitality']
 
 // Overgenomen uit inrichten-domeinen-hca.mjs (DOMEINEN) en inrichten-beheer-hca.mjs (NIEUWE_DOMEINEN, KOPPELING)
-// [volgorde, type, naam, bestuursfunctie, icoon, omschrijving]
+// [volgorde, type, naam, bestuursfunctie, icoon] (geen omschrijving meer, CK-179)
 const DOMEINEN = [
-  [1, 'domein', 'Bestuur', 'Voorzitter', 'bestuur', ''],
-  [2, 'domein', 'Leden', 'Secretaris', 'leden', 'Ledenwerving, ledenbeheer, ledenbehoud, oudleden en lief & leed.'],
-  [3, 'domein', 'Vrijwilligers', 'Secretaris', 'vrijwilligers', 'Werving, beheer en behoud van vrijwilligers.'],
-  [4, 'domein', 'Relaties', 'Penningmeester', 'relaties', 'Sponsoren, fondsen, donateurs en kledingpartnerschap.'],
-  [5, 'domein', 'Communicatie', 'Secretaris', 'communicatie', ''],
-  [6, 'pijler', '#HCASpeelt', 'Bestuurslid Hockey', 'hcaspeelt', ''],
-  [7, 'pijler', '#HCAGroeit', 'Bestuurslid Hockey', 'hcagroeit', ''],
-  [8, 'pijler', '#HCADoet', 'Voorzitter', 'hcadoet', ''],
-  [9, 'domein', 'Financiën', 'Penningmeester', 'financien', ''],
-  [10, 'domein', 'Accommodatie', 'Bestuurslid Accommodatie', 'accommodatie', 'Onderhoud en beveiliging van ons park en clubhuis.'],
-  [11, 'domein', 'Hospitality', 'Bestuurslid Hospitality', 'hospitality', 'Bar en keuken, catering, evenementen, verhuur en reserveringen.'],
-  [12, 'domein', 'Materiaal', 'Bestuurslid Accommodatie', 'materiaal', 'Spelmateriaal en kleding.'],
-  [13, 'domein', 'Digitaal', 'Voorzitter', 'digitaal', 'Website, licenties en systemen.'],
-  [14, 'overkoepelend', 'Projecten', 'Voorzitter', 'projecten', 'Tijdelijke trajecten, zoals verbouw, LED-scorebord en buitenopslag.'],
-  [15, 'overkoepelend', 'Samenwerkingen', 'Voorzitter', 'samenwerkingen', 'Partners buiten de club: KNHB, gemeente, Junis, scholen en hulpdiensten.'],
+  [1, 'domein', 'Bestuur', 'Voorzitter', 'bestuur'],
+  [2, 'domein', 'Leden', 'Secretaris', 'leden'],
+  [3, 'domein', 'Vrijwilligers', 'Secretaris', 'vrijwilligers'],
+  [4, 'domein', 'Relaties', 'Penningmeester', 'relaties'],
+  [5, 'domein', 'Communicatie', 'Secretaris', 'communicatie'],
+  [6, 'pijler', '#HCASpeelt', 'Bestuurslid Hockey', 'hcaspeelt'],
+  [7, 'pijler', '#HCAGroeit', 'Bestuurslid Hockey', 'hcagroeit'],
+  [8, 'pijler', '#HCADoet', 'Voorzitter', 'hcadoet'],
+  [9, 'domein', 'Financiën', 'Penningmeester', 'financien'],
+  [10, 'domein', 'Accommodatie', 'Bestuurslid Accommodatie', 'accommodatie'],
+  [11, 'domein', 'Hospitality', 'Bestuurslid Hospitality', 'hospitality'],
+  [12, 'domein', 'Materiaal', 'Bestuurslid Accommodatie', 'materiaal'],
+  [13, 'domein', 'Digitaal', 'Voorzitter', 'digitaal'],
+  [14, 'overkoepelend', 'Projecten', 'Voorzitter', 'projecten'],
+  [15, 'overkoepelend', 'Samenwerkingen', 'Voorzitter', 'samenwerkingen'],
 ]
 
 const { omgeving, projectId, firebaseConfig, droog: DROOG } = await startScript({ alleenTest: true })
@@ -69,11 +69,10 @@ FUNCTIES.forEach((naam, i) => {
   functieId.set(naam, ref.id)
   plan.push({ soort: 'Bestuursfunctie', naam, ref, nieuw: !id, data: { naam, volgorde: i + 1 } })
 })
-for (const [volgorde, type, naam, functie, icoon, omschrijving] of DOMEINEN) {
+for (const [volgorde, type, naam, functie, icoon] of DOMEINEN) {
   const id = domeinen.get(sleutel(naam))
   const ref = id ? doc(colD, id) : doc(colD)
   const data = { type, naam, icoon, volgorde, bestuursfunctieId: functieId.get(functie) }
-  if (omschrijving) data.omschrijving = omschrijving
   plan.push({ soort: 'Domein', naam, ref, nieuw: !id, data })
   domeinen.delete(sleutel(naam))
 }
