@@ -977,7 +977,7 @@ a.btn { text-decoration: none; }
 
 /* Club: één rij met logo, naam, afkorting en seizoen (26-11-2026) */
 #club-lijst { container-type: inline-size; }
-.club-rij { grid-template-columns: 64px minmax(140px, 1.4fr) minmax(90px, .6fr) minmax(140px, .8fr) 152px; }
+.club-rij { grid-template-columns: auto auto auto auto minmax(0, 1fr) 152px; } /* terugval zonder subgrid */
 .beheer-kop.club-rij > span:first-child { text-align: left; }   /* de logokolom is geen #-kolom: kop links, zoals het logo */
 .beheer-kop.club-rij > span { white-space: nowrap; }
 .logo-klein { display: block; height: 32px; width: auto; max-width: 64px; object-fit: contain; }
@@ -1166,6 +1166,14 @@ a.btn { text-decoration: none; }
 @container (min-width: 761px) {
   #activiteit-lijst .beheer-rij.activiteit-rij { grid-template-columns: subgrid; }
   #activiteit-lijst .activiteit-rij > :last-child { grid-column: -2 / -1; }
+}
+/* Club: hetzelfde raster als de andere tabellen (26-11-2026) */
+#club-lijst[role="table"] { display: grid; column-gap: 30px; row-gap: 0; grid-template-columns: auto auto auto auto minmax(0, 1fr) 152px; }
+#club-lijst[role="table"] > * { grid-column: 1 / -1; }
+#club-lijst .beheer-rij { column-gap: 30px; }
+@container (min-width: 561px) {
+  #club-lijst .beheer-rij.club-rij { grid-template-columns: subgrid; }
+  #club-lijst .club-rij > :last-child { grid-column: -2 / -1; }
 }
 
 /* Domeinen: aantal vermogens onder de naam (besluit 16) */
