@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.3] – 2026-11-27
+
+### Opgelost (CK-180: fixpakket uit de codereview v0.19.2)
+- Datumvelden: een getypt jaartal onder 100 (zoals 01-03-0027) geeft nu de melding voor een ongeldige datum. Eerst werd het ongemerkt 1927.
+- Keuzelijsten: een uitgeschakelde optie is ook met het toetsenbord (PageDown en Enter) niet meer te kiezen.
+- Een lokale build (niet op Vercel) die naar de echte clubdata wijst, stopt nu, behalve met `npx vite build --mode productie`. Een ontbrekende Firebase-waarde in `.env.test.local` stopt een lokale build ook. Builds op Vercel veranderen niet. 200 regeltests.
+
 ## [0.19.2] – 2026-11-26
 
 ### Gewijzigd
