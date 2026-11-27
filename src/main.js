@@ -922,11 +922,12 @@ function renderConfigFout(fout) {
     hint = 'Je wilde de echte clubdata? Ga naar <a class="tussen-link" href="https://clubkompas.svn10.nl">clubkompas.svn10.nl</a>.'
   } else if (fout === 'test-met-productie') {
     titel = 'Gestopt: deze testbuild wijst naar de echte clubdata'
-    alinea = `Het project in de configuratie is <code>${esc(projectId)}</code> (productie), terwijl het label een testomgeving aangeeft.`
+    alinea = `Het project in de configuratie is <code>${esc(projectId)}</code> (productie). Een lokale build mag dat alleen bewust, met <code>--mode productie</code>.`
     stappen = [
       `Controleer dat <code>.env.${esc(import.meta.env.MODE)}.local</code> de waarden van het testproject bevat.`,
       'Bouw opnieuw (<code>npx vite build --mode test</code>) en laad deze pagina opnieuw.',
     ]
+    hint = 'Bewust een build tegen de echte clubdata? Gebruik <code>npx vite build --mode productie</code>.'
   } else if (fout === 'gemengde-config' && import.meta.env.DEV) {
     titel = 'Gestopt: de configuratie is onvolledig of gemengd'
     alinea = `In <code>${bestand}</code> ontbreekt een van de zes Firebase-waarden, of de waarden horen niet bij hetzelfde project (<code>${esc(projectId)}</code>). Een ontbrekende waarde vult Vite aan uit het oude bestand <code>.env</code> (productie).`

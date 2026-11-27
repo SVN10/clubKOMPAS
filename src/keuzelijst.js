@@ -176,7 +176,7 @@ function verbeterSelect(select) {
   }
   function kies(i) {
     const { optie } = opties[i] || {}
-    if (!optie) return
+    if (!optie || optie.disabled) return
     const anders = !optie.selected
     PROTO_SELECT.set.call(select, optie.value)
     toonWaarde()
@@ -227,7 +227,8 @@ function leesTekst(t) {
   let m = /^(\d{1,2})[-/. ](\d{1,2})[-/. ](\d{4})$/.exec(s) || /^(\d{2})(\d{2})(\d{4})$/.exec(s)
   if (!m) return null
   const d = new Date(+m[3], +m[2] - 1, +m[1])
-  return d.getDate() === +m[1] && d.getMonth() === +m[2] - 1 ? naarIso(d) : null
+  // Ook het jaar controleren: new Date() maakt van de jaren 0-99 de jaren 1900-1999
+  return d.getFullYear() === +m[3] && d.getDate() === +m[1] && d.getMonth() === +m[2] - 1 ? naarIso(d) : null
 }
 
 function datumLabelTekst(veld) {

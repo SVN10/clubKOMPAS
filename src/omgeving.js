@@ -36,10 +36,15 @@ export function bepaalOmgeving({ dev, modus, label, vercelEnv, config, modusSleu
     || config.appId.split(':')[1] !== config.messagingSenderId
   const modusMist = modus === 'test' && FIREBASE_SLEUTELS.some(s => !modusSleutels.includes(s))
   const nietLive = !dev && vercelEnv !== 'production'
+  // Lokale build (vite build, niet op Vercel): net als lokaal in dev mag productie alleen bewust,
+  // met --mode productie, en een ontbrekende sleutel in het modusbestand stopt (CK-180, L1)
+  const lokaleBuild = !dev && vercelEnv === ''
 
   const configFout = !projectId ? 'geen-config'
     : dev && isProd && modus !== 'productie' ? 'productie-lokaal'
     : dev && (onvolledig || modusMist) ? 'gemengde-config'
+    : lokaleBuild && isProd && modus !== 'productie' ? 'test-met-productie'
+    : lokaleBuild && modusMist ? 'gemengde-config'
     : nietLive && isProd && (soort === 'test' || soort === 'ontwikkel') ? 'test-met-productie'
     : nietLive && onvolledig ? 'gemengde-config'
     : null

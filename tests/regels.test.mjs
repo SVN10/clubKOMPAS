@@ -1427,10 +1427,20 @@ describe('omgevingsguard', () => {
     assert.equal(g({ vercelEnv: 'preview', label: 'test', config: config(TEST, { appId: '1:999:web:abc' }) }).configFout, 'gemengde-config')
   })
   test('lokale build (vite build, geen Vercel): label bepaalt test of ontwikkel; afwijkend label geeft alleen een waarschuwing', () => {
-    assert.equal(g({ label: 'productie', config: config(PRODUCTIE_PROJECT_ID) }).soort, 'productie')
+    const bewust = g({ modus: 'productie', label: 'productie', config: config(PRODUCTIE_PROJECT_ID) })
+    assert.deepEqual([bewust.soort, bewust.configFout], ['productie', null])
     assert.equal(g({ label: 'test', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
     const r = g({ label: 'productie', config: config(TEST) })
     assert.deepEqual([r.soort, r.labelWijktAf, r.configFout], ['test', true, null])
+  })
+  test('lokale build met het productieproject zonder --mode productie: stopt (CK-180, L1)', () => {
+    assert.equal(g({ label: 'productie', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
+    assert.equal(g({ label: '', config: config(PRODUCTIE_PROJECT_ID) }).configFout, 'test-met-productie')
+    assert.equal(g({ modus: 'test', label: '', config: config(PRODUCTIE_PROJECT_ID), modusSleutels: FIREBASE_SLEUTELS }).configFout, 'test-met-productie')
+  })
+  test('lokale build in modus test met een ontbrekende sleutel in het modusbestand: stopt (CK-180, L1)', () => {
+    assert.equal(g({ modus: 'test', label: 'test', config: config(TEST), modusSleutels: FIREBASE_SLEUTELS.slice(1) }).configFout, 'gemengde-config')
+    assert.equal(g({ modus: 'test', label: 'test', config: config(TEST), modusSleutels: FIREBASE_SLEUTELS }).configFout, null)
   })
 })
 

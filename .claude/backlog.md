@@ -768,11 +768,11 @@ Bij een toegankelijkheidscontrole of klacht dit besluit opnieuw bekijken.
 Rapporten: `.claude/reports/APP-0.19.2-codereview.md` (vijf bevindingen in code die er al was) en `APP-0.19.2-beveiliging.md` (geen kritieke, hoge of middelzware punten, 3 lage: L1 nieuw, L2 staat al bij CK-052, L3 is geaccepteerd).
 
 ### CK-180 — Fixpakket uit de codereview v0.19.2
-**Status:** nog in te plannen · route klein · toegevoegd op 27 november 2026
+**Status:** gebouwd (27-11-2026) · route klein · open: Paul test op tst · toegevoegd op 27 november 2026
 
-- [ ] Na een time-out (15 s) zegt de app "mislukt", terwijl het opslaan toch kan lukken. Bij opnieuw opslaan volgt dan een verwarrende melding over een dubbele naam of datum (`src/main.js:481`, `metTijdslimiet`)
-- [ ] Twee beheerders die tegelijk iets toevoegen of verplaatsen, krijgen hetzelfde volgnummer (`src/vermogens.js:145` en `:185`, `src/onderdelen.js:139`)
-- [ ] Herordenen loopt vast bij meer dan 500 items, door de grens van één batch (`src/main.js:214`, `schrijfVolgorde`)
-- [ ] Klein: in de keuzelijst kun je met PageDown en Enter een uitgeschakelde optie kiezen (`src/keuzelijst.js:177` en `:198`). Heeft nu geen gevolg
-- [ ] Klein: in de datumkiezer wordt een jaartal onder 100 ongemerkt 19xx (`src/keuzelijst.js:229`)
-- [ ] Beveiliging L1 (laag): een lokale build (`vite build`, niet op Vercel) met productiegegevens start als "Productie", zonder balk en zonder stop, als `VITE_OMGEVING` leeg of `productie` is (`src/omgeving.js:25` en `:37-43`). Oplossing: bij een lokale build ook de modus en de sleutelcontrole laten meetellen, plus twee tests. **Beslissing Paul:** mag een gewone lokale `npm run build` tegen productie dan ook stoppen? Een bestaande test moet daarvoor worden aangepast
+- [x] ~~Na een time-out (15 s) zegt de app "mislukt", terwijl het opslaan toch kan lukken~~ (`src/main.js:481`). Geen wijziging nodig (27-11-2026): de melding bij `tijd-op` zegt al dat je eerst moet kijken of je wijziging is opgeslagen, voordat je het opnieuw probeert
+- [x] ~~Twee beheerders die tegelijk iets toevoegen, krijgen hetzelfde volgnummer~~ (`src/vermogens.js:145`). Geen wijziging nodig (27-11-2026): de pijlknoppen wisselen op plaats en nummeren de hele lijst opnieuw van 1 tot n. Een dubbel nummer verdwijnt dus bij de eerste keer verschuiven, en tot dan staan de twee items op naam
+- [x] ~~Herordenen loopt vast bij meer dan 500 items~~ (`src/main.js:214`). Geen wijziging nodig (27-11-2026): een pijlknop wisselt twee buren en schrijft alleen de nummers die veranderen, meestal 2. Meer dan 500 schrijfacties komen in de praktijk niet voor
+- [x] Klein: in de keuzelijst kun je met PageDown en Enter een uitgeschakelde optie kiezen. Opgelost (27-11-2026): `kies()` slaat een uitgeschakelde optie over (`src/keuzelijst.js:179`)
+- [x] Klein: in de datumkiezer wordt een jaartal onder 100 ongemerkt 19xx. Opgelost (27-11-2026): `leesTekst` controleert ook het jaar, dus 01-03-0027 geeft nu de melding voor een ongeldige datum (`src/keuzelijst.js:231`)
+- [x] Beveiliging L1 (laag): een lokale build met productiegegevens startte als "Productie", zonder balk en zonder stop. Opgelost (27-11-2026, besluit Paul: laten stoppen): een lokale build (niet op Vercel) tegen productie stopt nu met het scherm "Gestopt: deze testbuild wijst naar de echte clubdata", behalve met `--mode productie`. Een ontbrekende sleutel in `.env.test.local` stopt ook. Builds op Vercel veranderen niet (`src/omgeving.js`, 4 nieuwe tests, 200/200 groen)
