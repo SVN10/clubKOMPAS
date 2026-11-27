@@ -761,3 +761,18 @@ Bij een toegankelijkheidscontrole of klacht dit besluit opnieuw bekijken.
 - [ ] De soort `termijn` ("Termijn", voor deadlines en vaste momenten) komt in `ACTIVITEIT_SOORTEN` (`src/activiteiten.js`) en in de vaste lijst van `geldigeActiviteit` (`firestore.rules`). Er komen regeltests bij.
 - [ ] De regels gaan eerst naar test en daarna naar productie, vóór de app.
 - [ ] Later, bij P2: een termijn koppelen aan een werkproces.
+
+---
+
+## Uit de codereview van src/ v0.19.2 (27 november 2026)
+Rapporten: `.claude/reports/APP-0.19.2-codereview.md` (vijf bevindingen in code die er al was) en `APP-0.19.2-beveiliging.md` (geen kritieke, hoge of middelzware punten, 3 lage: L1 nieuw, L2 staat al bij CK-052, L3 is geaccepteerd).
+
+### CK-180 — Fixpakket uit de codereview v0.19.2
+**Status:** nog in te plannen · route klein · toegevoegd op 27 november 2026
+
+- [ ] Na een time-out (15 s) zegt de app "mislukt", terwijl het opslaan toch kan lukken. Bij opnieuw opslaan volgt dan een verwarrende melding over een dubbele naam of datum (`src/main.js:481`, `metTijdslimiet`)
+- [ ] Twee beheerders die tegelijk iets toevoegen of verplaatsen, krijgen hetzelfde volgnummer (`src/vermogens.js:145` en `:185`, `src/onderdelen.js:139`)
+- [ ] Herordenen loopt vast bij meer dan 500 items, door de grens van één batch (`src/main.js:214`, `schrijfVolgorde`)
+- [ ] Klein: in de keuzelijst kun je met PageDown en Enter een uitgeschakelde optie kiezen (`src/keuzelijst.js:177` en `:198`). Heeft nu geen gevolg
+- [ ] Klein: in de datumkiezer wordt een jaartal onder 100 ongemerkt 19xx (`src/keuzelijst.js:229`)
+- [ ] Beveiliging L1 (laag): een lokale build (`vite build`, niet op Vercel) met productiegegevens start als "Productie", zonder balk en zonder stop, als `VITE_OMGEVING` leeg of `productie` is (`src/omgeving.js:25` en `:37-43`). Oplossing: bij een lokale build ook de modus en de sleutelcontrole laten meetellen, plus twee tests. **Beslissing Paul:** mag een gewone lokale `npm run build` tegen productie dan ook stoppen? Een bestaande test moet daarvoor worden aangepast
